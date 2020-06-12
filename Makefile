@@ -21,11 +21,11 @@ else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 
-DIRS=lib common $(ARCHDIRS) backend cfrontend driver debug\
+DIRS=lib common $(ARCHDIRS) backend midend midend/libSSA cfrontend driver debug\
   flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight \
   cparser cparser/validator
 
-RECDIRS=lib common $(ARCHDIRS) backend cfrontend driver flocq exportclight cparser
+RECDIRS=lib common $(ARCHDIRS) backend midend cfrontend driver flocq exportclight cparser
 
 COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) compcert.$(d))
 
@@ -59,6 +59,10 @@ VLIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
   Iteration.v Integers.v Archi.v Fappli_IEEE_extra.v Floats.v \
   Parmov.v UnionFind.v Wfsimpl.v \
   Postorder.v FSetAVLplus.v IntvSets.v Decidableplus.v BoolEqual.v
+
+# General-purpose libraries for the SSA midend (in midend/libSSA)
+
+LIB2=TrMaps2.v Maps2.v Utils.v RTLutils.v
 
 # Parts common to the front-ends and the back-end (in common/)
 
@@ -97,6 +101,26 @@ BACKEND=\
   Bounds.v Stacklayout.v Stacking.v Stackingproof.v \
   Asm.v Asmgen.v Asmgenproof0.v Asmgenproof1.v Asmgenproof.v
 
+# Middle-end modules (in midend/, midend/SSA, $(LIB)/)
+MIDEND=\
+  DLib.v Bijection.v \
+  RTLt.v RTLdfs.v RTLdfsproof.v \
+  SSA.v SSAutils.v SSAvalid.v SSAvalidspec.v \
+  Utilsvalidproof.v SSAvalidproof.v SSAvalidprop.v SSAvalidator_proof.v \
+  RTLnorm.v RTLnormspec.v RTLnormproof.v \
+  RTLutils.v LightLive.v KildallComp.v \
+  Path.v Dom.v DomCompute.v DomTest.v \
+  SSAinv.v Dsd.v \
+  Opt.v OptInv.v \
+  GVNopt.v  GVNoptproof.v GVNoptProp.v \
+  CSSAutils.v CSSApar.v CSSApardef.v CSSApargen.v \
+  CSSApargenspec.v CSSApargenwf.v CSSApargenproof.v \
+  CSSAval.v CSSAlive.v CSSAninterf.v CSSAcoalescing.v \
+  RTLpar.v RTLpargen.v RTLparcleanup.v \
+  RTLdpar.v RTLdparspec.v RTLdparproof.v \
+  ValueDomainSSA.v ValueAOpSSA.v \
+  SCCPopt.v SCCPoptProp.v SCCPoptproof.v
+
 # C front-end modules (in cfrontend/)
 
 CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Ctyping.v Cstrategy.v Cexec.v \
@@ -122,7 +146,7 @@ DRIVER=Compopts.v Compiler.v Complements.v
 
 # All source files
 
-FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ) \
+FILES=$(VLIB) $(LIB2) $(COMMON) $(BACKEND) $(MIDEND) $(CFRONTEND) $(DRIVER) $(FLOCQ) \
   $(PARSERVALIDATOR) $(PARSER)
 
 # Generated source files
@@ -259,6 +283,7 @@ endif
 clean:
 	rm -f $(patsubst %, %/*.vo, $(DIRS))
 	rm -f $(patsubst %, %/.*.aux, $(DIRS))
+	rm -f $(patsubst %, %/*~, $(DIRS))
 	rm -rf doc/html doc/*.glob
 	rm -f doc/coq2html.ml doc/coq2html doc/*.cm? doc/*.o
 	rm -f driver/Version.ml
@@ -273,6 +298,16 @@ clean:
 distclean:
 	$(MAKE) clean
 	rm -f Makefile.config
+
+
+##### SSA-midend testing ######
+testclean:
+	$(MAKE) -C test clean
+
+ssa_on: testclean
+	$(MAKE) SSA_MODE='-ssa on' -C test all
+##### end of SSA-midend testing ######
+
 
 check-admitted: $(FILES)
 	@grep -w 'admit\|Admitted\|ADMITTED' $^ || echo "Nothing admitted."

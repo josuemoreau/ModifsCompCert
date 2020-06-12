@@ -47,12 +47,29 @@ let compile_c_file sourcename ifile ofile =
   set_dest PrintLTL.destination option_dltl ".ltl";
   set_dest PrintMach.destination option_dmach ".mach";
   set_dest AsmToJSON.destination option_sdump !sdump_suffix;
+
+  (* Pretty printers for SSA stages *)
+  set_dest PrintRTLt.destination_drtlnorm option_drtlnorm ".rtl.norm";
+  set_dest PrintSSA.destination_ssa option_dssa ".ssa";
+
   (* Parse the ast *)
   let csyntax = parse_c_file sourcename ifile in
+
+  (* Whether to use SSA mode or not *)
+  let compiler_wwo_ssa = match !ssa_mode with
+    | "off" ->
+       option_dssa := false ;
+       option_drtlnorm := false ;
+       option_ddssa := false ;
+       Compiler.transf_c_program
+    | "on" ->
+       Compiler.transf_c_program_via_SSA
+    | _ -> assert false
+  in
   (* Convert to Asm *)
   let asm =
     match Compiler.apply_partial
-               (Compiler.transf_c_program csyntax)
+               (compiler_wwo_ssa csyntax)
                Asmexpand.expand_program with
     | Errors.OK asm ->
         asm
@@ -230,11 +247,15 @@ Code generation options: (use -fno-<opt> to turn off -f<opt>)
   -dclight       Save generated Clight in <file>.light.c
   -dcminor       Save generated Cminor in <file>.cm
   -drtl          Save RTL at various optimization points in <file>.rtl.<n>
+  -drtlnorm      Save unoptimized normalized generated RTL in <file>.rtl.norm
+  -dssa          Save SSA at various optimization points in <file>.ssa.<n>
+  -ddssa         Save generated RTL from SSA form in <file>.rtl.dssa
   -dltl          Save LTL after register allocation in <file>.ltl
   -dmach         Save generated Mach code in <file>.mach
   -dasm          Save generated assembly in <file>.s
   -dall          Save all generated intermediate files in <file>.<ext>
   -sdump         Save info for post-linking validation in <file>.json
+
 General options:
   -stdlib <dir>  Set the path of the Compcert run-time library
   -v             Print external commands before invoking them
@@ -251,7 +272,11 @@ General options:
   -trace         Have the interpreter produce a detailed trace of reductions
   -random        Randomize execution order
   -all           Simulate all possible execution orders
+|} ^
+  {|SSA mode:
+  -ssa <mode>    Set the ssa mode to [on,off]
 |}
+
 
 let print_usage_and_exit () =
   printf "%s" usage_string; exit 0
@@ -362,6 +387,9 @@ let cmdline_actions =
   Exact "-dclight", Set option_dclight;
   Exact "-dcminor", Set option_dcminor;
   Exact "-drtl", Set option_drtl;
+  Exact "-drtlnorm", Set option_drtlnorm;
+  Exact "-dssa", Set option_dssa;
+  Exact "-ddssa", Set option_ddssa;
   Exact "-dltl", Set option_dltl;
   Exact "-dalloctrace", Set option_dalloctrace;
   Exact "-dmach", Set option_dmach;
@@ -373,6 +401,9 @@ let cmdline_actions =
     option_dclight := true;
     option_dcminor := true;
     option_drtl := true;
+    option_drtlnorm := true;
+    option_dssa := true;
+    option_ddssa := true;
     option_dltl := true;
     option_dalloctrace := true;
     option_dmach := true;
@@ -380,9 +411,12 @@ let cmdline_actions =
   Exact "-sdump", Set option_sdump;
   Exact "-sdump-suffix", String (fun s -> option_sdump := true; sdump_suffix:= s);
   Exact "-sdump-folder", String (fun s -> AsmToJSON.sdump_folder := s);
+  Exact "-full_inlining", Set option_full_inlining;
+
 (* General options *)
   Exact "-v", Set option_v;
   Exact "-stdlib", String(fun s -> stdlib_path := s);
+  Exact "-ssa", String (fun s -> ssa_mode := s ) ;
   Exact "-timings", Set option_timings;] @
 (* Diagnostic options *)
   Cerrors.warning_options @

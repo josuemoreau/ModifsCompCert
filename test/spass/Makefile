@@ -1,7 +1,7 @@
 include ../../Makefile.config
 
 CC=../../ccomp 
-CFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dparse -dclight -dasm -fstruct-return
+CFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dparse -dclight -dasm -fstruct-return $(SSA_MODE)
 
 SRCS=analyze.c clause.c clock.c closure.c cnf.c component.c                 \
   condensing.c context.c defs.c dfgparser.c dfgscanner.c doc-proof.c        \
@@ -17,6 +17,10 @@ all: spass
 spass: $(SRCS:.c=.o)
 	$(CC) $(CFLAGS) -o spass $(SRCS:.c=.o) $(LIBMATH)
 
+ssa:
+	$(MAKE) clean
+	$(MAKE) SSA_MODE='-ssa on' spass
+
 clean:
 	rm -f spass
 	rm -f *.o *.s *.parsed.c *.light.c *.sdump
@@ -24,8 +28,8 @@ clean:
 test:
 	$(SIMU) ./spass small_problem.dfg | grep 'Proof found'
 
-TIME=xtime -o /dev/null     # Xavier's hack
-#TIME=time >/dev/null       # Otherwise
+# TIME=xtime -o /dev/null     # Xavier's hack
+TIME=time >/dev/null       # Otherwise
 
 bench:
 	@echo -n "spass: "; $(TIME) ./spass problem.dfg

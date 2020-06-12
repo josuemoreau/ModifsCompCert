@@ -1,9 +1,10 @@
 include ../../Makefile.config
 
 CC=../../ccomp 
-CFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dparse -dclight -dasm -fstruct-return
+CFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dparse -dclight -dasm -fstruct-return $(SSA_MODE)
 LIBS=$(LIBMATH)
-TIME=xtime
+# TIME=xtime -o /dev/null -mintime 1.0  # Xavier's hack
+TIME=time >/dev/null                    # Otherwise
 
 OBJS=memory.o gmllexer.o gmlparser.o eval.o \
   arrays.o vector.o matrix.o object.o intersect.o surface.o light.o \

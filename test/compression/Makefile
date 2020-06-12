@@ -1,9 +1,10 @@
 include ../../Makefile.config
 
 CC=../../ccomp 
-CFLAGS=$(CCOMPOPTS) -U__GNUC__ -stdlib ../../runtime -dclight -dasm
+CFLAGS=$(CCOMPOPTS) -U__GNUC__ -stdlib ../../runtime -dclight -dasm $(SSA_MODE)
 LIBS=
-TIME=xtime -o /dev/null -mintime 1.0
+# TIME=xtime -o /dev/null -mintime 1.0  # Xavier's hack
+TIME=time >/dev/null                    # Otherwise
 
 EXE=arcode lzw lzss
 
