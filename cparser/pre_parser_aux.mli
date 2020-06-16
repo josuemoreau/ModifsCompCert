@@ -2,7 +2,7 @@
 (*                                                                     *)
 (*              The Compcert verified compiler                         *)
 (*                                                                     *)
-(*          Xavier Leroy, INRIA Paris-Rocquencourt                     *)
+(*          Jacques-Henri Jourdan, INRIA Paris-Rocquencourt            *)
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
@@ -13,8 +13,16 @@
 (*                                                                     *)
 (* *********************************************************************)
 
-val integer_expr : Env.t -> C.exp -> int64 option
-val constant_expr : Env.t -> C.typ -> C.exp -> C.constant option
-val normalize_int : int64 -> C.ikind -> int64
-val is_constant_init: Env.t -> C.init -> bool
-val is_constant_expr: Env.t -> C.exp -> bool
+type identifier_type =
+  | VarId
+  | TypedefId
+  | OtherId
+
+(* Applying once this functions saves the current context, and
+   applying it the second time restores it. *)
+val save_context : (unit -> (unit -> unit)) ref
+
+(* Change the context by changing an identifier to be a varname or a
+   typename *)
+val declare_varname : (string -> unit) ref
+val declare_typename : (string -> unit) ref

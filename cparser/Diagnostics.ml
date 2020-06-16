@@ -90,6 +90,10 @@ type warning_type =
   | Inline_asm_sdump
   | Unused_variable
   | Unused_parameter
+  | Wrong_ais_parameter
+  | Unused_ais_parameter
+  | Ignored_attributes
+  | Extern_after_definition
 
 (* List of active warnings *)
 let active_warnings: warning_type list ref = ref [
@@ -110,6 +114,10 @@ let active_warnings: warning_type list ref = ref [
   Return_type;
   Literal_range;
   Inline_asm_sdump;
+  Wrong_ais_parameter;
+  Unused_ais_parameter;
+  Ignored_attributes;
+  Extern_after_definition;
 ]
 
 (* List of errors treated as warning *)
@@ -139,6 +147,10 @@ let string_of_warning = function
   | Inline_asm_sdump -> "inline-asm-sdump"
   | Unused_variable -> "unused-variable"
   | Unused_parameter -> "unused-parameter"
+  | Wrong_ais_parameter -> "wrong-ais-parameter"
+  | Unused_ais_parameter -> "unused-ais-parameter"
+  | Ignored_attributes -> "ignored-attributes"
+  | Extern_after_definition -> "extern-after-definition"
 
 (* Activate the given warning *)
 let activate_warning w () =
@@ -184,7 +196,10 @@ let wall () =
     CompCert_conformance;
     Inline_asm_sdump;
     Unused_variable;
-    Unused_parameter
+    Unused_parameter;
+    Wrong_ais_parameter;
+    Ignored_attributes;
+    Extern_after_definition;
   ]
 
 let wnothing () =
@@ -214,6 +229,10 @@ let werror () =
     CompCert_conformance;
     Inline_asm_sdump;
     Unused_variable;
+    Wrong_ais_parameter;
+    Unused_ais_parameter;
+    Ignored_attributes;
+    Extern_after_definition;
   ]
 
 (* Generate the warning key for the message *)
@@ -299,11 +318,13 @@ let parse_loc_format s =
 
 (* Print the location or ccomp for the case of unknown loc *)
 let pp_loc fmt (filename,lineno) =
-  if filename <> "" && lineno <> -10 && filename <> "cabs loc unknown" then
+  let lineno = if lineno = -10 then "" else
     match !diagnostics_format with
-    | Default -> fprintf fmt "%t%s:%d:%t " bc filename lineno rsc
-    | MSVC -> fprintf fmt "%t%s(%d):%t " bc filename lineno rsc
-    | Vi -> fprintf fmt "%t%s +%d:%t " bc filename lineno rsc
+      | Default -> sprintf ":%d" lineno
+      | MSVC -> sprintf "(%d)" lineno
+      | Vi -> sprintf " +%d" lineno in
+  if filename <> "" && filename <> "cabs loc unknown" then
+    fprintf fmt "%t%s%s:%t " bc filename lineno rsc
   else
     fprintf fmt "%tccomp:%t " bc rsc
 
@@ -340,12 +361,23 @@ let error loc fmt =
 let fatal_error loc fmt =
   fatal_error None loc fmt
 
-let check_errors () =
-  if !num_errors > 0 then
+let error_summary () =
+ if !num_errors > 0 then begin
     eprintf "@[<hov 0>%d error%s detected.@]@."
             !num_errors
             (if !num_errors = 1 then "" else "s");
-  !num_errors > 0
+    num_errors := 0;
+  end
+
+let check_errors () =
+  if !num_errors > 0 then begin
+    eprintf "@[<hov 0>%d error%s detected.@]@."
+            !num_errors
+            (if !num_errors = 1 then "" else "s");
+    num_errors := 0;
+    raise Abort
+  end
+
 
 let error_option w =
   let key = string_of_warning w in
@@ -377,6 +409,10 @@ let warning_options =
   error_option Inline_asm_sdump @
   error_option Unused_variable @
   error_option Unused_parameter @
+  error_option Wrong_ais_parameter @
+  error_option Unused_ais_parameter @
+  error_option Ignored_attributes @
+  error_option Extern_after_definition @
   [Exact ("-Wfatal-errors"), Set error_fatal;
    Exact ("-fdiagnostics-color"), Ignore; (* Either output supports it or no color *)
    Exact ("-fno-diagnostics-color"), Unset color_diagnostics;
@@ -428,3 +464,7 @@ let crash exn =
     eprintf "Fatal error: uncaught exception %s\n%s" exc backtrace;
     exit 2
   end
+
+let no_loc = ("", -1)
+
+let file_loc file = (file,-10)

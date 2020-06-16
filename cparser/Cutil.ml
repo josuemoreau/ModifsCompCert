@@ -15,7 +15,7 @@
 
 (* Operations on C types and abstract syntax *)
 
-open Cerrors
+open Diagnostics
 open C
 open Env
 open Machine
@@ -175,11 +175,20 @@ let rec attributes_of_type env t =
   | TFun(ty, params, vararg, a) -> a
   | TNamed(s, a) -> attributes_of_type env (unroll env t)
   | TStruct(s, a) ->
-      let ci = Env.find_struct env s in add_attributes ci.ci_attr a
+      begin match Env.find_struct env s with
+      | ci -> add_attributes ci.ci_attr a
+      | exception Env.Error(Env.Unbound_tag _) -> a
+      end
   | TUnion(s, a) ->
-      let ci = Env.find_union env s in add_attributes ci.ci_attr a
+      begin match Env.find_union env s with
+      | ci -> add_attributes ci.ci_attr a
+      | exception Env.Error(Env.Unbound_tag _) -> a
+      end
   | TEnum(s, a) ->
-    let ei = Env.find_enum env s in add_attributes ei.ei_attr a
+      begin match Env.find_enum env s with
+      | ei -> add_attributes ei.ei_attr a
+      | exception Env.Error(Env.Unbound_tag _) -> a
+      end
 
 (* Changing the attributes of a type (at top-level) *)
 (* Same hack as above for array types. *)
@@ -707,6 +716,11 @@ let is_integer_type env t =
   | TEnum(_, _) -> true
   | _ -> false
 
+let is_float_type env t =
+  match unroll env t with
+  | TFloat (_, _) -> true
+  | _ -> false
+
 let is_arith_type env t =
   match unroll env t with
   | TInt(_, _) -> true
@@ -918,8 +932,12 @@ let ptrdiff_t_ikind () = find_matching_signed_ikind !config.sizeof_ptrdiff_t
 let type_of_constant = function
   | CInt(_, ik, _) -> TInt(ik, [])
   | CFloat(_, fk) -> TFloat(fk, [])
-  | CStr _ -> TPtr(TInt(IChar, []), [])
-  | CWStr _ -> TPtr(TInt(wchar_ikind(), []), [])
+  | CStr s ->
+    let size = Int64.of_int (String.length s + 1) in
+    TArray(TInt(IChar,[]), Some size, [])
+  | CWStr s ->
+    let size = Int64.of_int (List.length s + 1) in
+    TArray(TInt(wchar_ikind(), []), Some size, [])
   | CEnum(_, _) -> TInt(IInt, [])
 
 (* Check that a C expression is a lvalue *)
@@ -927,6 +945,8 @@ let type_of_constant = function
 let rec is_lvalue e =
   match e.edesc with
   | EVar id -> true
+  | EConst (CStr _)
+  | EConst (CWStr _) -> true
   | EUnop((Oderef | Oarrow _), _) -> true
   | EUnop(Odot _, e') -> is_lvalue e'
   | EBinop(Oindex, _, _, _) -> true
@@ -983,6 +1003,16 @@ let is_call_to_fun e s =
   | EVar id -> id.C.name = s
   | _ -> false
 
+let is_bitfield env e =
+  match e.edesc with
+  | EUnop(Odot f,b) ->
+    let fld = field_of_dot_access env b.etyp f in
+    fld.fld_bitfield <> None
+  | EUnop(Oarrow f,b) ->
+    let fld = field_of_arrow_access env b.etyp f in
+    fld.fld_bitfield <> None
+  | _ -> false
+
 (* Assignment compatibility check over attributes.
    Standard attributes ("const", "volatile", "restrict") can safely
    be added (to the rhs type to get the lhs type) but must not be dropped.
@@ -1020,9 +1050,6 @@ let valid_cast env tfrom tto =
     (TInt _ | TPtr _ | TEnum _) -> true
   (* between int and float types *)
   | (TInt _ | TFloat _ | TEnum _), (TInt _ | TFloat _ | TEnum _) -> true
-  (* between identical composites *)
-  | TStruct(s1, _), TStruct(s2, _) -> s1 = s2
-  | TUnion(s1, _), TUnion(s2, _) -> s1 = s2
   | _, _ -> false
 
 (* Check that the cast from tfrom to tto is an integer to pointer conversion *)
@@ -1207,3 +1234,8 @@ let rec subst_stmt phi s =
                List.map subst_asm_operand inputs,
                clob)
   }
+
+let is_volatile_variable env exp =
+  match exp.edesc with
+  |  EVar x -> List.mem AVolatile (attributes_of_type env exp.etyp)
+  | _ -> false

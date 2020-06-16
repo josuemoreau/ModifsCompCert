@@ -21,7 +21,7 @@ else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 
-DIRS=lib common $(ARCHDIRS) backend midend midend/libSSA cfrontend driver debug\
+DIRS=lib common $(ARCHDIRS) backend midend midend/libSSA cfrontend driver \
   flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight \
   cparser cparser/validator
 
@@ -172,7 +172,7 @@ endif
 proof: $(FILES:.v=.vo)
 
 # Turn off some warnings for compiling Flocq
-flocq/%.vo: COQCOPTS+=-w -deprecated-implicit-arguments
+flocq/%.vo: COQCOPTS+=-w -compatibility-notation
 
 extraction: extraction/STAMP
 
@@ -249,8 +249,6 @@ compcert.ini: Makefile.config
          echo "has_runtime_lib=$(HAS_RUNTIME_LIB)"; \
          echo "has_standard_headers=$(HAS_STANDARD_HEADERS)"; \
          echo "asm_supports_cfi=$(ASM_SUPPORTS_CFI)"; \
-         echo "struct_passing_style=$(STRUCT_PASSING)"; \
-         echo "struct_return_style=$(STRUCT_RETURN)"; \
 	 echo "response_file_style=$(RESPONSEFILE)";) \
         > compcert.ini
 
@@ -279,6 +277,15 @@ install:
 ifeq ($(CLIGHTGEN),true)
 	install -m 0755 ./clightgen $(BINDIR)
 endif
+ifeq ($(INSTALL_COQDEV),true)
+	install -d $(COQDEVDIR)
+	for d in $(DIRS); do \
+          install -d $(COQDEVDIR)/$$d && \
+          install -m 0644 $$d/*.vo $(COQDEVDIR)/$$d/; \
+	done
+	@(echo "To use, pass the following to coq_makefile or add the following to _CoqProject:"; echo "-R $(COQDEVDIR) compcert") > $(COQDEVDIR)/README
+endif
+
 
 clean:
 	rm -f $(patsubst %, %/*.vo, $(DIRS))
