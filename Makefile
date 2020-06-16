@@ -308,6 +308,9 @@ testclean:
 
 ssa_on: testclean
 	$(MAKE) SSA_MODE='-ssa on' -C test all
+
+ssa_bench: ssa_on
+	$(MAKE) SSA_MODE='-ssa on' -C test bench
 ##### end of SSA-midend testing ######
 
 
