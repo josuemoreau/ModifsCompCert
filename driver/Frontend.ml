@@ -73,10 +73,12 @@ let parse_c_file sourcename ifile =
 let init () =
   Machine.config:=
     begin match Configuration.arch with
-    | "powerpc" -> if Configuration.gnu_toolchain
-                   then if Configuration.abi = "linux"
-                   then Machine.ppc_32_linux_bigendian
-                   else Machine.ppc_32_bigendian
+    | "powerpc" -> if Configuration.model = "e5500" || Configuration.model = "ppc64"
+                   then if Configuration.abi = "linux" then Machine.ppc_32_r64_linux_bigendian
+                   else if Configuration.gnu_toolchain then Machine.ppc_32_r64_bigendian
+                   else Machine.ppc_32_r64_diab_bigendian
+                   else if Configuration.abi = "linux" then Machine.ppc_32_linux_bigendian
+                   else if Configuration.gnu_toolchain then Machine.ppc_32_bigendian
                    else Machine.ppc_32_diab_bigendian
     | "arm"     -> if Configuration.is_big_endian
                    then Machine.arm_bigendian
@@ -124,7 +126,7 @@ let gnu_prepro_actions = [
   Exact "-imacros", String (gnu_prepro_opt_key "-imacros");
   Exact "-idirafter", String (gnu_prepro_opt_key "-idirafter");
   Exact "-isystem", String (gnu_prepro_opt_key "-isystem");
-  Exact "-iquote", String (gnu_prepro_opt_key "-iquore");
+  Exact "-iquote", String (gnu_prepro_opt_key "-iquote");
   Exact "-P", Self gnu_prepro_opt;
   Exact "-C", Self gnu_prepro_opt;
   Exact "-CC", Self gnu_prepro_opt;]

@@ -23,7 +23,7 @@ endif
 
 DIRS=lib common $(ARCHDIRS) backend midend midend/libSSA cfrontend driver \
   flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight \
-  cparser cparser/validator
+  cparser cparser/MenhirLib
 
 RECDIRS=lib common $(ARCHDIRS) backend midend cfrontend driver flocq exportclight cparser
 
@@ -201,18 +201,11 @@ FORCE:
 
 .PHONY: proof extraction runtime FORCE
 
-documentation: doc/coq2html $(FILES)
+documentation: $(FILES)
 	mkdir -p doc/html
 	rm -f doc/html/*.html
-	doc/coq2html -o 'doc/html/%.html' doc/*.glob \
+	coq2html -d doc/html/ -base compcert -short-names doc/*.glob \
           $(filter-out doc/coq2html cparser/Parser.v, $^)
-	cp doc/coq2html.css doc/coq2html.js doc/html/
-
-doc/coq2html: doc/coq2html.ml
-	ocamlopt -w +a-29 -o doc/coq2html str.cmxa doc/coq2html.ml
-
-doc/coq2html.ml: doc/coq2html.mll
-	ocamllex -q doc/coq2html.mll
 
 tools/ndfun: tools/ndfun.ml
 	ocamlopt -o tools/ndfun str.cmxa tools/ndfun.ml
@@ -258,7 +251,9 @@ driver/Version.ml: VERSION
 	>driver/Version.ml
 
 cparser/Parser.v: cparser/Parser.vy
-	$(MENHIR) --coq cparser/Parser.vy
+	@rm -f $@
+	$(MENHIR) $(MENHIR_FLAGS) --coq cparser/Parser.vy
+	@chmod a-w $@
 
 depend: $(GENERATED) depend1
 
@@ -283,6 +278,7 @@ ifeq ($(INSTALL_COQDEV),true)
           install -d $(COQDEVDIR)/$$d && \
           install -m 0644 $$d/*.vo $(COQDEVDIR)/$$d/; \
 	done
+	install -m 0644 ./VERSION $(COQDEVDIR)
 	@(echo "To use, pass the following to coq_makefile or add the following to _CoqProject:"; echo "-R $(COQDEVDIR) compcert") > $(COQDEVDIR)/README
 endif
 
@@ -292,7 +288,6 @@ clean:
 	rm -f $(patsubst %, %/.*.aux, $(DIRS))
 	rm -f $(patsubst %, %/*~, $(DIRS))
 	rm -rf doc/html doc/*.glob
-	rm -f doc/coq2html.ml doc/coq2html doc/*.cm? doc/*.o
 	rm -f driver/Version.ml
 	rm -f compcert.ini
 	rm -f extraction/STAMP extraction/*.ml extraction/*.mli .depend.extr

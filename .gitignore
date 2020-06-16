@@ -50,6 +50,7 @@
 /cparser/pre_parser_messages.ml
 /cparser/pre_parser.automaton
 /cparser/pre_parser.messages
+/cparser/pre_parser.conflicts
 /cparser/handcrafted.messages.bak
 /cparser/handcrafted.messages.raw
 /cparser/deLexer
@@ -66,5 +67,7 @@
 /doc/html/
 # MacOS metadata
 .DS_Store
+# Test generated data
+/test/clightgen/*.v
 # Cache files
 .lia.cache

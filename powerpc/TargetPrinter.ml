@@ -605,7 +605,7 @@ module Target (System : SYSTEM):TARGET =
       | Pisel (r1,r2,r3,cr) ->
           fprintf oc "	isel	%a, %a, %a, %a\n" ireg r1 ireg r2 ireg r3 crbit cr
       | Picbi (r1,r2) ->
-          fprintf oc "	icbi	%a,%a\n" ireg r1 ireg r2
+          fprintf oc "	icbi	%a, %a\n" ireg r1 ireg r2
       | Picbtls (n,r1,r2) ->
           fprintf oc "	icbtls	%ld, %a, %a\n" (camlint_of_coqint n) ireg r1 ireg r2
       | Pisync ->
@@ -844,7 +844,7 @@ module Target (System : SYSTEM):TARGET =
                 fprintf oc "%s annotation: %S\n" comment annot
 
               | 2 -> let lbl = new_label () in
-                fprintf oc "%a: " label lbl;
+                fprintf oc "%a:\n" label lbl;
                 add_ais_annot lbl preg_annot "r1" (camlstring_of_coqstring txt) args
               | _ -> assert false
               end
@@ -879,6 +879,7 @@ module Target (System : SYSTEM):TARGET =
       | Pbf(bit, lbl) -> 2
       | Pbt(bit, lbl) -> 2
       | Pbtbl(r, tbl) -> 5
+      | Pldi (r1,c) -> 2
       | Plfi(r1, c) -> 2
       | Plfis(r1, c) -> 2
       | Plabel lbl -> 0

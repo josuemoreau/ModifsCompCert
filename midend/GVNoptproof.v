@@ -420,7 +420,7 @@ Section PRESERVATION.
             * destruct dsd_pred_njp with f pc pc' x as 
                   [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
               invh wf_ssa_function ; eauto.
-              intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
+              intro; subst; edestruct fn_entry; congruence.
               go.
               eelim ssa_not_Inop_not_phi; eauto; go. 
             * intros HG'. inv HG'.

@@ -1789,11 +1789,11 @@ Lemma In_Iphi_fold1: forall (l:list positive) f (g:positive->bool) args dst d1 d
   (PTree.fold
     (fun phis (x xdef:positive) =>
       if g x then Iphi (map (f x) l) (x, xdef) :: phis
-        else phis) d1 d2) -> length l = length args \/ In (Iphi args dst) d2.
+        else phis) d1 d2) -> List.length l = List.length args \/ In (Iphi args dst) d2.
 Proof.
   intros l f g args dst d1 d2.
   apply PTree_Properties.fold_rec with
-    (P:=fun m d3 => In (Iphi args dst) d3 -> length l = length args \/ In (Iphi args dst) d2); auto.
+    (P:=fun m d3 => In (Iphi args dst) d3 -> List.length l = List.length args \/ In (Iphi args dst) d2); auto.
   intros.
   destruct (g k); auto.
   destruct H2; auto.
@@ -1806,7 +1806,7 @@ Lemma In_Iphi_fold1': forall (l:list positive) f (g:positive->bool) args dst d1,
   (PTree.fold
     (fun phis (x xdef:positive) =>
       if g x then Iphi (map (f x) l) (x, xdef) :: phis
-        else phis) d1 nil) -> length l = length args.
+        else phis) d1 nil) -> List.length l = List.length args.
 Proof.
   intros.
   exploit In_Iphi_fold1; eauto.
@@ -1990,7 +1990,7 @@ Theorem typecheck_function_correct : forall f size def def_phi live f_ssa,
                          -> (fn_phicode f_ssa) ! jp = Some phib
                          -> join_point jp f_ssa)
    /\ (forall phib jp, (fn_phicode f_ssa) ! jp = Some phib ->
-       forall args dst, In (Iphi args dst) phib -> length args = length ((make_predecessors (fn_code f_ssa) successors_instr) !!! jp))
+       forall args dst, In (Iphi args dst) phib -> List.length args = List.length ((make_predecessors (fn_code f_ssa) successors_instr) !!! jp))
    /\ (forall phib jp i, f_ssa.(fn_code) ! jp = Some i -> f_ssa.(fn_phicode) ! jp = Some phib -> join_point jp f_ssa)
    /\ (  forall jp i, join_point jp f_ssa ->  f_ssa.(fn_code) ! jp = Some i -> 
              exists phib, f_ssa.(fn_phicode) ! jp = Some phib)

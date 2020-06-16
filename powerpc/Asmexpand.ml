@@ -582,7 +582,7 @@ let expand_builtin_inline name args res =
       if not (mo = _0 || mo = _1) then
         raise (Error "the argument of __builtin_mbar must be 0 or 1");
       emit (Pmbar mo)
-  | "__builin_mbar", _, _ ->
+  | "__builtin_mbar", _, _ ->
       raise (Error "the argument of __builtin_mbar must be a constant");
   | "__builtin_trap", [], _ ->
       emit (Ptrap)
@@ -891,7 +891,7 @@ let expand_instruction instr =
           expand_builtin_memcpy (Z.to_int sz) (Z.to_int al) args
       | EF_annot_val(kind,txt, targ) ->
           expand_annot_val kind txt targ args res
-       | EF_annot _ | EF_debug _ | EF_inline_asm _ ->
+      | EF_annot _ | EF_debug _ | EF_inline_asm _ ->
           emit instr
       | _ ->
           assert false
@@ -932,10 +932,7 @@ let preg_to_dwarf = function
 let expand_function id fn =
   try
     set_current_function fn;
-    if !Clflags.option_g then
-      expand_debug id 1 preg_to_dwarf expand_instruction fn.fn_code
-    else
-      List.iter expand_instruction fn.fn_code;
+    expand id 1 preg_to_dwarf expand_instruction fn.fn_code;
     Errors.OK (get_current_function ())
   with Error s ->
     Errors.Error (Errors.msg (coqstring_of_camlstring s))

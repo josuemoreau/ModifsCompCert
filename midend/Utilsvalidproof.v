@@ -2307,11 +2307,10 @@ Proof.
   destruct IHdup ; eauto.
 Qed.
 
-
 Lemma dup_record_assigned_reg_phi : forall phi dst a pc,  
   dup phi dst -> 
   ∃l : list positive,
-  (record_assigned_reg_phi a pc phi) !2  dst = Some l ∧ length l ≥ 2.
+  (record_assigned_reg_phi a pc phi) !2  dst = Some l ∧ List.length l ≥ 2.
 Proof.
   induction phi ; intros. 
   inv H. 
@@ -2341,13 +2340,13 @@ Lemma dup_more_than_two : forall phicode t pc dst phi ,
   dup phi dst ->  
   exists l, 
     (PTree.fold record_assigned_reg_phi phicode t) !2 dst = Some l
-    /\ (length l >= 2)%nat.
+    /\ (List.length l >= 2)%nat.
 Proof.
   set (P := fun (code : phicode)  (c : P2Tree.t (list positive))  =>
     forall pc dst phi, 
       code ! pc = Some phi ->
       dup phi dst ->
-      exists l, c !2 dst = Some l /\ (length l >= 2)%nat).
+      exists l, c !2 dst = Some l /\ (List.length l >= 2)%nat).
   intros code t. apply PTree_Properties.fold_rec with (P:= P).
    
    (* extensionality *)

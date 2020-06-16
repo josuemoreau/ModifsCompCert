@@ -375,9 +375,9 @@ Section subject_reduction.
           * destruct dsd_pred_njp with f pc pc' x as 
                 [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
             inv WF ; eauto.
-            intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc);
-            congruence. go.
-            eelim ssa_not_Inop_not_phi; eauto; go.
+            -- intro; subst. edestruct fn_entry. congruence.
+            -- econstructor; eauto.
+            -- eelim ssa_not_Inop_not_phi; eauto; go.               
           * intros.
             { destruct (classic ((A_r f x) = (A_r f dst))).
               - assert (is_at_Top AA (A_r f) x) by (eapply is_at_Top_eq_is_at_Top; eauto). 
@@ -390,8 +390,8 @@ Section subject_reduction.
       unfold gamma in *; intros x Hyp1 Hyp2.     
       destruct dsd_pred_njp with f pc pc' x as
           [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
-      * inv WF ; eauto.
-      * intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); try congruence. 
+      * inv WF ; auto.
+        intro; subst. edestruct fn_entry. congruence.
       * go. 
       * eelim ssa_not_Inop_not_phi; simpl; go; simpl; go. 
       
@@ -404,10 +404,9 @@ Section subject_reduction.
           - exploit (HG x); eauto. 
             * destruct dsd_pred_njp with f pc pc' x as 
                 [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
-              inv WF ; eauto.
-              intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc);
-              congruence. go.
-              eelim ssa_not_Inop_not_phi; eauto; go.
+              -- intro; subst; edestruct fn_entry; eauto; congruence.
+              -- econstructor; eauto.
+              -- eelim ssa_not_Inop_not_phi; eauto; go.
             * exploit (A_intra_locals f WF pc); go. 
               intros.
               { destruct (classic ((A_r f x) = (A_r f res))).
@@ -428,9 +427,9 @@ Section subject_reduction.
           * destruct dsd_pred_njp with f pc pc' x as 
                 [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
             inv WF ; eauto.
-            intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
-            go.
-            eelim ssa_not_Inop_not_phi; eauto; go. 
+            -- intro; subst; edestruct fn_entry; eauto; congruence.
+            -- go.
+            -- eelim ssa_not_Inop_not_phi; eauto; go. 
           * exploit (A_intra_locals f WF pc); go. 
               intros.
               { destruct (classic ((A_r f x) = (A_r f x0))).
@@ -444,14 +443,14 @@ Section subject_reduction.
           destruct dsd_pred_njp with f pc pc' x as 
               [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
           inv WF ; eauto.
-          intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
+          intro; subst; edestruct fn_entry; eauto; congruence.
           go.
           eelim ssa_not_Inop_not_phi; eauto; go. 
         - simpl. eapply HG; eauto.
           destruct dsd_pred_njp with f pc pc' x as 
               [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
           inv WF ; eauto.
-          intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
+          intro; subst; edestruct fn_entry; eauto;  congruence.
           go.
           eelim ssa_not_Inop_not_phi; eauto; go. 
       }
@@ -461,7 +460,7 @@ Section subject_reduction.
       destruct dsd_pred_njp with f pc ifso x as
           [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
       * inv WF ; eauto.
-      * intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
+        intro; subst; edestruct fn_entry; eauto; congruence.
       * go. 
       * eelim ssa_not_Inop_not_phi; eauto. simpl; auto. congruence.
         
@@ -470,7 +469,7 @@ Section subject_reduction.
       destruct dsd_pred_njp with f pc ifnot x as
           [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
       * inv WF ; eauto.
-      * intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
+        intro; subst; edestruct fn_entry; eauto; congruence.
       * go. 
       * eelim ssa_not_Inop_not_phi; eauto. simpl; auto. congruence.
 
@@ -479,7 +478,7 @@ Section subject_reduction.
       destruct dsd_pred_njp with f pc pc' x as
           [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto using list_nth_z_in.
       * inv WF ; eauto.
-      * intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
+        intro; subst; edestruct fn_entry; eauto; congruence.
       * econstructor; eauto. eauto using list_nth_z_in. 
       * eelim ssa_not_Inop_not_phi; eauto. simpl; eauto using list_nth_z_in. congruence.
 

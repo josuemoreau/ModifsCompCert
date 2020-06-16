@@ -153,7 +153,7 @@ Qed.
 Inductive join_point (jp : node) (f : function) : Prop :=
   |  jp_cons : forall l,
                  forall (Hpreds : (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
-                        (Hl : (length l > 1)%nat),
+                        (Hl : (List.length l > 1)%nat),
                    join_point jp f.
 
 

@@ -327,7 +327,6 @@ Proof.
     + destruct (peq pc (fn_entrypoint f)); eauto.
       edestruct dsd_pred_njp ; eauto. 
       * intuition. 
-      * intuition.
       * { repeat invh or; repeat invh and.
           - intuition. 
           - invh cssalive_spec; try intuition.
