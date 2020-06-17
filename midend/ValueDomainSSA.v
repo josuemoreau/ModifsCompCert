@@ -11,9 +11,9 @@
 (* *********************************************************************)
 
 Require Import FunInd.
-Require Import Zwf Coqlib Maps Integers Floats Lattice.
+Require Import Zwf Coqlib Maps Zbits Integers Floats Lattice.
 Require Import Compopts AST.
-Require Import Values Memory Globalenvs Events.
+Require Import Values Memory Globalenvs Builtins Events.
 
 Hint Extern 2 (_ = _) => congruence : va.
 Hint Extern 2 (_ <> _) => congruence : va.
@@ -959,7 +959,7 @@ Proof.
   assert (UNS: forall i j, j <> Int.zero -> is_uns (usize j) (Int.modu i j)).
   {
     intros. apply is_uns_mon with (usize (Int.modu i j)); auto with va.
-    unfold usize, Int.size. apply Int.Zsize_monotone.
+    unfold usize, Int.size. apply Zsize_monotone.
     generalize (Int.unsigned_range_2 j); intros RANGE.
     assert (Int.unsigned j <> 0).
     { red; intros; elim H. rewrite <- (Int.repr_unsigned j). rewrite H0. auto. }
@@ -2051,6 +2051,63 @@ Lemma resolve_branch_sound:
   ValueDomain.cmatch (Some b) ab -> resolve_branch ab = Some b' -> b' = b.
 Proof.
   intros. inv H; simpl in H0; congruence.
+Qed.
+
+(** Select either returns one of its arguments, or Vundef. *)
+Definition add_undef (x: aval) :=
+  match x with
+  | Vbot => Vtop
+  | I i =>
+      if Int.lt i Int.zero
+      then sgn (ssize i)
+      else uns (usize i)
+  | L _ | F _ | FS _ => Vtop
+  | _ => x
+  end.
+
+Lemma add_undef_sound:
+  forall v x, vmatch v x -> vmatch v (add_undef x).
+Proof.
+  destruct 1; simpl; auto with va.
+  destruct (Int.lt i Int.zero).
+  apply vmatch_sgn; apply is_sgn_ssize.
+  apply vmatch_uns; apply is_uns_usize.
+Qed.
+
+Lemma add_undef_undef:
+  forall x, vmatch Vundef (add_undef x).
+Proof.
+  destruct x; simpl; auto with va.
+  destruct (Int.lt n Int.zero); auto with va.
+Qed.
+
+Lemma add_undef_normalize:
+  forall v x ty, vmatch v x -> vmatch (Val.normalize v ty) (add_undef x).
+Proof.
+  intros. destruct (Val.lessdef_normalize v ty);
+  auto using add_undef_sound, add_undef_undef.
+Qed.
+
+Definition select (ab: abool) (x y: aval) :=
+  match ab with
+  | Bnone => Vtop
+  | Just b | Maybe b => add_undef (if b then x else y)
+  | Btop => add_undef (vlub x y)
+  end.
+
+Lemma select_sound:
+  forall ob v w ab x y ty,
+  cmatch ob ab -> vmatch v x -> vmatch w y ->
+  vmatch (Val.select ob v w ty) (select ab x y).
+Proof.
+  unfold Val.select, select; intros. inv H.
+- auto with va.
+- apply add_undef_normalize; destruct b; auto.
+- apply add_undef_undef.
+- apply add_undef_normalize; destruct b; auto.
+- destruct ob as [b|]. 
++ apply add_undef_normalize. destruct b; [apply vmatch_lub_l|apply vmatch_lub_r]; auto.
++ apply add_undef_undef.
 Qed.
 
 (** Normalization at load time *)

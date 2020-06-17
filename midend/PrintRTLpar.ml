@@ -88,7 +88,7 @@ let print_function pp id f =
   fprintf pp "%s(%a) {\n" (extern_atom id) regs f.RTLpar.fn_params;
   let instrs =
     List.sort
-      (fun (pc1, _, _) (pc2, _, _) -> Pervasives.compare pc2 pc1)
+      (fun (pc1, _, _) (pc2, _, _) -> Stdlib.compare pc2 pc1)
       (List.rev_map
         (fun (pc, i) -> (P.to_int pc, pc, i))
         (PTree.elements f.RTLpar.fn_code)) in

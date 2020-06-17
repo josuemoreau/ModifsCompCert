@@ -3,8 +3,7 @@ include ../../Makefile.config
 CC=../../ccomp 
 CFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dparse -dclight -dasm -fstruct-return $(SSA_MODE)
 LIBS=$(LIBMATH)
-# TIME=xtime -o /dev/null -mintime 1.0  # Xavier's hack
-TIME=time >/dev/null                    # Otherwise
+TIME=ocaml unix.cma ../../tools/xtime.ml -mintime 2.0 -minruns 4
 
 OBJS=memory.o gmllexer.o gmlparser.o eval.o \
   arrays.o vector.o matrix.o object.o intersect.o surface.o light.o \
@@ -31,4 +30,4 @@ test:
         fi
 
 bench:
-	@echo -n "raytracer: "; $(TIME) sh -c './render < kal.gml'
+	@$(TIME) -name raytracer -- sh -c './render < kal.gml'

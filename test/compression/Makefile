@@ -3,8 +3,7 @@ include ../../Makefile.config
 CC=../../ccomp 
 CFLAGS=$(CCOMPOPTS) -U__GNUC__ -stdlib ../../runtime -dclight -dasm $(SSA_MODE)
 LIBS=
-# TIME=xtime -o /dev/null -mintime 1.0  # Xavier's hack
-TIME=time >/dev/null                    # Otherwise
+TIME=ocaml unix.cma ../../tools/xtime.ml -mintime 2.0 -minruns 2
 
 EXE=arcode lzw lzss
 
@@ -49,8 +48,7 @@ test:
 bench:
 	@rm -f $(TESTCOMPR)
 	@for i in $(EXE); do \
-          echo -n "$$i: "; \
-          $(TIME) sh -c "./$$i -c -i $(TESTFILE) -o $(TESTCOMPR) && ./$$i -d -i $(TESTCOMPR) -o /dev/null"; \
+          $(TIME) -name $$i -- sh -c "./$$i -c -i $(TESTFILE) -o $(TESTCOMPR) && ./$$i -d -i $(TESTCOMPR) -o /dev/null"; \
          done
 	@rm -f $(TESTCOMPR)
 
