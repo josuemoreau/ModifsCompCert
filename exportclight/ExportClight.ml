@@ -18,7 +18,7 @@
 open Format
 open Camlcoq
 open AST
-open Ctypes
+open! Ctypes
 open Cop
 open Clight
 
@@ -221,6 +221,14 @@ let asttype p t =
       | AST.Tany32 -> "AST.Tany32"
       | AST.Tany64 -> "AST.Tany64")
 
+let astrettype p = function
+  | AST.Tret t -> asttype p t
+  | AST.Tvoid -> fprintf p "AST.Tvoid"
+  | AST.Tint8signed -> fprintf p "AST.Tint8signed"
+  | AST.Tint8unsigned -> fprintf p "AST.Tint8unsigned"
+  | AST.Tint16signed -> fprintf p "AST.Tint16signed"
+  | AST.Tint16unsigned -> fprintf p "AST.Tint16unsigned"
+
 let name_of_chunk = function
   | Mint8signed -> "Mint8signed"
   | Mint8unsigned -> "Mint8unsigned"
@@ -236,7 +244,7 @@ let name_of_chunk = function
 let signatur p sg =
   fprintf p "@[<hov 2>(mksignature@ %a@ %a@ %a)@]"
      (print_list asttype) sg.sig_args
-     (print_option asttype) sg.sig_res
+     astrettype sg.sig_res
      callconv sg.sig_cc
 
 let assertions = ref ([]: (string * typ list) list)
@@ -381,7 +389,7 @@ and lblstmts p = function
               (print_option coqZ) lbl stmt s lblstmts ls
 
 let print_function p (id, f) =
-  fprintf p "Definition f_%s := {|@ " (extern_atom id);
+  fprintf p "Definition f_%s := {|@ " (sanitize (extern_atom id));
   fprintf p "  fn_return := %a;@ " typ f.fn_return;
   fprintf p "  fn_callconv := %a;@ " callconv f.fn_callconv;
   fprintf p "  fn_params := %a;@ " (print_list (print_pair ident typ)) f.fn_params;
@@ -402,7 +410,7 @@ let init_data p = function
   | Init_addrof(id,ofs) -> fprintf p "Init_addrof %a %a" ident id coqptrofs ofs
 
 let print_variable p (id, v) =
-  fprintf p "Definition v_%s := {|@ " (extern_atom id);
+  fprintf p "Definition v_%s := {|@ " (sanitize (extern_atom id));
   fprintf p "  gvar_info := %a;@ " typ v.gvar_info;
   fprintf p "  gvar_init := %a;@ " (print_list init_data) v.gvar_init;
   fprintf p "  gvar_readonly := %B;@ " v.gvar_readonly;
@@ -417,12 +425,12 @@ let print_globdef p (id, gd) =
 
 let print_ident_globdef p = function
   | (id, Gfun(Ctypes.Internal f)) ->
-      fprintf p "(%a, Gfun(Internal f_%s))" ident id (extern_atom id)
+      fprintf p "(%a, Gfun(Internal f_%s))" ident id (sanitize (extern_atom id))
   | (id, Gfun(Ctypes.External(ef, targs, tres, cc))) ->
       fprintf p "@[<hov 2>(%a,@ @[<hov 2>Gfun(External %a@ %a@ %a@ %a))@]@]"
         ident id external_function ef typlist targs typ tres callconv cc
   | (id, Gvar v) ->
-      fprintf p "(%a, Gvar v_%s)" ident id (extern_atom id)
+      fprintf p "(%a, Gvar v_%s)" ident id (sanitize (extern_atom id))
 
 (* Composite definitions *)
 

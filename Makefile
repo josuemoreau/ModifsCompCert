@@ -289,7 +289,7 @@ endif
 
 
 clean:
-	rm -f $(patsubst %, %/*.vo, $(DIRS))
+	rm -f $(patsubst %, %/*.vo*, $(DIRS))
 	rm -f $(patsubst %, %/.*.aux, $(DIRS))
 	rm -f $(patsubst %, %/*~, $(DIRS))
 	rm -rf doc/html doc/*.glob
