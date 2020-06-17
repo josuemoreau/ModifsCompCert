@@ -24,6 +24,8 @@ Hint Extern 2 (_ >= _) => xomega : va.
 
 (** The abstract domains for scalar value analysis (no alias analysis) *)
 
+Require Import ValueDomain.
+
 Section MATCH.
 
 (** * Abstracting values *)
@@ -1728,7 +1730,6 @@ Proof.
 Qed.
 
 (** Comparisons and variation intervals *)
-Require ValueDomain.
 
 Definition cmp_intv (c: comparison) (i: Z * Z) (n: Z) : ValueDomain.abool :=
   let (lo, hi) := i in

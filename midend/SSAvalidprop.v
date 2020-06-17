@@ -300,7 +300,7 @@ Proof.
   inv H; auto.
 Qed.  
 
-Require Import DLib.
+Import DLib.
 
 Lemma path_step_rtl_path_step : forall f tf s1 s2 pc, 
   check_erased_spec f tf ->

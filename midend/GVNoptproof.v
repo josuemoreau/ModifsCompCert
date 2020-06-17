@@ -32,6 +32,8 @@ Require Import DLib.
 
 Require Import Linking.
 
+Require Opt.
+Require OptInv.
 
 (** * Correctness of the optimization *)
 Section PRESERVATION.
@@ -241,9 +243,6 @@ Section PRESERVATION.
   Qed.
 
   Hint Constructors ext_params dsd.
-
-  Require Opt.
-  Require OptInv.
 
   Lemma join_point_transf_function : forall f (WF: wf_ssa_function f) j,
       join_point j (transf_function f) <-> join_point j f.

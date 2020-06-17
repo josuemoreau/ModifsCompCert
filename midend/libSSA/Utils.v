@@ -53,7 +53,7 @@ Ltac revert_arith :=
     ) ; clear ; intros.
 
 Ltac lia := 
-  (try revert_arith) ; zify ; unfold Zsucc in * ; Psatz.lia.
+  (try revert_arith) ; zify ; unfold Z.succ in * ; Psatz.lia.
 
 (* To be used when building error messages *)
 (* Eval compute in (Ascii false false false false true true false false). *)
@@ -742,7 +742,7 @@ Proof.
 Qed.
 
 Lemma Ple_Plt_succ: forall p1 p2,
-  Ple p1 p2 -> Plt p1 (Psucc p2).
+  Ple p1 p2 -> Plt p1 (Pos.succ p2).
 Proof.
   intros.
   eapply Ple_Plt_trans ; eauto.
@@ -899,7 +899,7 @@ Qed.
   
 Lemma arith_utils: forall (n:Z) (n1: nat) , 
    Z.to_nat n = Datatypes.S n1 ->
-   n1 =  (Z.to_nat (Zpred n)) .
+   n1 =  (Z.to_nat (Z.pred n)) .
 Proof.
   induction n; intros.
   inv H. 
@@ -910,7 +910,7 @@ Qed.
 
 Lemma arith_utils2: forall (n:Z) (n1: nat)  , 
   n > 0 ->
-  n1 =  (Z.to_nat (Zpred n)) ->
+  n1 =  (Z.to_nat (Z.pred n)) ->
   Z.to_nat n = Datatypes.S n1.
 Proof.
   induction n; intros.
@@ -963,8 +963,8 @@ Proof.
   exploit arith_utils2 ; eauto. 
   lia. intros.
   inv H3 ; auto.
-  exploit (IHl (Zpred (Zpos p0))) ; eauto. 
-  unfold Zpred ; lia.
+  exploit (IHl (Z.pred (Zpos p0))) ; eauto. 
+  unfold Z.pred ; lia.
   simpl in *. lia. 
 Qed.
 
@@ -979,8 +979,8 @@ Proof.
   case_eq (zeq n 0) ; intros; rewrite H0 in *. 
   inversion e ; auto.
   lia.
-  assert (HH:= IHl (Zpred n) a0 H) ; eauto.
-  unfold Zpred in * ; lia.
+  assert (HH:= IHl (Z.pred n) a0 H) ; eauto.
+  unfold Z.pred in * ; lia.
 Qed.  
 
 Lemma list_norepet_app: forall A (l1:list A), list_norepet l1 -> 

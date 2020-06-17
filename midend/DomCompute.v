@@ -12,7 +12,6 @@ Require Import Kildall.
 Require Import Lattice.
 Require Import DLib.
 
-
 (** * The Semilattice of node sets *)
 Module L <: SEMILATTICE.
 
@@ -235,8 +234,6 @@ Proof.
   exploit in_set_transfer; eauto; destruct 1; auto.
   elim IHpath with d; auto.
 Qed.
-
-Require Import DLib. 
 
 Lemma SSA_path_this_path_aux1 : forall n1 p n2,
   SSApath f n1 p n2 ->

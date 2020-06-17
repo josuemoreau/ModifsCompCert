@@ -1309,8 +1309,8 @@ Module Z <: INT.
   Definition t : Type := Z.
   Definition int_zero : t := 0.
   Definition int_succ : t -> option t := fun x => Some (x+1).
-  Definition int_le : t -> t -> Prop := Zle.
-  Definition int_lt : t -> t -> Prop := Zlt.
+  Definition int_le : t -> t -> Prop := Z.le.
+  Definition int_lt : t -> t -> Prop := Z.lt.
   Lemma int_le_dec : forall (x y :t), {int_le x y}+{int_lt y x}.
   Proof.
     intros x y.

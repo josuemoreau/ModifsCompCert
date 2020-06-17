@@ -257,7 +257,7 @@ Definition update_ctx (preds: PTree.t (list positive))
           | RTL.Iop op args dest succ => 
             do i <- get_option (def ! pc) "" ; 
             let dest' := (dest,i) in
-            if negb (Peqb xH i) then
+            if negb (Pos.eqb xH i) then
               OK (PTree.set succ (PTree.set dest i g) G,
                   PTree.set pc (Iop op (List.map use args) dest' succ) new_code,
                   juncpoints)
@@ -265,7 +265,7 @@ Definition update_ctx (preds: PTree.t (list positive))
           | RTL.Iload chunk addr args dest succ => 
             do i <- get_option (def ! pc) "" ; 
             let dest' := (dest,i) in
-            if negb (Peqb xH i) then
+            if negb (Pos.eqb xH i) then
               OK (PTree.set succ (PTree.set dest i g) G,
                   PTree.set pc (Iload chunk addr (List.map use args) dest' succ) new_code,
                   juncpoints)
@@ -273,7 +273,7 @@ Definition update_ctx (preds: PTree.t (list positive))
           | RTL.Icall sig fn args dest succ => 
             do i <- get_option (def ! pc) "" ;
             let dest' := (dest,i) in
-            if negb (Peqb xH i) then
+            if negb (Pos.eqb xH i) then
               OK (PTree.set succ (PTree.set dest i g) G,
                   PTree.set pc (Icall sig (map_os use fn) (List.map use args) dest' succ) new_code,
                   juncpoints)
@@ -285,7 +285,7 @@ Definition update_ctx (preds: PTree.t (list positive))
           | RTL.Ibuiltin ef args (BR dest) succ => 
             do i <- get_option (def ! pc) "" ; 
               let dest' := (dest,i) in                              
-              if negb (Peqb xH i) then
+              if negb (Pos.eqb xH i) then
                 OK (PTree.set succ (PTree.set dest i g) G,
                     PTree.set pc (Ibuiltin ef
                                            (List.map (map_builtin_arg use) args)
@@ -340,7 +340,7 @@ Definition build_phi_block (preds: PTree.t (list positive))
             | Some m => m
           end) in
   let new_phi_block := xbuild_phi_block preds live def_phi get_Gpreds in
-      if forall_ptree (fun x xdef => negb (Peqb xH xdef)) def_phi then
+      if forall_ptree (fun x xdef => negb (Pos.eqb xH xdef)) def_phi then
         match acc with
           | Error msg => Error msg
           | OK acc => OK (PTree.set pc new_phi_block acc)

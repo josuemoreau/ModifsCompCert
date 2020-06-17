@@ -80,7 +80,7 @@ Definition add_nop_entry (pc : node) : mon node :=
   fun s =>
     let pc_new := s.(st_nextnode) in
       OK pc_new
-         (mkstate (Psucc pc_new) 
+         (mkstate (Pos.succ pc_new) 
                   pc_new 
                   (PTree.set pc_new (Inop pc) s.(st_code)))
 .
@@ -93,7 +93,7 @@ Definition add_nop (pc':node) : mon node :=
       if peq pc' s.(st_entry)
       then Error (Errors.msg "")
       else OK pc_new
-              (mkstate (Psucc pc_new) 
+              (mkstate (Pos.succ pc_new) 
                        (st_entry s) 
                        (PTree.set pc_new (Inop pc') s.(st_code)))
 .
@@ -227,7 +227,7 @@ Definition get_max {A: Type} (t: PTree.t A) : positive :=
     fold_left (fun a pc => if plt a pc then pc else a) elts xH.
 
 Definition init_state (f: RTL.function) : state :=
-  mkstate (Psucc (get_max (fn_code f))) (fn_entrypoint f) (fn_code f).
+  mkstate (Pos.succ (get_max (fn_code f))) (fn_entrypoint f) (fn_code f).
 
 Definition is_joinpoint (preds: PTree.t (list positive)) : node -> bool :=
   fun pc =>  match preds ! pc with

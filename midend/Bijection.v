@@ -116,11 +116,11 @@ Qed.
 
 Definition encode (n:nat) (p:positive) : list bool := 
   if Reg.eq p xH then (complete n nil)
-    else (complete n (true :: (pos2list (Ppred p)))).
+    else (complete n (true :: (pos2list (Pos.pred p)))).
 
 Definition decode (n:nat) (l:list bool) : positive :=
   match remove_first_zeros l with
-    | true :: l => Psucc (list2pos l)
+    | true :: l => Pos.succ (list2pos l)
     | _ => xH
   end.
 
@@ -163,7 +163,7 @@ Proof.
 Qed.
 
 Lemma log_lower_pred : forall p n,
-  log_lower p n = true -> log_lower (Ppred p) n = true.
+  log_lower p n = true -> log_lower (Pos.pred p) n = true.
 Proof.
   intros p n.
   functional induction (log_lower p n); intros; simpl; try congruence; try omega.
@@ -181,7 +181,7 @@ Proof.
   unfold complete; rewrite length_fill.
   simpl; omega.
   unfold complete; rewrite length_fill.
-  assert (length (true :: pos2list (Ppred p)) <= S n).
+  assert (length (true :: pos2list (Pos.pred p)) <= S n).
   generalize (log_lower_pred _ _ H); intros.
   generalize (log_lower_length_pos2list _ _ H0).
   simpl; omega.
@@ -240,7 +240,7 @@ Proof.
   destruct b.
   destruct Reg.eq.
   elim Psucc_not_one with (1:=e).
-  rewrite Ppred_succ.
+  rewrite Pos.pred_succ.
   rewrite pos2list_list2pos.
   unfold complete; apply remove_first_zeros_not_nil; auto.
   generalize (length_remove_first_zeros l).
@@ -341,7 +341,7 @@ Definition complete_positive (n:nat) (p:positive) : positive :=
 
 Definition encode_positive (n:nat) (p:positive) : positive := 
   if Reg.eq p xH then (complete_positive n xH)
-    else (complete_positive n (xI (Ppred p))).
+    else (complete_positive n (xI (Pos.pred p))).
 
 Definition fromPair_V2 (n:nat) (p1_p2:positive*positive) : positive :=
   let (p1,p2) := p1_p2 in
@@ -421,14 +421,14 @@ Proof.
   destruct Reg.eq; rewrite app_length.
   rewrite length_complete; simpl; omega.
   rewrite length_complete; simpl; try omega.
-  assert (length (pos2list (Ppred p1)) <= n).
+  assert (length (pos2list (Pos.pred p1)) <= n).
   apply log_lower_length_pos2list.
   apply log_lower_pred; auto.
   omega.
 Qed.
 
 Lemma length_pos2list_Psucc : forall p,
-  length (pos2list (Psucc p)) <= S (length (pos2list p)).
+  length (pos2list (Pos.succ p)) <= S (length (pos2list p)).
 Proof.
   induction p; simpl; try omega.
 Qed.

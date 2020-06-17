@@ -25,9 +25,10 @@ Require Import Dsd.
 (** * Proof obligations from [OptInv] *)
 Module DS := DataflowSolver.
 
+Require Import OptInv ValueDomainSSA ValueAOpSSA.
+  
 Section DSD_ANALYSIS.
 
-  Require Import OptInv ValueDomainSSA ValueAOpSSA.
   Notation A := fixpoint.
   Notation A_r f := (fst (A f)).
   Notation A_e f := (snd (A f)).
@@ -333,8 +334,8 @@ Proof.
   apply H4; auto.
 Qed.
 
-Require Import SSAinv.
-Require Import Utils.
+Import SSAinv.
+Import Utils.
 
 Lemma Iop_correct : forall (f:function) pc sf op args res pc' v rs
                            (ge: Globalenvs.Genv.t fundef unit) sp m x,
@@ -392,7 +393,7 @@ Grab Existential Variables.
 go. go. go. go.
 Qed.
 
-Require Import Dom.
+Import Dom.
 Hint Resolve sdom_dom_pred fn_code_reached fn_entry_pred fn_phicode_inv
              list_nth_z_in.
 Hint Unfold reached.

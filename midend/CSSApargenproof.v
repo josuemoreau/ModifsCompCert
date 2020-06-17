@@ -423,7 +423,7 @@ Lemma ple_foldmaxreg_init :
   Ple m n ->
   Ple
     m
-    (List.fold_left (fun m r' => Pmax m (fst (r' : reg)))
+    (List.fold_left (fun m r' => Pos.max m (fst (r' : reg)))
       l n).
 Proof.
   induction l; intros.
@@ -441,7 +441,7 @@ Lemma max_reg_in_list_correct_aux :
   forall l (r : reg) m,
   In r l ->
   Ple (fst r)
-    (List.fold_left (fun m r' => Pmax m (fst r')) l m).
+    (List.fold_left (fun m r' => Pos.max m (fst r')) l m).
 Proof.
   induction l; intros.
   inv H.
@@ -636,7 +636,7 @@ Lemma ple_foldmaxpos_init :
   Ple m n ->
   Ple
     m
-    (List.fold_left (fun m p => Pmax m p)
+    (List.fold_left (fun m p => Pos.max m p)
       l n).
 Proof.
   induction l; intros.
@@ -655,7 +655,7 @@ Lemma ple_foldmaxphi_init :
   Ple m n ->
   Ple
     m
-    (List.fold_left (fun m phi => Pmax m
+    (List.fold_left (fun m phi => Pos.max m
       (get_max_reg_in_phiins phi))
       l n).
 Proof.
@@ -674,7 +674,7 @@ Lemma max_reg_in_phib_dst_aux :
   forall phib dst args init,
   In (Iphi args dst) phib ->
   Ple (get_max_reg_in_phiins (Iphi args dst))
-    (List.fold_left (fun m phiins => Pmax m
+    (List.fold_left (fun m phiins => Pos.max m
       (get_max_reg_in_phiins phiins))
       phib init).
 Proof.
@@ -707,7 +707,7 @@ Lemma ple_foldmaxphib_init :
   Ple
     m
     (List.fold_left
-      (fun m (pphib : positive * phiblock) => Pmax m
+      (fun m (pphib : positive * phiblock) => Pos.max m
         (get_max_reg_in_phib (snd pphib)))
       l n).
 Proof.
@@ -728,7 +728,7 @@ Lemma ple_foldmaxins_init :
   Ple
     m
     (List.fold_left
-      (fun m (pcins : positive * instruction) => Pmax m
+      (fun m (pcins : positive * instruction) => Pos.max m
         (get_max_reg_in_ins (snd pcins)))
       l n).
 Proof.
@@ -773,7 +773,7 @@ Lemma max_reg_in_code_aux :
   pcins = (pc, ins) ->
   Ple (get_max_reg_in_ins ins)
     (fold_left 
-        (fun m p => Pmax m (get_max_reg_in_ins (snd p)))
+        (fun m p => Pos.max m (get_max_reg_in_ins (snd p)))
       elems init).
 Proof.
   induction elems; intros.

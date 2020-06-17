@@ -113,7 +113,7 @@ Fixpoint mfold {A B: Type} (f: A -> B -> mon B) (l: list A) (b: B) : mon B :=
 
 (** next fresh register *)
 Definition next_fs (fs : reg) :=
-  (Psucc (fst fs), 1%positive).
+  (Pos.succ (fst fs), 1%positive).
 
 Remark gen_newreg_incr:
   forall s,
@@ -303,7 +303,7 @@ Definition copy_node (predsfun: PTree.t (list node)) (code: code)
 
 (** ** functions to get a first fresh register  *)
 Definition max_reg_in_list (l: list reg) :=
-  List.fold_left (fun m r => Pmax m (fst r)) l 1%positive.
+  List.fold_left (fun m r => Pos.max m (fst r)) l 1%positive.
 
 Definition get_max_reg_in_ins (ins : SSA.instruction) :=
   match ins with
@@ -329,28 +329,28 @@ Definition get_max_reg_in_phiins (phi: phiinstruction) :=
 
 Definition get_max_reg_in_phib (phib: phiblock) :=
   List.fold_left
-    (fun m phiins => Pmax m (get_max_reg_in_phiins phiins))
+    (fun m phiins => Pos.max m (get_max_reg_in_phiins phiins))
     phib 1%positive.
 
 Definition get_max_reg_in_phicode (pcode: phicode) :=
-  PTree.fold (fun m pc phib => Pmax m (get_max_reg_in_phib phib))
+  PTree.fold (fun m pc phib => Pos.max m (get_max_reg_in_phib phib))
     pcode 1%positive.
 
 Definition get_max_reg_in_code (code: code) :=
-  PTree.fold (fun m pc ins => Pmax m (get_max_reg_in_ins ins))
+  PTree.fold (fun m pc ins => Pos.max m (get_max_reg_in_ins ins))
     code 1%positive.
 
 Definition get_maxreg (f: SSA.function) := 
-  Pmax
+  Pos.max
     (get_max_reg_in_code (fn_code f))
-    (Pmax
+    (Pos.max
       (get_max_reg_in_phicode (fn_phicode f))
       (max_reg_in_list (fn_params f))).
 
 (** ** State initialisation *)
 Definition init_state (f: SSA.function) :=
   (mkstate
-    (Psucc (get_maxreg f), 1%positive)
+    (Pos.succ (get_maxreg f), 1%positive)
     (PTree.empty phiblock)
     (PTree.empty CSSApar.parcopyblock)
   , List.map fst (PTree.elements (fn_code f))).

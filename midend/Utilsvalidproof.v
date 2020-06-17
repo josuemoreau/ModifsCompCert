@@ -758,7 +758,7 @@ Proof.
   induction phib; intros. 
   inv H. 
   inv H.
-  Focus 2. eapply IHphib ; eauto. 
+  2: eapply IHphib ; eauto. 
   simpl in H0.
   case_eq  (a0 !2 r). intros. rewrite H in *.
   assert (In k (k::l0)) by (left ; auto).

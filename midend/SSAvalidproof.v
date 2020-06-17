@@ -125,7 +125,7 @@ Section PRESERVATION.
   Let ge : RTLt.genv := Genv.globalenv prog.
   Let tge : SSA.genv := Genv.globalenv tprog.
 
-  Require Import RTLdfsproof.
+  Import RTLdfsproof.
   
   Lemma transf_function_correct_aux:
     forall f tf, 
@@ -391,7 +391,7 @@ Section PRESERVATION.
   
   (** ** Auxiliary lemmas about [agree] preservation *)
   
-Require Import DLib.  
+Import DLib.  
 
   Lemma phistore_preserve_agree: 
     forall (tf: function) rs rs' k pc0 pc block G (v:positive) live f

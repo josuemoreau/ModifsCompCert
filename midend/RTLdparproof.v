@@ -35,15 +35,12 @@ Proof.
   intros.
   unfold get_maxreg.
   eapply Pos.le_trans.
-  Focus 2.
-  eapply Pos.le_trans.
-  Focus 2.
-  eapply Pos.le_trans.
-  Focus 2.
-  eapply Pos.le_max_r; eauto.
-  eapply Pos.le_max_r; eauto.
-  eapply Pos.le_refl; eauto.
-  eapply Pos.le_refl; eauto.
+  - eapply Pos.le_trans.
+    + eapply Pos.le_refl; eauto.
+    + eapply Pos.le_max_r; eauto.
+  - eapply Pos.le_trans.
+    + eapply Pos.le_max_r; eauto.
+    + eapply Pos.le_refl; eauto.
 Qed.
 
 Lemma max_reg_correct_code: forall f,
@@ -136,9 +133,8 @@ Proof.
   intros.
   unfold get_maxreg.
   eapply Ple_trans ; eauto.
-  Focus 2.
-  eapply Pos.le_max_r.
   apply Pos.le_max_l.
+  eapply Pos.le_max_r.
 Qed.
 
 Lemma ple_foldmaxparcb_init :
@@ -147,7 +143,7 @@ Lemma ple_foldmaxparcb_init :
   Ple
     m
     (List.fold_left
-      (fun m (pparcb : positive * parcopyblock) => Pmax m
+      (fun m (pparcb : positive * parcopyblock) => Pos.max m
         (get_max_reg_in_parcb (snd pparcb)))
       l n).
 Proof.
@@ -224,7 +220,7 @@ Lemma get_max_reg_in_parcb_correct_src_aux :
   forall l (r : reg) m d,
   In (r,d) (parcb_to_moves l) ->
   Ple (fst r)
-    (List.fold_left (fun m parc => Pmax m (get_max_reg_in_parc parc)) l m).
+    (List.fold_left (fun m parc => Pos.max m (get_max_reg_in_parc parc)) l m).
 Proof.
   induction l; intros.
   inv H.
@@ -234,11 +230,11 @@ Proof.
     simpl. eapply ple_foldmaxreg_init; eauto. 
     unfold CSSApargen.max_reg_in_list. simpl.
     eapply Pos.le_trans. 
-    Focus 2. 
+    2: {
     eapply Pos.le_trans. 
-    Focus 2. 
-    eapply Pos.le_max_r. 
     eapply Pos.le_max_l. 
+    eapply Pos.le_max_r.
+    }
     eapply Pos.le_max_r.     
   + eapply IHl; eauto.
 Qed.
@@ -247,7 +243,7 @@ Lemma get_max_reg_in_parcb_dst_correct_aux :
   forall l (r : reg) m d,
   In (r,d) (parcb_to_moves l) ->
   Ple (fst d)
-    (List.fold_left (fun m parc => Pmax m (get_max_reg_in_parc parc)) l m).
+    (List.fold_left (fun m parc => Pos.max m (get_max_reg_in_parc parc)) l m).
 Proof.
   induction l; intros.
   inv H.
@@ -257,7 +253,6 @@ Proof.
     simpl. eapply ple_foldmaxreg_init; eauto. 
     unfold CSSApargen.max_reg_in_list. simpl.
     eapply Pos.le_trans. 
-    Focus 2. 
     eapply Pos.le_max_r.     
     eapply Pos.le_max_r.     
   + eapply IHl; eauto.
@@ -498,7 +493,7 @@ Proof.
     + apply Plt_ne in H ; auto. congruence.
     + intuition.
       generalize (st_wf_next_fs s1) (st_wf_next s1) ; intros.
-      unfold Plt, Ple, Psucc in *. zify ; omega. 
+      unfold Plt, Ple, Pos.succ in *. zify ; omega. 
 Qed.
 
 Lemma copy_ins_at_renum:

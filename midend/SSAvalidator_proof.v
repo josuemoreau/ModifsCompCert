@@ -406,7 +406,7 @@ Proof.
   destruct ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr)!pc); simpl in *; try congruence.
   destruct (def_phi0!pc); simpl in *; eauto.
   exists t; split; auto.
-  case_eq (forall_ptree (fun _ xdef : positive => negb (Peqb 1 xdef)) t); intros Hb.
+  case_eq (forall_ptree (fun _ xdef : positive => negb (Pos.eqb 1 xdef)) t); intros Hb.
   red; intros; subst.
   exploit forall_ptree_true; eauto.
   simpl; congruence.
@@ -832,7 +832,7 @@ Proof.
         }
     + { (* Iop *)
         case_eq (def ! a); simpl; [intros df Hdef|intro; kill_error].
-        case_eq (negb (Peqb 1 df)); [intros Hnp|simpl; kill_error].
+        case_eq (negb (Pos.eqb 1 df)); [intros Hnp|simpl; kill_error].
         intros Heq Hln INV1 INV2 INV3 INV4.
         inversion Hln as [|a' l' Hln1 Hln2]; subst; clear Hln.  
         elim IHppoints with (1:=Heq) (2:=Hln2);
@@ -885,7 +885,7 @@ Proof.
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             intros Hss; inv Hss; right; repeat split; try congruence; intros.
             econstructor; eauto.
-            intros EE; rewrite <- (Peqb_eq xH df) in EE; destruct (Peqb xH df); simpl in *; congruence.
+            intros EE; rewrite <- (Pos.eqb_eq xH df) in EE; destruct (Pos.eqb xH df); simpl in *; congruence.
             in_succ_case.
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             generalize (HINV _ _ (PTree.gss _ _ _)); congruence.
@@ -911,7 +911,7 @@ Proof.
       }
     + { (* Iload *)
         case_eq (def ! a); simpl; [intros df Hdef|intro; kill_error].
-        case_eq (negb (Peqb 1 df)); [intros Hnp|simpl; kill_error].
+        case_eq (negb (Pos.eqb 1 df)); [intros Hnp|simpl; kill_error].
         intros Heq Hln INV1 INV2 INV3 INV4.
         inversion Hln as [|a' l' Hln1 Hln2]; subst; clear Hln.
         elim IHppoints with (1:=Heq) (2:=Hln2); [intros HINV [HINV1 [HINV4 [HINV2 [HINV5 [HINV3 [HINV6 [HINV7 [HINV8 [HINV9 [HINV10 [HINV11 HINV12]]]]]]]]]]]|idtac|idtac|idtac|idtac]; clear Heq.
@@ -961,7 +961,7 @@ Proof.
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             intros Hss; inv Hss; right; repeat split; try congruence; intros.
             econstructor; eauto.
-            intros EE; rewrite <- (Peqb_eq xH df) in EE; destruct (Peqb xH df); simpl in *; congruence.
+            intros EE; rewrite <- (Pos.eqb_eq xH df) in EE; destruct (Pos.eqb xH df); simpl in *; congruence.
             in_succ_case.
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             generalize (HINV _ _ (PTree.gss _ _ _)); congruence.
@@ -1055,7 +1055,7 @@ Proof.
       }
     + { (* Icall *)
         case_eq (def ! a); simpl; [intros df Hdef|intro; kill_error].
-        case_eq (negb (Peqb 1 df)); [intros Hnp|simpl; kill_error].
+        case_eq (negb (Pos.eqb 1 df)); [intros Hnp|simpl; kill_error].
         intros Heq Hln INV1 INV2 INV3 INV4.
         inversion Hln as [|a' l' Hln1 Hln2]; subst; clear Hln.
         elim IHppoints with (1:=Heq) (2:=Hln2); [intros HINV [HINV1 [HINV4 [HINV2 [HINV5 [HINV3 [HINV6 [HINV7 [HINV8 [HINV9 [HINV10 [HINV11 HINV12]]]]]]]]]]]|idtac|idtac|idtac|idtac]; clear Heq.
@@ -1108,7 +1108,7 @@ Proof.
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             intros Hss; inv Hss; right; repeat split; try congruence; intros.
             econstructor; eauto.
-            intros EE; rewrite <- (Peqb_eq xH df) in EE; destruct (Peqb xH df); simpl in *; congruence.
+            intros EE; rewrite <- (Pos.eqb_eq xH df) in EE; destruct (Pos.eqb xH df); simpl in *; congruence.
             in_succ_case.
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             generalize (HINV _ _ (PTree.gss _ _ _)); congruence.
@@ -1185,7 +1185,7 @@ Proof.
     + { (* Ibuiltin *)
         destruct b ; simpl. 
         { case_eq (def ! a); simpl; [intros df Hdef|intro; kill_error].
-        case_eq (negb (Peqb 1 df)); [intros Hnp|simpl; kill_error].
+        case_eq (negb (Pos.eqb 1 df)); [intros Hnp|simpl; kill_error].
         intros Heq Hln INV1 INV2 INV3 INV4.
         inversion Hln as [|a' l' Hln1 Hln2]; subst; clear Hln.
         elim IHppoints with (1:=Heq) (2:=Hln2); [intros HINV [HINV1 [HINV4 [HINV11 [HINV2 [HINV5 [HINV3 [HINV6 [HINV7 [HINV8 [HINV9 [HINV10 HINV12]]]]]]]]]]]|idtac|idtac|idtac|idtac]; clear Heq.
@@ -1243,7 +1243,7 @@ Proof.
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             intros Hss; inv Hss; right; repeat split; try congruence; intros.
             econstructor; eauto.
-            intros EE; rewrite <- (Peqb_eq xH df) in EE; destruct (Peqb xH df); simpl in *; congruence.
+            intros EE; rewrite <- (Pos.eqb_eq xH df) in EE; destruct (Pos.eqb xH df); simpl in *; congruence.
             in_succ_case.
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             generalize (HINV _ _ (PTree.gss _ _ _)); congruence.

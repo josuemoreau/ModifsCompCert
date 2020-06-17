@@ -30,23 +30,23 @@ Definition get_max_reg_in_parc (parc : parcopy) :=
 
 Definition get_max_reg_in_parcb (parcb : parcopyblock) :=
   List.fold_left
-    (fun m parc => Pmax m (get_max_reg_in_parc parc))
+    (fun m parc => Pos.max m (get_max_reg_in_parc parc))
     parcb 1%positive.
 
 Definition get_max_reg_in_parcode (parcode : parcopycode) :=
   PTree.fold1
-    (fun m parcb => Pmax m (get_max_reg_in_parcb parcb))
+    (fun m parcb => Pos.max m (get_max_reg_in_parcb parcb))
     parcode 1%positive.
 
 Definition get_maxreg (f : function) :=
-  Pmax
+  Pos.max
     (CSSApargen.get_max_reg_in_code (fn_code f))
-    (Pmax
+    (Pos.max
       (get_max_reg_in_parcode (fn_parcopycode f))
       (CSSApargen.max_reg_in_list (fn_params f))).
 
 Definition fresh_init (f : function) : SSA.reg :=
-  (Psucc (get_maxreg f), 1%positive).
+  (Pos.succ (get_maxreg f), 1%positive).
 
 (** * Monad state for the transformation *)
 Record state : Type := mkstate {
@@ -221,7 +221,7 @@ Proof.
 Qed.  
 
 Lemma get_max_lt {A: Type} : forall t pc (a:A),
-    t ! pc = Some a -> Plt pc (Psucc (Psucc (fst (get_max t)))).
+    t ! pc = Some a -> Plt pc (Pos.succ (Pos.succ (fst (get_max t)))).
 Proof.
   unfold get_max ; intros.
   exploit PTree.elements_correct ; eauto. intros.
@@ -235,7 +235,7 @@ Qed.
 
 Ltac sz := unfold Plt, Ple in * ; zify ; omega.
 
-Notation plus_2 :=  (fun p => (Psucc (Psucc p))). 
+Notation plus_2 :=  (fun p => (Pos.succ (Pos.succ p))). 
 
 Lemma get_min_fold_aux : forall l minacc,
   Ple (fold_left (fun a pc => if plt pc a then pc else a) l minacc) minacc.
@@ -304,19 +304,19 @@ Fixpoint next (code : SSA.code) (pc:node) (diff: nat)  : node :=
     | None => 
       match diff with 
         | O => pc (* corner case when pc = max *)
-        | S k => next code (Psucc pc) k
+        | S k => next code (Pos.succ pc) k
       end
   end.
   
 Lemma next_lt : forall code  diff pc,
-  Plt pc (next code (Psucc pc) diff).
+  Plt pc (next code (Pos.succ pc) diff).
 Proof.
   induction diff ; intros.
-  simpl. destruct (code ! (Psucc pc)) ; apply Plt_succ.  
-  simpl. destruct (code ! (Psucc pc)).
+  simpl. destruct (code ! (Pos.succ pc)) ; apply Plt_succ.  
+  simpl. destruct (code ! (Pos.succ pc)).
   apply Plt_succ.
-  assert (HH:= IHdiff (Psucc pc)).
-  exploit (Plt_trans pc (Psucc pc)) ; eauto.
+  assert (HH:= IHdiff (Pos.succ pc)).
+  exploit (Plt_trans pc (Pos.succ pc)) ; eauto.
   eapply Plt_succ; eauto. 
 Qed.  
 
@@ -324,7 +324,7 @@ Qed.
 point [pc] that should be in the code [code]. *)
   
 Lemma copy_ins_wf : forall s i code diff pc ,
-  Plt pc (next code (Psucc (st_nextnode_cp s)) diff)  
+  Plt pc (next code (Pos.succ (st_nextnode_cp s)) diff)  
   \/ (Plt pc (st_nextnode_fs s) /\ Ple (st_first_fs s) pc)
   \/ (PTree.set (st_nextnode_cp s) i (st_code s)) ! pc = None    
 .
@@ -341,10 +341,10 @@ Proof.
 Qed.
 
 Lemma copy_ins_incr : forall code diff  s ins
-  (H : Plt (next code (Psucc (st_nextnode_cp s)) diff) (st_first_fs s)),
+  (H : Plt (next code (Pos.succ (st_nextnode_cp s)) diff) (st_first_fs s)),
   state_incr s
   (mkstate
-    (next code (Psucc (st_nextnode_cp s)) diff)
+    (next code (Pos.succ (st_nextnode_cp s)) diff)
     (st_first_fs s)
     (st_nextnode_fs s)
     (PTree.set (st_nextnode_cp s) ins (st_code s))
@@ -369,7 +369,7 @@ Qed.
 Definition copy_ins (pc max: node) (ins: RTL.instruction) (code: SSA.code) : mon unit := 
   fun s => 
     let nx_cp := st_nextnode_cp s in 
-      let nxt := (next code (Psucc nx_cp) (((nat_of_P max) - (S (nat_of_P pc)))%nat)) in
+      let nxt := (next code (Pos.succ nx_cp) (((nat_of_P max) - (S (nat_of_P pc)))%nat)) in
         match plt nxt (st_first_fs s) with 
           | left H =>
             match peq pc nx_cp with 
@@ -392,9 +392,9 @@ Definition copy_ins (pc max: node) (ins: RTL.instruction) (code: SSA.code) : mon
 
 
 (** [incr_next_cp] just goes to the next program point to copy *)
-Lemma incr_next_cp_wf : forall s (H : Plt (Psucc (st_nextnode_cp s)) (st_first_fs s)), 
+Lemma incr_next_cp_wf : forall s (H : Plt (Pos.succ (st_nextnode_cp s)) (st_first_fs s)), 
   forall pc : node,
-             Plt pc (Psucc (st_nextnode_cp s)) \/
+             Plt pc (Pos.succ (st_nextnode_cp s)) \/
              Plt pc (st_nextnode_fs s) /\ Ple (st_first_fs s) pc \/
                                           (st_code s) ! pc = None.
 Proof.
@@ -406,7 +406,7 @@ Qed.
 
 Lemma incr_next_cp_incr : forall s H, 
   state_incr s (mkstate 
-    (Psucc (st_nextnode_cp s))
+    (Pos.succ (st_nextnode_cp s))
     (st_first_fs s)
     (st_nextnode_fs s)
     (st_code s)
@@ -490,14 +490,14 @@ Definition add_move (size : nat) (mov : SSA.reg * SSA.reg) : mon unit :=
              (mkstate
                 (st_nextnode_cp s)
                 (st_first_fs s)
-                (Psucc nx_fs)
+                (Pos.succ nx_fs)
                 (PTree.set nx_fs (RTL.Iop Omove ((Bij.pamr size src) :: nil) (Bij.pamr size dst)
-                                          (Psucc nx_fs))
+                                          (Pos.succ nx_fs))
                            (st_code s))
                 (st_renum s)
                 (st_wf_next s)
                 (Ple_trans _ _ _ (st_wf_next_fs s) (Ple_succ nx_fs))
-                (add_move_wf s size dst src (Psucc nx_fs))
+                (add_move_wf s size dst src (Pos.succ nx_fs))
              )
              (add_move_incr _ _ _ _ _)
     end.
@@ -505,7 +505,7 @@ Definition add_move (size : nat) (mov : SSA.reg * SSA.reg) : mon unit :=
 (** Adding a [Inop] *)
 Lemma add_nop_pc_wf : forall s pc' pc,
              Plt pc (st_nextnode_cp s) \/
-             Plt pc (Psucc (st_nextnode_fs s)) /\ Ple (st_first_fs s) pc \/
+             Plt pc (Pos.succ (st_nextnode_fs s)) /\ Ple (st_first_fs s) pc \/
              (PTree.set (st_nextnode_fs s) (RTL.Inop pc') (st_code s)) ! pc = None.
 Proof.
   intros.  
@@ -527,7 +527,7 @@ Lemma add_nop_pc_incr : forall opc s pc,
   state_incr s (mkstate 
       (st_nextnode_cp s)
       (st_first_fs s)
-      (Psucc (st_nextnode_fs s))
+      (Pos.succ (st_nextnode_fs s))
       (PTree.set (st_nextnode_fs s) (RTL.Inop pc) (st_code s))
       (match opc with 
              | Some pc => (PTree.set  pc (st_nextnode_fs s) (st_renum s))
@@ -562,7 +562,7 @@ Definition add_nop_pc (from: option node) (pc: node) : mon unit :=
        (mkstate 
           (st_nextnode_cp s)
           (st_first_fs s)
-          (Psucc (st_nextnode_fs s))
+          (Pos.succ (st_nextnode_fs s))
           (PTree.set (st_nextnode_fs s) (RTL.Inop pc) (st_code s))
           (match from with 
              | Some pc => (PTree.set  pc (st_nextnode_fs s) (st_renum s))
@@ -671,10 +671,10 @@ Definition copy_wwo_add (tmp_reg: SSA.reg) (size: nat) (preds: PTree.t (list nod
   fun s =>
     match code ! pc with 
       | None => 
-        match plt (Psucc (st_nextnode_cp s)) (st_first_fs s) with 
+        match plt (Pos.succ (st_nextnode_cp s)) (st_first_fs s) with 
           | left H =>
             OK tt (mkstate 
-                     (Psucc (st_nextnode_cp s))
+                     (Pos.succ (st_nextnode_cp s))
                      (st_first_fs s)
                      (st_nextnode_fs s)
                      (st_code s)
