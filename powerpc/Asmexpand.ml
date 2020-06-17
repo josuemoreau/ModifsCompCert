@@ -348,7 +348,7 @@ let expand_builtin_vstore_1 chunk addr src =
                expand_store_int64 hi lo temp (Cint _0) (Cint _4))
         (fun r1 r2 ->
            emit (Padd(temp, r1, r2));
-           expand_load_int64 hi lo temp (Cint _0) (Cint _4))
+           expand_store_int64 hi lo temp (Cint _0) (Cint _4))
         addr temp
   | _, _ ->
       assert false
@@ -409,6 +409,30 @@ let expand_builtin_va_start r =
 
 let expand_int64_arith conflict rl fn =
   if conflict then (fn GPR0; emit (Pmr(rl, GPR0))) else fn rl
+
+(* Expansion of integer conditional moves (__builtin_*sel) *)
+(* The generated code works equally well with 32-bit integer registers
+   and with 64-bit integer registers. *)
+
+let expand_integer_cond_move a1 a2 a3 res =
+  if a2 = a3 then
+    emit (Pmr (res, a2))
+  else if eref then begin
+    emit (Pcmpwi (a1,Cint (Int.zero)));
+    emit (Pisel (res,a3,a2,CRbit_2))
+  end else begin
+    (* a1 has type _Bool, hence it is 0 or 1 *)
+    emit (Psubfic (GPR0, a1, Cint _0));
+    (* r0 = -1 (all ones) if a1 is true, r0 = 0 if a1 is false *)
+    if res <> a3 then begin
+      emit (Pand_ (res, a2, GPR0));
+      emit (Pandc (GPR0, a3, GPR0))
+    end else begin
+      emit (Pandc (res, a3, GPR0));
+      emit (Pand_ (GPR0, a2, GPR0))
+    end;
+    emit (Por (res, res, GPR0))
+  end
 
 (* Convert integer constant into GPR with corresponding number *)
 let int_to_int_reg = function
@@ -669,25 +693,13 @@ let expand_builtin_inline name args res =
   | "__builtin_return_address",_,BR (IR res) ->
       emit (Plwz (res, Cint! retaddr_offset,GPR1))
   (* Integer selection *)
-  | ("__builtin_isel" | "__builtin_uisel"), [BA (IR a1); BA (IR a2); BA (IR a3)],BR (IR res) ->
-      if eref then begin
-        emit (Pcmpwi (a1,Cint (Int.zero)));
-        emit (Pisel (res,a3,a2,CRbit_2))
-      end else if a2 = a3 then
-        emit (Pmr (res, a2))
-      else begin
-        (* a1 has type _Bool, hence it is 0 or 1 *)
-        emit (Psubfic (GPR0, a1, Cint _0));
-        (* r0 = 0xFFFF_FFFF if a1 is true, r0 = 0 if a1 is false *)
-        if res <> a3 then begin
-          emit (Pand_ (res, a2, GPR0));
-          emit (Pandc (GPR0, a3, GPR0))
-        end else begin
-          emit (Pandc (res, a3, GPR0));
-          emit (Pand_ (GPR0, a2, GPR0))
-        end;
-        emit (Por (res, res, GPR0))
-      end
+  | ("__builtin_bsel" | "__builtin_isel" | "__builtin_uisel"), [BA (IR a1); BA (IR a2); BA (IR a3)],BR (IR res) ->
+      expand_integer_cond_move a1 a2 a3 res
+  | ("__builtin_isel64" | "__builtin_uisel64"), [BA (IR a1); BA (IR a2); BA (IR a3)],BR (IR res) ->
+    if Archi.ppc64 then
+      expand_integer_cond_move a1 a2 a3 res
+    else
+      raise (Error (name ^" is only supported for PPC64 targets"))
   (* no operation *)
   | "__builtin_nop", [], _ ->
       emit (Pori (GPR0, GPR0, Cint _0))

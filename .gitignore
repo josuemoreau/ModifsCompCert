@@ -69,5 +69,5 @@
 .DS_Store
 # Test generated data
 /test/clightgen/*.v
-# Cache files
+# Coq cache
 .lia.cache
