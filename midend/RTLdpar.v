@@ -748,7 +748,7 @@ Proof.
   unfold Ple in *.
   generalize (zle (Zpos p1) (Zpos p2)) ; eauto; intros.
   case H; intros ; eauto.
-Qed.
+Defined.
 
 Require Import List Setoid Permutation Sorted Orders.
 

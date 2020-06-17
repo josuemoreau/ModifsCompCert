@@ -242,7 +242,7 @@ Lemma sum_eq_dec: forall {A B: Type},
                   forall ab1 ab2: A+B , {ab1 = ab2} + {ab1 <> ab2}.
 Proof.
     decide equality.
-Qed. 
+Defined.
 
 Lemma builtin_arg_eq_dec : forall (A: Type),
     (forall a1 a2: A, { a1 = a2 } + { a1 <> a2 }) ->
@@ -280,7 +280,7 @@ Proof.
     destruct (IHba1_1 ba2_1);
       destruct (IHba1_2 ba2_2);
       go.
-Qed.
+Defined.
 
 Lemma builtin_res_eq_dec : forall (A: Type),
     (forall a1 a2: A, { a1 = a2 } + { a1 <> a2 }) ->
@@ -295,7 +295,7 @@ Proof.
      destruct (IHbr1_1 br2_1);
       destruct (IHbr1_2 br2_2);
       go.
-Qed.
+Defined.
 
 Definition ch_succ_dec (i1 i2: instruction) : bool :=
   match i1, i2 with 

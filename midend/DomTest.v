@@ -1317,7 +1317,7 @@ Module Z <: INT.
     destruct (Z_le_dec x y).
     - left; auto.
     - right; unfold int_lt; omega.
-  Qed.
+  Defined.
   Lemma int_le_refl : forall i, int_le i i.
   Proof. unfold int_le; intros; omega. Qed.
   Lemma int_le_trans : forall i1 i2 i3,
