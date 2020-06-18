@@ -46,7 +46,7 @@ Section PATHS.
     (STEP: rtl_path_step s1 pc s2)
     (PATH: rtl_path s2 t s3),
     rtl_path s1 (pc::t) s3.  
-  Hint Constructors rtl_path rtl_path_step.
+  Hint Constructors rtl_path rtl_path_step: core.
 
   Inductive rtl_path_right : pstate -> list node -> pstate -> Prop :=
   | rtl_path_rrefl : forall s,  rtl_path_right s nil s  
@@ -54,7 +54,7 @@ Section PATHS.
     (STEP: rtl_path_right s1 t s2)
     (PATH: rtl_path_step s2 pc s3),
     rtl_path_right s1 (t++(pc::nil)) s3.  
-  Hint Constructors rtl_path_right.  
+  Hint Constructors rtl_path_right: core.  
   
   Lemma rtl_path_app : forall p1 s1 s2 s3 p2, 
     rtl_path s1 p1 s2 ->

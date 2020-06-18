@@ -477,8 +477,8 @@ Proof.
     + generalize (st_wf_next_fs s) ; intros.
       generalize (st_wf_next s) ; intros.
       right. rewrite PTree.gso; auto. intro Hcont. inv Hcont. sz.
-    + repeat invh or ; repeat invh and ; auto. 
-      right. rewrite PTree.gso ; auto.
+    + repeat invh or ; repeat invh and ; auto with coqlib. 
+      right. rewrite PTree.gso ; auto with coqlib.
 Qed.
   
 Definition add_move (size : nat) (mov : SSA.reg * SSA.reg) : mon unit :=

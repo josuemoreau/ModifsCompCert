@@ -338,7 +338,7 @@ Inductive match_stackframes :
       (Stackframe res f sp pc rs :: s)
       (RTLpar.Stackframe (regrepr res) tf sp pc rs' :: ts).
 
-Hint Constructors match_stackframes.
+Hint Constructors match_stackframes: core.
 
 Set Implicit Arguments.
 
@@ -395,7 +395,7 @@ Section PRESERVATION.
             (Returnstate s v m)
             (RTLpar.Returnstate ts v m).
 
-Hint Constructors match_states.
+Hint Constructors match_states: core.
 
 
 (* NOTE: important *)
@@ -1582,7 +1582,7 @@ Proof.
     destruct Hinop. congruence.
 Qed.
 
-Hint Resolve ident_eq.
+Hint Resolve ident_eq: core.
 
 Lemma cssaval_contradiction_in_Ioporbuiltin :
   forall f pc args res pc' r s sp rs m,

@@ -101,7 +101,8 @@ Proof.
   intros.
   destruct x; inv H; eauto.
 Qed.
-Hint Resolve option_map_some.
+
+Hint Resolve option_map_some : core.
 
 (** * Properties about [PTree] *)
 Lemma add_set_or : forall i j s,
@@ -497,8 +498,8 @@ Proof.
   intros; constructor ; auto.
 Qed.
 
-Hint Resolve in_tl_in_cons.
-Hint Resolve in_hd_in_cons.
+Hint Resolve in_tl_in_cons: core.
+Hint Resolve in_hd_in_cons: core.
 
 Lemma app_cons_nil : forall (A:Type) (l l': list A) (n1 n2 : A), 
   n1 :: nil = l ++ n2 :: l' ->
@@ -824,9 +825,10 @@ Lemma inclist_cons_in {A:Type} : forall l1 l2 (a:A),
   inclist (a :: l2) l1 -> In a l1.
 Proof.
   induction l1; intros; inv H.
-  exploit IHl1; eauto.
-  auto. 
+  - exploit IHl1; eauto with datatypes.
+  - auto with datatypes. 
 Qed.
+
 
 Lemma inclist_indu : forall A l2 l1 (a:A), 
   inclist (a::l1) l2 -> inclist l1 l2.
@@ -908,6 +910,8 @@ Proof.
   inv H.
 Qed.
 
+Local Open Scope Z_scope.
+
 Lemma arith_utils2: forall (n:Z) (n1: nat)  , 
   n > 0 ->
   n1 =  (Z.to_nat (Z.pred n)) ->
@@ -983,6 +987,8 @@ Proof.
   unfold Z.pred in * ; lia.
 Qed.  
 
+Local Close Scope Z_scope.
+
 Lemma list_norepet_app: forall A (l1:list A), list_norepet l1 -> 
   forall l2, list_norepet l2 -> 
     (forall x, In x l1 -> In x l2 -> False) ->
@@ -1051,7 +1057,7 @@ Lemma list_forall1_imply:
 Proof.
   induction 1; intros.
   constructor.
-  constructor. auto with coqlib. apply IHlist_forall1; auto. 
+  constructor. auto with coqlib. apply IHlist_forall1; auto with datatypes. 
 Qed.
 
 Section forall3_ptree.
@@ -1272,11 +1278,15 @@ Lemma Rstar_trans : forall A (R:A->A->Prop) (i j k:A),
   R** i j -> R** j k -> R** i k.
 Proof. intros A R i j k; constructor 3 with j; auto. Qed.
 
-Hint Resolve Rstar_trans Rstar_refl Rstar_R.
+Hint Resolve Rstar_trans Rstar_refl Rstar_R: core.
  
 Lemma Rstar_left_case : forall A R (i j:A), R** i j ->
   i = j \/ exists k, R i k /\ R** k j.
-Proof.  induction 1; eauto. intuition; subst; auto. decompose [ex and] H1 ; eauto. Qed.
+Proof.
+  induction 1; eauto.
+  intuition; subst; eauto.
+  decompose [ex and] H1 ; eauto.
+Qed.
 
 Lemma star_eq : forall A (R1 R2:A->A->Prop),
   (forall i j, R1 i j -> R2 i j) ->
@@ -1287,3 +1297,4 @@ Proof.
   econstructor 2; eauto.
   econstructor 3; eauto.
 Qed.
+

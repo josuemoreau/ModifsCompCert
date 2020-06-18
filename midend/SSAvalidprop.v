@@ -73,7 +73,7 @@ Hypothesis fn_phicode_inv2: forall jp i,
 Notation ui := (erase_reg).
 Notation gi := (get_index).
 Notation entry := fn_entrypoint.
-Hint Constructors rtl_path_step rtl_path.
+Hint Constructors rtl_path_step rtl_path: core.
 
 
 (** * Utility lemmas about indexed registers. *)
@@ -243,7 +243,7 @@ Proof.
   exploit (cfg_edge_aux (entry f)) ; eauto.
 Qed.
 
-Hint Constructors rtl_cfg.
+Hint Constructors rtl_cfg: core.
 Lemma cfg_rtl_cfg : forall f tf pc1 pc2,
   check_erased_spec f tf ->
   cfg tf pc1 pc2 -> 
@@ -340,7 +340,7 @@ Proof.
   induction p ; intros; (inv H0; econstructor ; eauto).
   eapply path_step_rtl_path_step ; eauto.
 Qed.
-Hint Resolve path_rtl_path.
+Hint Resolve path_rtl_path: core.
 
 Lemma path_cfg : forall f p s1 s2, 
   path f s1 p s2 ->

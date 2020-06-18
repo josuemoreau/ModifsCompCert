@@ -291,7 +291,7 @@ Section subject_reduction.
       (HG:forall v, gamma f ge sp pc (rs#2 res <- v))
       (EXE: exec AA f pc),
       sfg_inv ((Stackframe res f sp pc rs) :: s).
-  Hint Constructors sfg_inv.
+  Hint Constructors sfg_inv: core.
   
   Inductive sg_inv (ge: genv): state -> Prop :=
   | si_State:
@@ -311,7 +311,7 @@ Section subject_reduction.
         (SINV:s_inv ge (Returnstate s v m))
         (STACK: sfg_inv s),
         sg_inv ge (Returnstate s v m).
-  Hint Constructors sg_inv.
+  Hint Constructors sg_inv: core.
 
   Lemma s_inv_initial : forall s, initial_state prog s -> sg_inv ge s.
   Proof.

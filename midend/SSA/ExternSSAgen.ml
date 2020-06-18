@@ -71,7 +71,7 @@ let succ f =
 
 let succ_and_pred f = 
   let succ = RTLt.successors_map f in
-  let pred = Kildall.make_predecessors (RTLt.fn_code f) RTLt.successors_instr in
+  let pred = Kildall.make_predecessors f.RTLt.fn_code RTLt.successors_instr in
     ((fun i -> 
 	match PTree.get (positive_of_int i) succ with
 	    None -> []

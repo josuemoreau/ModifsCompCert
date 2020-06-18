@@ -242,7 +242,7 @@ Section PRESERVATION.
     destruct (p2eq r r); intuition.
   Qed.
 
-  Hint Constructors ext_params dsd.
+  Hint Constructors ext_params dsd: core.
 
   Lemma join_point_transf_function : forall f (WF: wf_ssa_function f) j,
       join_point j (transf_function f) <-> join_point j f.
@@ -314,7 +314,7 @@ Section PRESERVATION.
     induction 1 ; go.
   Qed.
 
-  Hint Resolve match_stackframes_sfg_inv.
+  Hint Resolve match_stackframes_sfg_inv: core.
 
   Lemma subj_red_gamma : forall prog (WFP: wf_ssa_program prog),
       forall (f f' : function)

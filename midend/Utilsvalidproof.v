@@ -716,7 +716,7 @@ Proof.
   induction 2; rewrite PTree.gso in H0; eauto.
 Qed.
 
-Hint Resolve assigned_code_preserved.
+Hint Resolve assigned_code_preserved: core.
 
 Lemma fold_record_preserve: forall t l pc r,
     t !2 r = Some l ->

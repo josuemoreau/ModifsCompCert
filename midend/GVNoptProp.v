@@ -207,7 +207,7 @@ Section DsdAnalysis.
  Proof.
    unfold repr_spec_code; intros; flatten; go.
  Qed.
- Hint Resolve repr_spec_code_id.
+ Hint Resolve repr_spec_code_id: core.
 
  Lemma same_repr_refl: forall R args,
    same_repr R args args.
@@ -219,7 +219,7 @@ Section DsdAnalysis.
  Proof.
    unfold repr_spec_phicode; intros; flatten; go.
  Qed.
- Hint Resolve repr_spec_phicode_id.
+ Hint Resolve repr_spec_phicode_id: core.
 
 (* Move this *)
 Lemma p2eqb_true_iff : forall x y, 
@@ -528,7 +528,7 @@ Proof.
                      econstructor; split; eauto using exec_true].
 Qed.    
   
-Hint Resolve exec_true.
+Hint Resolve exec_true: core.
 
 Lemma gamma_step_phi: forall (f:function) (WFF: wf_ssa_function f) ge sp pc pc' phib k rs,
   reached f pc ->

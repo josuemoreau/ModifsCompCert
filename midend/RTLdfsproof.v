@@ -48,7 +48,7 @@ Lemma not_seen_sons_aux0 : forall l0 l1 l2 seen_set seen_set',
 Proof.
   induction l0; simpl; intros.
   inv H; auto.
-  destruct (seen_set!a); inv H; eauto.
+  destruct (seen_set!a); inv H; eauto with datatypes.
 Qed.
 
 Lemma not_seen_sons_prop1 : forall i j seen_set seen_set' l,
@@ -75,7 +75,7 @@ Proof.
   case_eq (seen_set0!j); intros.
   destruct u; auto.
   rewrite H2 in *.
-  left; eapply not_seen_sons_aux0; eauto.
+  left; eapply not_seen_sons_aux0; eauto with datatypes.
   destruct H1.
   intuition.
   destruct (seen_set0!a); eauto.
@@ -264,7 +264,7 @@ Proof.
   rewrite PTree.gsspec in H; destruct peq; auto.
   subst.
   right.
-  eapply not_seen_sons_aux0; eauto.
+  eapply not_seen_sons_aux0; eauto with datatypes.
   apply H with (1:=H2); auto.
 Qed.
 
@@ -352,7 +352,7 @@ Proof.
   case_eq (not_seen_sons code p (PTree.set p tt seen_set)); intros new seen_set' Hn.
   rewrite Hn in *.
 
-  apply IHworkl with (10:=H0); auto; clear H0.
+  apply IHworkl with (10:=H0); auto with datatypes; clear H0.
 
   apply list_norepet_append; auto.
   generalize (not_seen_sons_prop5 p (PTree.set p tt seen_set)); rewrite Hn; auto.
@@ -362,13 +362,13 @@ Proof.
   generalize (not_seen_sons_prop2 p y (PTree.set p tt seen_set)); rewrite Hn; simpl; intros.
   apply H1 in H.
   rewrite PTree.gsspec in H; destruct peq; try congruence.
-  rewrite HH3 in H1; auto; congruence.
+  rewrite HH3 in H1; auto with datatypes; congruence.
 
   simpl; intros i Hi.
   rewrite in_app in Hi; destruct Hi; auto.
   eapply not_seen_sons_prop4; eauto.
   eapply not_seen_sons_prop3; eauto.
-  rewrite PTree.gsspec; destruct peq; auto.
+  rewrite PTree.gsspec; destruct peq; auto with datatypes.
 
 simpl; intros i Hi.
   destruct Hi; subst.
@@ -387,7 +387,7 @@ simpl; intros i Hi1 Hi2.
   rewrite HH4 in H; congruence.
   destruct Hi1; subst.
   inv HH2; intuition.
-  elim HH5 with i; auto.
+  elim HH5 with i; auto with datatypes.
   
 intros i Hi.
   elim not_seen_sons_prop6 with (1:=Hn) (2:=Hi); intros.
@@ -404,22 +404,22 @@ intros i j Hi1 Hi2.
   right; eauto with datatypes.
   rewrite PTree.gsspec in H; destruct peq; auto.
   left; left; auto.
-  elim HH6 with j; auto.
+  elim HH6 with j; auto with datatypes.
   simpl; destruct 1; auto with datatypes.
-  elim HH7 with i j; auto.
+  elim HH7 with i j; auto with datatypes.
   simpl; destruct 1; auto with datatypes.
 
 simpl; intros i Hi.
-  destruct Hi; auto.
-  subst; auto.
+  destruct Hi; auto with datatypes.
+  subst; auto with datatypes.
 
 simpl; intros i Hi.
   rewrite in_app in Hi.
-  destruct Hi; auto.
-  exploit not_seen_sons_prop8; eauto.
-
+  destruct Hi; auto with datatypes.
+  exploit not_seen_sons_prop8; eauto with datatypes. 
+    
   constructor; auto.
-  intro HI; elim HH5 with p; auto with arith.
+  intro HI; elim HH5 with p; auto with arith datatypes.
 Qed.  
   
 End dfs.
@@ -452,9 +452,9 @@ Proof.
    (forall i j, In i x -> cfg (fn_code tf) i j -> In j x) /\
    (forall j : positive, In j x -> (cfg (fn_code tf) **) (fn_entrypoint tf) j)
    ).
-  apply acc_succ_prop with (entry:=(RTL.fn_entrypoint tf)) (10:=EQ); auto.
+  apply acc_succ_prop with (entry:=(RTL.fn_entrypoint tf)) (10:=EQ); auto with datatypes.
 
-  apply list_norepet_append; auto.
+  apply list_norepet_append; auto with datatypes.
   generalize (not_seen_sons_prop5 (RTL.fn_code tf) (RTL.fn_entrypoint tf)
          (PTree.set (RTL.fn_entrypoint tf) tt (PTree.empty unit))); rewrite TT; simpl; auto.
   constructor.
@@ -484,12 +484,12 @@ Proof.
   
   intros.
   elim not_seen_sons_prop6 with (1:=TT) (i0:=i); auto with datatypes.
-  rewrite PTree.gsspec; destruct peq; subst; intros; auto.
+  rewrite PTree.gsspec; destruct peq; subst; intros; auto with datatypes.
   rewrite PTree.gempty in H0; congruence.
   
   simpl; intuition.
   elim not_seen_sons_prop1 with (j:=j) (1:=TT); auto with datatypes.
-  rewrite PTree.gsspec; destruct peq; subst; intros; auto.
+  rewrite PTree.gsspec; destruct peq; subst; intros; auto with datatypes.
   rewrite PTree.gempty in H; congruence.
   rewrite H1; auto.
 
@@ -777,7 +777,7 @@ Inductive match_stackframes : list stackframe -> list RTLt.stackframe -> Prop :=
     ((Stackframe res f sp pc rs) :: s)
     ((RTLt.Stackframe res tf sp pc rs) :: ts)
     .
-Hint Constructors match_stackframes.
+Hint Constructors match_stackframes: core.
 
 
 Inductive match_states: state -> RTLt.state -> Prop :=
@@ -796,7 +796,7 @@ Inductive match_states: state -> RTLt.state -> Prop :=
       forall s ts v m 
         (STACK: match_stackframes s ts ),
         match_states (Returnstate s v m) (RTLt.Returnstate ts v m).
-Hint Constructors match_states.
+Hint Constructors match_states: core.
 
 Lemma transf_initial_states:
   forall st1, RTL.initial_state prog st1 ->

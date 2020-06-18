@@ -43,13 +43,13 @@ Ltac elimAndb :=
 
 Ltac conv := simpl erase_reg in *.
 
-Hint Constructors rtl_cfg.
-Hint Constructors use_rtl_code.
-Hint Constructors wf_live.
-Hint Constructors RTLutils.assigned_code_spec.
-Hint Constructors SSA.assigned_code_spec.
-Hint Extern 4 (In _ (RTLt.successors_instr _)) => simpl RTLt.successors_instr.
-Hint Extern 4 (In _ (SSA.successors_instr _)) => simpl SSA.successors_instr.
+Hint Constructors rtl_cfg: core.
+Hint Constructors use_rtl_code: core.
+Hint Constructors wf_live: core.
+Hint Constructors RTLutils.assigned_code_spec: core.
+Hint Constructors SSA.assigned_code_spec: core.
+Hint Extern 4 (In _ (RTLt.successors_instr _)) => simpl RTLt.successors_instr: core.
+Hint Extern 4 (In _ (SSA.successors_instr _)) => simpl SSA.successors_instr: core.
 
 Ltac well_typed :=
   match goal with
@@ -386,7 +386,7 @@ Section PRESERVATION.
       (TRANSF: transf_fundef f = OK tf),
       (RTLt.Callstate s f args m) ≃ (SSA.Callstate ts tf args m)
    where "s ≃ t" := (match_states s t).
-  Hint Constructors match_states.  
+  Hint Constructors match_states: core.  
 
   
   (** ** Auxiliary lemmas about [agree] preservation *)
@@ -589,7 +589,6 @@ Hint Resolve eval_addressing_preserved : valagree.
 Hint Resolve eval_operation_preserved : valagree.
 Hint Resolve agree_preserve_arg : valagree.
 Hint Resolve agree_preserve_args : valagree.
-(* Hint Resolve sig_function_translated : valagree. *)
 Hint Resolve sig_fundef_translated : valagree.
 
 Lemma agree_preserve_builtin_arg : forall sp m arg v rs,

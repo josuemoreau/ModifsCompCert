@@ -45,7 +45,7 @@ Section PRESERVATION.
 
   Section CORRECTNESS.
     
-    Hint Unfold exec.
+    Hint Unfold exec: core.
     
     Variable prog: program.
     Variable tprog: program.
@@ -125,7 +125,7 @@ Section PRESERVATION.
       flatten; rewrite <- same_symbols in *; eauto; flatten.
     Qed.
 
-    Hint Resolve same_symbols.
+    Hint Resolve same_symbols: core.
 
     Lemma same_eval: forall sp op rs args m,
         eval_operation tge sp op rs ##2 args m = eval_operation ge sp op rs ##2 args m.
@@ -190,8 +190,8 @@ Section PRESERVATION.
 
     Hint Resolve sdom_dom_pred
          fn_code_reached fn_entry_pred fn_phicode_inv
-         list_nth_z_in.
-    Hint Constructors clos_refl_trans SSA.step.
+         list_nth_z_in: core.
+    Hint Constructors clos_refl_trans SSA.step: core.
     
 
     Lemma match_stackframes_sfg_inv : forall s st,
@@ -252,7 +252,7 @@ Section PRESERVATION.
     Qed.
 
     Hint Resolve match_stackframes_sfg_inv
-         subj_red subj_red_gamma.
+         subj_red subj_red_gamma: core.
     
     Ltac match_go :=
       match goal with
@@ -277,7 +277,7 @@ Section PRESERVATION.
         simpl transf_instr in *
       end.
 
-    Hint Extern 1 (wf_ssa_function _) => invh s_inv.
+    Hint Extern 1 (wf_ssa_function _) => invh s_inv: core.
     
     Lemma transf_step_correct:
       forall s1 t s2,

@@ -124,11 +124,11 @@ Lemma Plt_neq :
   r1 <> r2.
 Proof.
   intros.
-  assert (fst r1 <> fst r2) by auto.
+  assert (fst r1 <> fst r2) by auto with coqlib.
   congruence.
 Qed.
 
-Hint Resolve Plt_neq.
+Hint Resolve Plt_neq: core.
 
 Lemma nth_error_nil_notSome_node :
   forall k,
@@ -145,7 +145,7 @@ Proof.
 Qed.
 
 Hint Resolve nth_error_nil_notSome_node
-  nth_error_nil_notSome_reg.
+  nth_error_nil_notSome_reg: core.
 
 Lemma notIn_notnth:
   forall k (nodes: list node) pc,
@@ -170,7 +170,7 @@ Proof.
   flatten regs; go.
 Qed.
 
-Hint Resolve nth_In_reg.
+Hint Resolve nth_In_reg: core.
 
 Lemma nth_In_node:
   forall k (nodes: list node) pc,
@@ -181,7 +181,7 @@ Proof.
     flatten regs; go. 
 Qed.
 
-Hint Resolve nth_In_node.
+Hint Resolve nth_In_node: core.
 
 (** Kildall lemmas *)
 
@@ -971,7 +971,7 @@ Proof.
   eapply initialize_parcopy_blocks_correct_aux; eauto.
 Qed.
 
-Hint Resolve initialize_parcopy_blocks_correct.
+Hint Resolve initialize_parcopy_blocks_correct: core.
 
 Lemma initialize_parcopy_blocks_correct_parcother :
   forall l x pc s s' INCR,
@@ -1043,7 +1043,7 @@ Proof.
   assumption.
 Qed.
 
-Hint Resolve gen_new_regs_spec_incr.
+Hint Resolve gen_new_regs_spec_incr: core.
 
 Lemma gen_new_regs_spec_ple_arg_maxreg :
   forall maxreg fs_init fs_max args args',
@@ -1109,7 +1109,7 @@ Proof.
   auto.
 Qed.
 
-Hint Resolve gen_new_regs_spec_plt_maxreg_fs_init.
+Hint Resolve gen_new_regs_spec_plt_maxreg_fs_init: core.
 
 Lemma gen_new_regs_spec_min_in :
   forall maxreg fs_init fs_max args args',
@@ -1133,7 +1133,7 @@ Proof.
     auto.
 Qed.
 
-Hint Resolve gen_new_regs_spec_min_in.
+Hint Resolve gen_new_regs_spec_min_in: core.
 
 Lemma gen_new_regs_spec_nthNotNonefromNotNone :
   forall maxreg fs_init fs_max args args',
@@ -1151,7 +1151,7 @@ Proof.
     - eauto.
 Qed.
 
-Hint Resolve gen_new_regs_spec_nthNotNonefromNotNone.
+Hint Resolve gen_new_regs_spec_nthNotNonefromNotNone: core.
 
 Lemma gen_new_regs_spec_nthNotNonetoNotNone :
   forall maxreg fs_init fs_max args args',
@@ -1169,7 +1169,7 @@ Proof.
     - eauto.
 Qed.
 
-Hint Resolve gen_new_regs_spec_nthNotNonetoNotNone.
+Hint Resolve gen_new_regs_spec_nthNotNonetoNotNone: core.
 
 Lemma gen_new_regs_correct :
   forall args s s' args' INCR maxreg,
@@ -1207,7 +1207,7 @@ Proof.
       apply Ple_succ.
 Qed.
 
-Hint Resolve gen_new_regs_correct.
+Hint Resolve gen_new_regs_correct: core.
 
 Lemma gen_new_regs_correct_parcode :
   forall args s args' s' INCR,
@@ -1226,7 +1226,7 @@ Proof.
     go.
 Qed.
 
-Hint Resolve gen_new_regs_correct_parcode.
+Hint Resolve gen_new_regs_correct_parcode: core.
 
 Lemma gen_new_regs_correct_phicode :
   forall args s args' s' INCR,
@@ -1245,7 +1245,7 @@ Proof.
     go.
 Qed.
 
-Hint Resolve gen_new_regs_correct_phicode.
+Hint Resolve gen_new_regs_correct_phicode: core.
 
 Lemma add_parcopies_correct_fresh :
   forall parcopies copy_nodes s u s' INCR,
@@ -1264,7 +1264,7 @@ Proof.
     flatten EQ0. auto.
 Qed.
 
-Hint Resolve add_parcopies_correct_fresh.
+Hint Resolve add_parcopies_correct_fresh: core.
 
 Lemma add_parcopies_correct_phicode :
   forall parcopies copy_nodes s u s' INCR,
@@ -1283,7 +1283,7 @@ Proof.
     flatten EQ0. auto.
 Qed.
 
-Hint Resolve add_parcopies_correct_phicode.
+Hint Resolve add_parcopies_correct_phicode: core.
 
 Inductive add_parcopies_spec (pcode1 : parcopycode) :
   list parcopy -> list node
@@ -1319,7 +1319,7 @@ Proof.
   auto. auto.
 Qed.
 
-Hint Resolve add_parcopies_spec_correct_other.
+Hint Resolve add_parcopies_spec_correct_other: core.
 
 Lemma add_parcopies_k_notSomefromNone :
   forall parcode1 parcopies copy_nodes parcode2,
@@ -1406,7 +1406,7 @@ Proof.
     - auto.
 Qed.
 
-Hint Resolve add_parcopies_nth_notNonetonotNone.
+Hint Resolve add_parcopies_nth_notNonetonotNone: core.
 
 Lemma add_parcopies_correct :
   forall copy_nodes s parcopies u s' INCR,
@@ -1441,7 +1441,7 @@ Proof.
     flatten EQ0. simpl. congruence.
 Qed.
 
-Hint Resolve add_parcopies_correct.
+Hint Resolve add_parcopies_correct: core.
 
 Inductive build_parcopies_spec :
   list reg -> list reg -> list parcopy -> Prop :=
@@ -1464,7 +1464,7 @@ Proof.
   + monadInv H. go.
 Qed.
 
-Hint Resolve build_parcopies_correct.
+Hint Resolve build_parcopies_correct: core.
 
 Lemma build_parcopies_nth:
   forall args args' parcopies,
@@ -1482,7 +1482,7 @@ Proof.
     - eauto.
 Qed.
 
-Hint Resolve build_parcopies_nth.
+Hint Resolve build_parcopies_nth: core.
 
 Lemma build_parcopies_nth_revargs:
   forall args args' parcopies,
@@ -1499,7 +1499,7 @@ Proof.
     - eauto.
 Qed.
 
-Hint Resolve build_parcopies_nth_revargs.
+Hint Resolve build_parcopies_nth_revargs: core.
 
 Lemma build_parcopies_correct_phicode:
   forall args args' s parcopies s' INCR,
@@ -1515,7 +1515,7 @@ Proof.
     monadInv H. eauto.
 Qed.
 
-Hint Resolve build_parcopies_correct_phicode.
+Hint Resolve build_parcopies_correct_phicode: core.
 
 Lemma build_parcopies_correct_fresh:
   forall args args' s parcopies s' INCR,
@@ -1531,7 +1531,7 @@ Proof.
     monadInv H. eauto.
 Qed.
 
-Hint Resolve build_parcopies_correct_fresh.
+Hint Resolve build_parcopies_correct_fresh: core.
 
 Lemma build_parcopies_correct_parcopycode:
   forall args args' s parcopies s' INCR,
@@ -1547,7 +1547,7 @@ Proof.
     monadInv H. eauto.
 Qed.
 
-Hint Resolve build_parcopies_correct_parcopycode.
+Hint Resolve build_parcopies_correct_parcopycode: core.
 
 
 Inductive add_parcopy_spec (pc : node):
@@ -1570,7 +1570,7 @@ Proof.
   flatten H; go.
 Qed.
 
-Hint Resolve add_parcopy_correct.
+Hint Resolve add_parcopy_correct: core.
 
 Lemma add_parcopy_correct_phicode:
   forall dst' dst pc s u s' INCR,
@@ -1580,7 +1580,7 @@ Proof.
   intros. unfold add_parcopy in H. flatten H. auto.
 Qed.
 
-Hint Resolve add_parcopy_correct_phicode.
+Hint Resolve add_parcopy_correct_phicode: core.
 
 Lemma add_parcopy_correct_fresh:
   forall dst' dst pc s u s' INCR,
@@ -1590,7 +1590,7 @@ Proof.
   intros. unfold add_parcopy in H. flatten H. auto.
 Qed.
 
-Hint Resolve add_parcopy_correct_fresh.
+Hint Resolve add_parcopy_correct_fresh: core.
 
 Lemma add_new_phi_correct_fresh:
   forall dst' args' pc s u s' INCR,
@@ -1602,7 +1602,7 @@ Proof.
   flatten H. auto.
 Qed.
 
-Hint Resolve add_new_phi_correct_fresh.
+Hint Resolve add_new_phi_correct_fresh: core.
 
 Lemma add_new_phi_correct_parcode:
   forall dst' args' pc s u s' INCR,
@@ -1614,7 +1614,7 @@ Proof.
   flatten H. auto.
 Qed.
 
-Hint Resolve add_new_phi_correct_parcode.
+Hint Resolve add_new_phi_correct_parcode: core.
 
 Lemma add_new_phi_correct_phicodeNotNone:
   forall dst' args' pc s u s' INCR,
@@ -1626,7 +1626,7 @@ Proof.
   flatten H.
 Qed.
 
-Hint Resolve add_new_phi_correct_phicodeNotNone.
+Hint Resolve add_new_phi_correct_phicodeNotNone: core.
 
 Inductive add_new_phi_spec (pc : node) :
   reg -> list reg -> phicode -> phicode -> Prop :=
@@ -1649,7 +1649,7 @@ Proof.
   flatten H; go.
 Qed.
 
-Hint Resolve add_new_phi_correct.
+Hint Resolve add_new_phi_correct: core.
 
 Inductive handle_phi_block_spec (maxreg: positive)
   (preds : list node) (pc : node)
@@ -1715,7 +1715,7 @@ Proof.
   apply Ple_succ.
 Qed.
 
-Hint Resolve handle_phi_block_spec_incr.
+Hint Resolve handle_phi_block_spec_incr: core.
 
 Lemma handle_phi_block_spec_ple_init_arg :
   forall maxreg preds pc block fs_init fs_last
@@ -3142,7 +3142,7 @@ Section PRESERVATION.
             ((Stackframe res f sp pc rs) :: s)
             ((CSSApar.Stackframe res tf sp pc rs') :: ts).
 
-    Hint Constructors match_stackframes.
+    Hint Constructors match_stackframes: core.
 
     Set Implicit Arguments.
 
@@ -3169,7 +3169,7 @@ Section PRESERVATION.
           match_states (Returnstate s v m)
                        (CSSApar.Returnstate ts v m).
 
-    Hint Constructors match_states.
+    Hint Constructors match_states: core.
 
 Lemma function_ptr_translated:
   forall (b: Values.block) (f: SSA.fundef),
@@ -3526,17 +3526,17 @@ Proof.
   destruct r1. destruct r2.
   simpl in *.
   assert (r <> r0); try congruence.
-  assert (Plt r r0); auto.
-  apply Ple_Plt_trans with maxreg; auto.
+  assert (Plt r r0); auto with coqlib.
+  apply Ple_Plt_trans with maxreg; auto with coqlib.
 Qed.
 
 Hint Resolve equiv_phib_fresh_parcb equiv_phib_fresh_parcb'
   equiv_phib_fresh_phib'1 equiv_phib_fresh_phib'2
   equiv_phib_notfresh_phib1 equiv_phib_notfresh_phib2
   equiv_phib_nth equiv_phib_args_k_notnone
-  reg_Ple_Plt_not_eq.
+  reg_Ple_Plt_not_eq: core.
 
-Hint Resolve parc_dst_in.
+Hint Resolve parc_dst_in: core.
 
 Lemma in_parc_dst_in_not :
   forall r parcb,
@@ -3552,7 +3552,7 @@ Proof.
   + go.
 Qed.
 
-Hint Resolve in_parc_dst_in_not.
+Hint Resolve in_parc_dst_in_not: core.
 
 Definition phib_dst (phiins : phiinstruction) :=
   match phiins with
@@ -3656,7 +3656,7 @@ Proof.
   assert (arg' <> arg'); go.
 Qed.
 
-Hint Resolve equiv_phib_nodups_parcb_dst.
+Hint Resolve equiv_phib_nodups_parcb_dst: core.
 
 Lemma equiv_phib_nodups_phib'_dst :
   forall maxreg k phib parcb phib' parcb',
@@ -3675,7 +3675,7 @@ Proof.
   assert (dst' <> dst'); go.
 Qed.
 
-Hint Resolve equiv_phib_nodups_phib'_dst.
+Hint Resolve equiv_phib_nodups_phib'_dst: core.
 
 Lemma equiv_phib_spec_rev:
   forall maxreg k phib parcb phib' parcb',
@@ -3710,7 +3710,7 @@ Proof.
   inv Hwf. auto.
 Qed.
 
-Hint Resolve equiv_phib_nodups_parcb'_dst.
+Hint Resolve equiv_phib_nodups_parcb'_dst: core.
 
 Lemma parcb_not_in :
   forall r parcb,
@@ -3726,7 +3726,7 @@ Proof.
   - intuition. go.
 Qed.
 
-Hint Resolve parcb_not_in.
+Hint Resolve parcb_not_in: core.
 
 Lemma phi_store_emulation :
   forall rs rs' k phib parcb phib' parcb' maxreg,

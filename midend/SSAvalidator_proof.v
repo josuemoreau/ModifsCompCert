@@ -308,8 +308,8 @@ Ltac in_succ_case :=
       repeat destruct id as [id|id]; subst; try (elim id; fail)
   end.
 
-Hint Extern 4 (In _ (successors_instr _)) => simpl.
-Hint Extern 4 (In _ (RTLt.successors_instr _)) => simpl.
+Hint Extern 4 (In _ (successors_instr _)) => simpl: core.
+Hint Extern 4 (In _ (RTLt.successors_instr _)) => simpl: core.
 
 Definition get_dft {A B:Type} (dft:B) (f:A->B) (x:option A) :=
   match x with

@@ -160,7 +160,7 @@ Section PRESERVATION.
             ((Stackframe res f sp pc rs) :: s)
             ((Stackframe res tf sp pc' rs) :: ts).
 
-    Hint Constructors match_stackframes.
+    Hint Constructors match_stackframes: core.
     Set Implicit Arguments.
 
     Inductive match_states: RTL.state -> RTL.state -> Prop :=
@@ -178,7 +178,7 @@ Section PRESERVATION.
         forall s ts v m 
                (STACK: match_stackframes s ts),
           match_states (Returnstate s v m) (Returnstate ts v m).
-    Hint Constructors match_states.
+    Hint Constructors match_states: core.
 
     Lemma transf_initial_states:
       forall st1, RTL.initial_state prog st1 ->

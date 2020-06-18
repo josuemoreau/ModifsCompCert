@@ -362,7 +362,7 @@ let build_equations f =
 		     args = List.map SSAvarHash.hash args;
 		     op = Op (hash_op op);
 		     pos = OpPos pc} eqs
-	   | _ -> eqs) (fn_code f) Ptmap.empty in
+	   | _ -> eqs) f.fn_code Ptmap.empty in
   let eqs2 =
     PTree.fold
       (fun eqs pc phib ->
@@ -374,7 +374,7 @@ let build_equations f =
 		  args = List.map SSAvarHash.hash args;
 		  op = OPhi (ExternSSAgen.int_of_positive pc);
 		  pos = OPhiPos (pc,i)} eqs, Datatypes.S i))
-		(eqs,Datatypes.O) phib)) (fn_phicode f) eqs1 in
+		(eqs,Datatypes.O) phib)) f.fn_phicode eqs1 in
   let _ = if debugmode then Printf.printf "EQUATIONS =\n" in
 (*  let _ = if debugmode then Graph.show (Graph.make f tes eqs2) in  *)
     eqs2
@@ -406,7 +406,7 @@ let extern_gvn (f':SSA.coq_function) (register_dom_test:ssa_def->node->unit) : s
 				      end
 				    else repr
 				  | _ -> repr)
-				| _ -> repr) (fn_code f) P2Tree.empty in
+				| _ -> repr) f.fn_code P2Tree.empty in
       (* Printf.printf "%d\n" !count_optim; *)
       representant
 

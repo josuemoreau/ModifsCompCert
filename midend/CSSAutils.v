@@ -806,7 +806,7 @@ Proof.
   destruct H; go.
 Qed.
 
-Hint Resolve parc_dst_in.
+Hint Resolve parc_dst_in: core.
 
 (* Stores *)
 

@@ -109,7 +109,7 @@ Proof.
   destruct ((fn_code f)!pc); eauto.
 Qed.
 
-Hint Constructors assigned_code_spec.
+Hint Constructors assigned_code_spec: core.
 
 Lemma assigned_phi_spec_same : forall (f:function) pc r,
   assigned_phi_spec (f.(fn_phicode)) pc r <->

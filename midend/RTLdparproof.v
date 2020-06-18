@@ -537,7 +537,7 @@ Proof.
   flatten H; auto.
 Qed.
 
-Hint Constructors is_valid.
+Hint Constructors is_valid: core.
 
 Lemma forallb_forall_1 : forall (A : Type) (f : A -> bool) (l : list A),
    forallb f l = true -> (forall x : A, In x l -> f x = true).
@@ -1303,7 +1303,7 @@ Inductive match_stackframes : list stackframe -> list RTL.stackframe -> Prop :=
     match_stackframes
     ((Stackframe res f sp pc rs) :: s)
     ((RTL.Stackframe (pamr f res) tf sp (map_pc (mapping f) pc) rs') :: ts).
-Hint Constructors match_stackframes.
+Hint Constructors match_stackframes: core.
 
 Set Implicit Arguments.
 
@@ -1328,7 +1328,7 @@ Inductive match_states: RTLpar.state -> RTL.state -> Prop :=
      (STACK: match_stackframes s ts ),
         match_states (Returnstate s v m) (RTL.Returnstate ts v m).
 
-Hint Constructors match_states.
+Hint Constructors match_states: core.
 
 Lemma transf_initial_states:
   forall st1, initial_state prog st1 ->
@@ -1381,7 +1381,7 @@ Ltac normalized pc :=
         | [H: (if ?t_if then _ else _) = _ |- _ ] => destruct t_if ; try congruence ; inv H
       end.
 
-Ltac allinv := 
+Ltac allinv_par := 
   repeat 
     match goal with 
       | [H: value ?s = Some ?s' |- _ ] => inv H
@@ -1574,10 +1574,10 @@ Proof.
   try match goal with 
     | [SPEC: transl_function_spec ?f ?tf ?R |- _ ] => 
       generalize SPEC ; inv SPEC ; intros SPEC
-  end; allinv.
+  end; allinv_par.
   
   - (* inop without *)
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     
     + rewrite H7.
       exists (RTL.State ts tf sp succ rs' m). split.
@@ -1611,14 +1611,14 @@ Proof.
         econstructor ; eauto.
 
   - (* inop with par blocks *)
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     + rewrite H13 in *. clear H13. subst.
       assert (Hinssucc: exists s, (fn_code f) ! succ = Some (Inop s))
           by (eapply fn_parcb_inop; eauto; go). 
       destruct Hinssucc as [succ' Hinssucc].
       specialize (DPARSPEC succ); eauto. 
       exploit DPARSPEC; eauto. intros.
-      invh rtldpar_spec; repeat invh or ; try congruence; allinv.
+      invh rtldpar_spec; repeat invh or ; try congruence; allinv_par.
       * clear H19; subst. elim H9; eauto. 
         invh join_point; go.
       * exists
@@ -1664,7 +1664,7 @@ Proof.
       invh is_jp ; go.
 
   - (* iop *) 
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     rewrite H8 in *. clear H8. subst. 
     inv H6; flatten H5; boolInv.
     exists  (RTL.State ts tf sp pc' (rs' # (Bij.pamr (fn_max_indice f) res) <- v) m). 
@@ -1687,7 +1687,7 @@ Proof.
       eapply Bij.INJ' in Hcont ; eauto. 
       
   - (* iload *)
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     rewrite H9 in * ; clear H9. subst.
     inv H7; flatten H5; boolInv.
     exists  (RTL.State ts tf sp pc' (rs'#(Bij.pamr (fn_max_indice f) dst) <- v) m). split.
@@ -1708,7 +1708,7 @@ Proof.
       eapply Bij.INJ' in Hcont ; eauto. 
       
   - (* istore *)
-    normalized pc ; allinv.
+    normalized pc ; allinv_par.
     rewrite H9 in * ; clear H9 ; subst.
     inv H7; flatten H5; boolInv.
     exists  (RTL.State ts tf sp pc' rs' m'). split.
@@ -1726,7 +1726,7 @@ Proof.
       econstructor 1 ; auto.
 
   - (* icall *)
-    normalized pc; allinv. 
+    normalized pc; allinv_par. 
     rewrite H8 in * ; clear H8 ; subst.
     inv H6; flatten H8 ; boolInv.
     destruct ros.
@@ -1779,7 +1779,7 @@ Proof.
         }
 
   - (* itailcall *)
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     rewrite H9 in * ; clear H9 ; subst.
     destruct ros.
     + inv H7; flatten H9.
@@ -1827,7 +1827,7 @@ Proof.
       }
 
   - (* ibuiltin *)
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     rewrite H9 in * ; clear H9 ; subst. 
     exists  (RTL.State ts tf sp pc'
                        (regmap_setres (map_builtin_res (Bij.pamr (fn_max_indice f)) res) vres rs')
@@ -1939,7 +1939,7 @@ Proof.
       * inv MREG ; auto.
       
   - (* ifso *)
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     rewrite H8 in * ; clear H8 ; subst.
     inv H6; flatten H8.
     exists (RTL.State ts tf sp ifso rs' m); split ; eauto. 
@@ -1955,7 +1955,7 @@ Proof.
     econstructor 1 ; eauto. 
       
   - (* ifnot *)
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     rewrite H8 in * ; clear H8 ; subst.
     inv H6; flatten H8.
     exists (RTL.State ts tf sp ifnot rs' m); split ; eauto. 
@@ -1971,7 +1971,7 @@ Proof.
     econstructor 1 ; eauto. 
 
   - (* ijump *)
-    normalized pc; allinv.
+    normalized pc; allinv_par.
     rewrite H9 in * ; clear H9 ; subst.
     inv H7 ; flatten H9.
     exists (RTL.State ts tf sp pc' rs' m); split ; eauto. 
@@ -1988,7 +1988,7 @@ Proof.
     
   - (* ireturn *)
     (exploit transl_function_spec_ok ; eauto; intros).
-    normalized pc ; allinv.
+    normalized pc ; allinv_par.
     rewrite H9 in * ; clear H9 ; subst.
     inv H7. flatten H9.
     exists (RTL.Returnstate ts (regmap_optget o Vundef rs') m'); split ; eauto. 

@@ -30,14 +30,14 @@ Inductive rhs (f:function) (x : reg) : instruction -> Prop :=
   (RHS: (fn_code f) ! pc  = Some (Iop op args x succ))
   (MIND: op_depends_on_memory op = false),
   rhs f x (Iop op args x succ).
-Hint Constructors rhs.
+Hint Constructors rhs: core.
 
 Inductive eval : genv -> val -> regset -> instruction -> val -> Prop := 
 | eval_Iop : forall ge sp rs m op args res pc' v
   (EVAL: eval_operation ge sp op rs##2 args m = Some v)
   (MIND: op_depends_on_memory op = false),  
   eval ge sp rs (Iop op args res pc') v.
-Hint Constructors eval.
+Hint Constructors eval: core.
 
 Inductive models : function -> genv -> val -> regset -> reg -> instruction -> Prop := 
 | models_state : forall f ge x x' i sp rs v, 
@@ -45,7 +45,7 @@ Inductive models : function -> genv -> val -> regset -> reg -> instruction -> Pr
   rhs f x' i ->
   eval ge sp rs i v ->
   models f ge sp rs x i.
-Hint Constructors models.
+Hint Constructors models: core.
 
 Notation "[ a , b , c , d ] |= x == i" := (models a b c d x i) (at level 1, b at next level).
 
@@ -57,7 +57,7 @@ Inductive sf_inv (ge: genv) : stackframe -> Prop :=
       sdom f d pc -> [f, ge , sp , rs] |= x == i)
     (SINS: exists pred sig ros args, (fn_code f) ! pred = Some (Icall sig ros args res pc)),    
     sf_inv ge (Stackframe res f sp pc rs).
-Hint Constructors sf_inv.
+Hint Constructors sf_inv: core.
 
 Inductive sfl_inv (ge: genv) : list stackframe -> Prop := 
 | sfl_nil : sfl_inv ge nil 
@@ -80,7 +80,7 @@ Inductive s_inv (ge: genv) : state -> Prop :=
   | si_Returnstate: forall s v m
     (SFINV: sfl_inv ge s),
     s_inv ge (Returnstate s v m).
-Hint Constructors s_inv.
+Hint Constructors s_inv: core.
 
 (** * Useful tactics *)
 

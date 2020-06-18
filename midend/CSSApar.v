@@ -139,7 +139,7 @@ Inductive ext_params (x: reg) : Prop :=
   (forall pc, ~ assigned_parcopy_spec (fn_parcopycode f) pc x) ->
   ext_params x.
 
-Hint Constructors ext_params.
+Hint Constructors ext_params: core.
 
 (** [def r pc] holds if register [r] is defined at node [pc] *)
 Inductive def : reg -> node -> Prop :=
@@ -152,7 +152,7 @@ Inductive def : reg -> node -> Prop :=
 
 End UDEF.
 
-Hint Constructors ext_params def assigned_code_spec assigned_phi_spec.
+Hint Constructors ext_params def assigned_code_spec assigned_phi_spec: core.
 
 (** * Formalization of Dominators *)
 Section DOMINATORS.
@@ -635,7 +635,7 @@ Inductive step: state -> trace -> state -> Prop :=
     step (Returnstate (Stackframe res f sp pc rs :: s) vres m)
       E0 (State s f sp pc (rs#2 res <- vres) m).
 
-Hint Constructors step.
+Hint Constructors step: core.
 
 End RELSEM.
 

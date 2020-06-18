@@ -54,7 +54,7 @@ Module Type INT.
     auto using int_lt_le, int_lt_succ. 
   Qed.
   Hint Resolve int_le_refl int_le_trans int_le_lt_trans 
-    int_lt_le_trans int_lt_le int_le_succ int_lt_succ.
+    int_lt_le_trans int_lt_le int_le_succ int_lt_succ: core.
 End INT.
 
 Module Make (NT:NODE_TREE) (I:INT).
@@ -811,7 +811,7 @@ Proof.
   induction k; intros; go.
   inv H; econstructor; eauto.
 Qed.
-Hint Resolve NoRepetTreeN_S_k_k.
+Hint Resolve NoRepetTreeN_S_k_k: core.
 
 
 Lemma sons_set : forall s0 s n m,
@@ -1306,6 +1306,8 @@ Module PositiveNodeTree <: NODE_TREE.
 End PositiveNodeTree.
 
 Module Z <: INT.
+
+  Local Open Scope Z_scope.
   Definition t : Type := Z.
   Definition int_zero : t := 0.
   Definition int_succ : t -> option t := fun x => Some (x+1).
@@ -1348,7 +1350,7 @@ Module Z <: INT.
     auto using int_lt_le, int_lt_succ. 
   Qed.
   Hint Resolve int_le_refl int_le_trans int_le_lt_trans 
-    int_lt_le_trans int_lt_le int_le_succ int_lt_succ.
+    int_lt_le_trans int_lt_le int_le_succ int_lt_succ: core.
 End Z.
 
 

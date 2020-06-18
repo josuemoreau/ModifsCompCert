@@ -34,7 +34,7 @@ Section DSD_ANALYSIS.
   Notation A_e f := (snd (A f)).
   
   Definition G (ge: genv) (sp: Values.val) (rs: regset) := fun av v => (vmatch v av).
-  Hint Unfold G.
+  Hint Unfold G: core.
   Definition result := reg -> AVal.t.
   Definition is_at_Top (res: result) (r: reg) : Prop := res r = AVal.top.
   
@@ -223,7 +223,7 @@ Proof.
     assert (In pc' (pc'::nil)). auto. congruence.
 Qed.
 
-Hint Unfold successors_instr.
+Hint Unfold successors_instr: core.
 
 Lemma step_phi_aux: forall (f:function) ge pc pc' phib k sp rs,
    wf_ssa_function f ->
@@ -395,9 +395,9 @@ Qed.
 
 Import Dom.
 Hint Resolve sdom_dom_pred fn_code_reached fn_entry_pred fn_phicode_inv
-             list_nth_z_in.
-Hint Unfold reached.
-Hint Constructors SSA.step.
+             list_nth_z_in: core.
+Hint Unfold reached: core.
+Hint Constructors SSA.step: core.
 
 Lemma exec_step : forall prog0 ,
                   forall ge0  t sf sp pc rs m (f0:function) s',

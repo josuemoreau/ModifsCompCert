@@ -3024,14 +3024,14 @@ Proof.
   unfold transl_function in * ; flatten Htrans ; boolInv.
   eapply normalisation_checker_correct; eauto.
 Qed.
-Hint Resolve Hnorm.
+Hint Resolve Hnorm: core.
 
 Lemma Hblock_nb_args : CSSApar.block_nb_args tf.
 Proof.
   unfold transl_function in * ; flatten Htrans ; boolInv.
   eapply check_nb_args_correct; eauto.
 Qed.
-Hint Resolve Hblock_nb_args.
+Hint Resolve Hblock_nb_args: core.
 
 Lemma HparcbSome : forall (phib : phiblock) (pc : positive),
                 (CSSApar.fn_phicode tf) ! pc = Some phib ->
@@ -3042,7 +3042,7 @@ Proof.
   unfold transl_function in * ; flatten Htrans ; boolInv.
   eapply check_parcbSome_correct; eauto.
 Qed.
-Hint Resolve HparcbSome.
+Hint Resolve HparcbSome: core.
 
 Lemma Hparcb'Some :forall (phib : phiblock) (pc : positive),
                  (CSSApar.fn_phicode tf) ! pc = Some phib ->
@@ -3051,13 +3051,13 @@ Proof.
   unfold transl_function in * ; flatten Htrans ; boolInv.
   eapply check_parcb'Some_correct; eauto.
 Qed.
-Hint Resolve Hparcb'Some.
+Hint Resolve Hparcb'Some: core.
 
 Lemma Hparcborparcb' : check_parcborparcb' tf = true.
 Proof.
   unfold transl_function in * ; flatten Htrans ; boolInv; go.
 Qed.
-Hint Resolve Hparcborparcb'.
+Hint Resolve Hparcborparcb': core.
 
 Lemma Hnodupsinphib : check_phicode_for_dups_in_phib tf = true.
 Proof.
@@ -3173,7 +3173,7 @@ Proof.
   intros. exploit cssa_fn_inop_in_jp; eauto.
 Qed.
 
-Hint Resolve normalisation_checker_correct.
+Hint Resolve normalisation_checker_correct: core.
 
 Lemma p_fn_normalized_jp : forall (pc : positive) (preds : list positive),
                        (CSSApar.fn_phicode tf) ! pc <> None ->
@@ -3362,7 +3362,7 @@ Proof.
     }
 Qed.
 
-Hint Resolve ident_eq.
+Hint Resolve ident_eq: core.
 
 (* NOTE:
         + use-code def-code: ok => wf_ssa

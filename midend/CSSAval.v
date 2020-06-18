@@ -548,7 +548,7 @@ Proof.
     + eapply def_reached; eauto.
 Qed.
 
-Hint Resolve ident_eq.
+Hint Resolve ident_eq: core.
 
 Lemma cssaval_spec_jp_until_phi :
   forall f pc parcb pc' pc'' phib parcb' rs get_cssaval k,
@@ -927,7 +927,7 @@ Inductive sf_inv (ge: genv) : stackframe -> Prop :=
                 rs #2 r = rs #2 (cssaval f r))
     (SINS: (fn_code f) ! pred = Some (Icall sig ros args res pc)),
     sf_inv ge (Stackframe res f sp pc rs).
-Hint Constructors sf_inv.
+Hint Constructors sf_inv: core.
 
 Inductive sfl_inv (ge: genv) : list stackframe -> Prop :=
 | sfl_nil : sfl_inv ge nil
@@ -950,7 +950,7 @@ Inductive s_inv (ge: genv) : state -> Prop :=
   | si_Returnstate: forall s v m
     (SFINV: sfl_inv ge s),
     s_inv ge (Returnstate s v m).
-Hint Constructors s_inv.
+Hint Constructors s_inv: core.
 
 Section INV.
 

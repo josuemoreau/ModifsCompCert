@@ -77,7 +77,7 @@ Definition ssai_in_function ssai f :=
 Definition maps_into_function f m := forall r ssai,
   In ssai (m #2 r) -> ssai_in_function ssai f.
 
-Hint Unfold maps_into_function ssai_in_function.
+Hint Unfold maps_into_function ssai_in_function: core.
 
 Remark duc_maps_into_function_handle_reg_list: forall f duc ssai rs,
   maps_into_function f duc ->
@@ -536,7 +536,7 @@ Module DataflowSolver.
     nth_error l k = Some xi ->
     L.ge (lv #2 r) (lv #2 xi).
 
-   Hint Resolve bge_correct.
+   Hint Resolve bge_correct: core.
 
    Lemma get_index_cons_succ: forall x xs k y,
      SSA.get_index (x::xs) y = Some (Datatypes.S k) -> SSA.get_index xs y = Some k.

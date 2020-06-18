@@ -316,7 +316,7 @@ Inductive step: state -> trace -> state -> Prop :=
     step (Returnstate (Stackframe res f sp pc rs :: s) vres m)
       E0 (State s f sp pc (rs#2 res <- vres) m).
 
-Hint Constructors step.
+Hint Constructors step: core.
 
 End RELSEM.
 

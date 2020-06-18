@@ -22,8 +22,8 @@ Require Import Ordered.
 Require Import FSets.
 Require Import DLib.
 Require FSetAVL.
-Hint Extern 4 (In _ (successors_instr _)) => simpl successors_instr.
-Hint Unfold entry.
+Hint Extern 4 (In _ (successors_instr _)) => simpl successors_instr: core.
+Hint Unfold entry: core.
 
 (** This file gather other definitions about dominance, related to the
  [dsd] predicate, where [dsd f x pc] holds whenever the definition
@@ -254,7 +254,7 @@ Proof.
   econstructor ; eauto.
 Qed.
 
-Hint Constructors ext_params dsd.
+Hint Constructors ext_params dsd: core.
 
 Lemma def_match_ins : forall f x pc,
   wf_ssa_function f -> 

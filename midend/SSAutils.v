@@ -507,7 +507,7 @@ Lemma wf_ssa_reached : forall f,
 Proof.
   intros. inv H ; eauto.
 Qed.
-Hint Resolve wf_ssa_reached.
+Hint Resolve wf_ssa_reached: core.
 
 Lemma ssa_def_use_code_false : forall f,
   wf_ssa_function f ->
@@ -686,7 +686,7 @@ Section WF_SSA_PROP.
 
 Variable f: function.
 Hypothesis HWF : wf_ssa_function f.
-Hint Resolve HWF.
+Hint Resolve HWF: core.
 
 Lemma elim_structural : forall pc pc' instr instr' block,
     (fn_code f)! pc = Some instr ->
@@ -789,7 +789,7 @@ Proof.
   intros. 
   intro ; exploit (H args); eauto. 
 Qed.
-Hint Resolve notin_cons_notin.
+Hint Resolve notin_cons_notin: core.
 
 Lemma phi_store_notin_preserved_aux: forall k block r v dst rs,
   (forall args, ~ In (Iphi args dst) block) ->
@@ -868,26 +868,26 @@ Module MiniOrderedTypeProd (O1 O2:OrderedType) <: MiniOrderedType.
 
   Lemma eq_refl : forall x : t, eq x x.
   Proof.
-    split; auto.
+    split; auto with ordered_type.
   Qed.
 
   Lemma eq_sym : forall x y : t, eq x y -> eq y x.
   Proof.
-    intros x y H; inv H; split; auto.
+    intros x y H; inv H; split; auto with ordered_type.
   Qed.
 
   Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
   Proof.
-    intros x y z H1 H2; inv H1; inv H2; split; eauto.
+    intros x y z H1 H2; inv H1; inv H2; split; eauto with ordered_type.
   Qed.
 
   Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
   Proof.
     intros x y z H1 H2; inv H1; inv H2.
-    left; eauto.
-    destruct H0; left; eauto.
-    destruct H; left; eauto.
-    destruct H; destruct H0; right; split; eauto.
+    left; eauto with ordered_type.
+    destruct H0; left; eauto with ordered_type.
+    destruct H; left; eauto with ordered_type.
+    destruct H; destruct H0; right; split; eauto with ordered_type.
   Qed.
 
   Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
@@ -906,10 +906,10 @@ Module MiniOrderedTypeProd (O1 O2:OrderedType) <: MiniOrderedType.
     destruct (O1.compare x1 y1).
     constructor 1; left; auto.
     destruct (O2.compare x2 y2).
-    constructor 1; right; split; simpl; auto.
-    constructor 2; split; auto.
-    constructor 3; right; split; simpl; auto.
-    constructor 3; left; auto.
+    constructor 1; right; split; simpl; auto with ordered_type.
+    constructor 2; split; auto with ordered_type.
+    constructor 3; right; split; simpl; auto with ordered_type.
+    constructor 3; left; auto with ordered_type. 
   Defined.
     
 End MiniOrderedTypeProd.

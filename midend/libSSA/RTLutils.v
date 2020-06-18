@@ -105,11 +105,11 @@ Ltac simpl_succs :=
     congruence. 
   Qed.
 
-  Hint Resolve rtl_cfg_succs.
-  Hint Resolve rtl_cfg_succs_instr.
-  Hint Constructors use_rtl_code.
-  Hint Extern 4 (In _ (RTL.successors_instr _)) => simpl successors_instr.
-  Hint Constructors cfg.
+  Hint Resolve rtl_cfg_succs: core.
+  Hint Resolve rtl_cfg_succs_instr: core.
+  Hint Constructors use_rtl_code: core.
+  Hint Extern 4 (In _ (RTL.successors_instr _)) => simpl successors_instr: core.
+  Hint Constructors cfg: core.
 
 (** * Lemmas about [successors] and [make_predecessors]  *)
 Lemma succ_code_incl : forall f1 f2,
@@ -174,6 +174,6 @@ Inductive assigned_code_spec (code:code) (pc:node) : reg -> Prop :=
 | AIbuiltin: forall fn args dst succ,
   code!pc = Some (Ibuiltin fn args (BR dst) succ) ->
   assigned_code_spec code pc dst.
-Hint Constructors assigned_code_spec.
+Hint Constructors assigned_code_spec: core.
 
 End UDEF.

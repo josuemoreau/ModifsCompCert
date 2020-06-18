@@ -45,7 +45,7 @@ Section Graph.
     (STEP: path_step s1 pc s2)
     (PATH: path s2 t s3),
     path s1 (pc::t) s3.  
-  Hint Constructors path_step path.
+  Hint Constructors path_step path: core.
 
   (** Useful lemmas about [path] *)
   Lemma path_app : forall p1 s1 s2 s3 p2, 
@@ -87,27 +87,26 @@ Section Graph.
         path (PState pc'') (pc'' :: p'') (PState pc').
   Proof.
     induction 1 ; intros.
-    inv H.
+    - inv H.
+    - inv STEP.  
+      destruct (peq pc'' pc0). 
+      inv e. 
+      exists nil ; exists t ; split ; (econstructor ; eauto).
 
-    inv STEP.  
-    destruct (peq pc'' pc0). 
-    inv e. 
-    exists nil ; exists t ; split ; (econstructor ; eauto).
+      inv H0. congruence. 
+      exploit IHpath ; eauto.  intros [p' [p'' [Hp' [Hnotin Hp'']]]].
+      
+      exists (pc0::p').    
+      exists p''.
+      split.
+      econstructor 2 ; eauto. 
+      econstructor ; eauto.
+      intro Hcont ; inv Hcont ; intuition. 
 
-    inv H0. congruence. 
-    exploit IHpath ; eauto.  intros [p' [p'' [Hp' [Hnotin Hp'']]]].
-    
-    exists (pc0::p').    
-    exists p''.
-    split.
-    econstructor 2 ; eauto. 
-    econstructor ; eauto.
-    intro Hcont ; inv Hcont ; intuition. 
-
-    exploit path_from_ret_nil ; eauto. intros Heq. inv Heq. inv H0. 
-    inv H. exists nil; exists nil. 
-    split; (econstructor ; eauto).
-    inv H2.
+      exploit path_from_ret_nil ; eauto. intros Heq. inv Heq. inv H0. 
+      inv H. exists nil; exists nil. 
+      split; (econstructor ; eauto).
+      inv H2.
   Qed.
 
   Lemma in_path_split_app : forall pc pc' pc'' p, 
@@ -204,7 +203,7 @@ Section Graph.
     (RPC' : reached pc') 
     (PATH : forall p, path (PState entry) p (PState pc') -> In pc p), 
     dom pc pc'.
-  Hint Constructors dom.
+  Hint Constructors dom: core.
 
   (** Dominance relation is reflexive *)
   Lemma dom_refl : forall pc, dom pc pc.
@@ -216,7 +215,7 @@ Section Graph.
   Lemma dom_trans : forall pc1 pc2 pc3, 
     dom pc1 pc2 -> dom pc2 pc3 -> dom pc1 pc3.
   Proof.
-    intros; inv H; auto.  
+    intros; inv H; auto. 
     inv H0. econstructor ; eauto. 
     
     econstructor ; eauto ; intros.
@@ -360,7 +359,7 @@ Section Graph.
     constructor; auto.
     intros.  
     inv H0. congruence.
-    inv STEP ; eauto.
+    inv STEP ; eauto with datatypes.
   Qed.
 
   Lemma dom_entry : forall pc, 

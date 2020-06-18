@@ -146,7 +146,7 @@ Section WF_LIVE.
     auto.
   Qed.
     
-  Hint Constructors RTLutils.assigned_code_spec.
+  Hint Constructors RTLutils.assigned_code_spec: core.
 
   Lemma live_incl : forall live, analyze f = Some live ->
     forall pc pc' x, 
@@ -252,5 +252,5 @@ Qed.
 
 End WF_LIVE.
 
-Hint Constructors wf_live.
+Hint Constructors wf_live: core.
 
