@@ -1909,20 +1909,6 @@ Proof.
   apply PTree.elements_keys_norepet.
 Qed.
 
-Lemma In_Iphi_fold6: forall (l:list positive) f (g:positive->bool) d1,
-    para_block
-    (PTree.fold
-      (fun phis (x xdef:positive) =>
-        if g x then Iphi (map (fun pc => (x,f x pc)) l) (x, xdef) :: phis
-          else phis) d1 nil).
-Proof.
-  intros l f g d1 dst args arg H1 H2 H3 args' H4.
-  elim H3; clear H3.
-  apply (In_Iphi_fold5 _ _ _ _ _ _ _ _ H1 H4).
-  elim In_Iphi_fold3 with (1:=H1) (2:=H2); eauto.
-  intros T; elim T.
-Qed.
-
 Lemma In_Iphi_fold7: forall (l:list positive) f (g:positive->bool) d1 args dst args' dst',
     In (Iphi args dst) (PTree.fold
       (fun phis (x xdef:positive) =>
@@ -1983,7 +1969,7 @@ Theorem typecheck_function_correct : forall f size def def_phi live f_ssa,
     list_norepet (fn_dfs f) -> 
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK f_ssa ->
   exists G, wt_function f f_ssa live G /\ wf_init f_ssa G /\ check_erased_spec f f_ssa /\ normalised_function f 
-   /\ (check_phi_params_spec f_ssa /\ check_para_block_spec f_ssa /\ check_no_duplicates_spec f_ssa)
+   /\ (check_phi_params_spec f_ssa /\ check_no_duplicates_spec f_ssa)
    /\ (forall pc block, (fn_phicode f_ssa) ! pc = Some block ->  exists ins, (fn_code f_ssa) ! pc = Some ins)
    /\ (forall pc, RTLutils.join_point pc f <-> join_point pc f_ssa)
    /\ (forall phib jp i, (fn_code f_ssa) ! jp = Some i
@@ -2356,23 +2342,6 @@ Proof.
         - congruence.
       }
       
-      split.
-      { intros pc block; simpl; intros Hb.
-        assert (In pc jpoints).
-        exploit fold_build_phi_block_correct; eauto; intros [T _].
-        eelim T; eauto.
-        rewrite PTree.gempty; congruence.
-        exploit fold_build_phi_block_def_phi_some; eauto.
-        intros [d [D1 _]].
-        exploit H6; eauto; destruct 1 as [V|V]; [elim V|idtac].
-        case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr)!pc); [intros l|idtac];
-          intros Hl; unfold is_joinpoint in *; rewrite Hl in *; try congruence; clear V.
-        exploit fold_build_phi_block_value; eauto.
-        intros F; inv F.  
-        rewrite H14 in Hb; inv Hb.
-        eapply In_Iphi_fold6; eauto.
-      }
-
       { intros pc block; simpl; intros.
         assert (In pc jpoints).
         exploit fold_build_phi_block_correct; eauto; intros [T _].
@@ -2661,18 +2630,6 @@ Proof.
   decompose [and] H; auto.
 Qed.
 
-Lemma typecheck_function_correct_parablocks:
-  forall f tf def def_phi live ,
-    RTLdfs.wf_dfs_function f ->
-    typecheck_function f (fn_max_indice tf) def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
-    check_para_block_spec tf.
-Proof.
-  intros.
-  inv H; exploit typecheck_function_correct; eauto.
-  destruct 1.
-  decompose [and] H; auto.
-Qed.
-
 Lemma typecheck_function_correct_noduplicates:
   forall f tf def def_phi live ,
     RTLdfs.wf_dfs_function f ->
@@ -2697,7 +2654,6 @@ Proof.
   constructor. eapply typecheck_function_correct_erase; eauto.
   constructor. eapply typecheck_function_correct_udef; eauto.
   constructor. eapply typecheck_function_correct_phiparams; eauto.
-  constructor. eapply typecheck_function_correct_parablocks; eauto.
   eapply typecheck_function_correct_noduplicates; eauto.
 Qed.
 
@@ -2724,7 +2680,7 @@ Lemma fn_ssa_params2 : forall f tf def def_phi live ,
 Proof.
   intros.
   exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
-  intros [G [HWT [HWFI [HERASE [HNORM [[HPHI [HPHI2 HPHI3]] [HPHI4 [HJP [HPHI5 HPHI6]]]]]]]]].
+  intros [G [HWT [HWFI [HERASE [HNORM [[HPHI HPHI3] [HPHI4 [HJP [HPHI5 HPHI6]]]]]]]]].
   intro Hcont.
   inv HWFI. exploit H2 ; eauto. intros [r Heq] ; subst.
   inv Hcont. destruct H4.
@@ -2745,21 +2701,6 @@ Proof.
   intros Hwte; inv Hwte; allinv.
   inv PEIDX. eelim H5 with (ri:= (r, G (fn_entrypoint tf) r)) ; eauto.
   econstructor ; eauto.
-Qed.
-
-Lemma fn_parablock: forall pc block,
-  forall f tf def def_phi live ,
-    RTLdfs.wf_dfs_function f ->
-    typecheck_function f (fn_max_indice tf) def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
-    (fn_phicode tf) ! pc = Some block ->
-    NoDup block /\ para_block block.
-Proof.
-  intros.
-  exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
-  intros [G [HWT [HWFI [HER [_ [[_ [HPHI Hn]] _]]]]]].
-  generalize (HPHI _ _ H1); split; auto.
-  exploit typecheck_function_correct_udef; eauto; intros [_ Hu].
-  exploit Hu; eauto; intuition.
 Qed.
 
 Lemma fn_reached : forall f tf def def_phi live ,
@@ -2923,7 +2864,7 @@ Lemma fn_code_inv2: forall f tf def def_phi live ,
 Proof.
   intros.
   exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
-  intros [G [HWT [HWFI [HERASE [HNORM [[HPHI [HPHI2 HPHI3]] [HPHI4 [HJP HPHI5]]]]]]]].
+  intros [G [HWT [HWFI [HERASE [HNORM [[HPHI HPHI3] [HPHI4 [HJP HPHI5]]]]]]]].
   inv HNORM. inv HERASE.
   assert ((RTLt.fn_code f) ! jp = Some (erase_instr i)).
   rewrite HCODE. unfold erase_code ; rewrite PTree.gmap ; unfold option_map.
@@ -3106,7 +3047,7 @@ Proof.
     eapply RTLdfs.fn_dfs_norep ; eauto.
     intros [G HG]; decompose [and] HG.
     intros pc phib args x T1 T2.
-    symmetry; eapply H12; eauto.
+    symmetry; eapply H11; eauto.
 
   - intros.
     case_eq ((fn_code tf) ! jp) ; intros.

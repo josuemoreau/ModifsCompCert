@@ -587,18 +587,12 @@ Definition check_no_duplicates_spec (rtlphi:function) :=
     (args <> args' \/ dst <> dst') ->
     (erase_reg dst) <> (erase_reg dst').
 
-Definition check_para_block_spec (rtl:function) :=
-  forall pc block,
-    (fn_phicode rtl) ! pc = Some block ->
-    para_block block.
-
 Definition structural_checks_spec (rtl: RTLt.function) (rtlphi: SSA.function) :=
   (RTLt.fn_sig rtl = SSA.fn_sig rtlphi) 
   /\ ((RTLt.fn_stacksize rtl) = (SSA.fn_stacksize rtlphi)) 
   /\ (check_erased_spec rtl rtlphi)
   /\ (unique_def_spec rtlphi)
   /\ (check_phi_params_spec rtlphi)
-  /\  (check_para_block_spec rtlphi)
   /\ (check_no_duplicates_spec rtlphi).
 
 Lemma no_duplicates_erased: forall r1 r2 tf block pc r,

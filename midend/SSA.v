@@ -705,20 +705,3 @@ Inductive final_state: state -> int -> Prop :=
 Definition semantics (p: program) :=
   Semantics step (initial_state p) final_state (Genv.globalenv p).
 
-(** Missing condition for blocks in a SSA function to be
-   parallelizable.  The generation algorithm only generate
-   parallelizable blocks. The DeSSA transformation will fail on
-   non-parallelizable blocks.  *)
-Definition para_block block := forall dst args arg,
-  (In (Iphi args dst) block) -> In arg args -> dst <> arg ->
-  forall args', ~ (In (Iphi args' arg) block).
-
-Lemma para_block_cons: forall a block,
-  para_block (a :: block) -> para_block block.
-Proof.
-  intros.
-  unfold para_block in *; intros.
-  intro.
-  exploit (H dst args arg); eauto.
-Qed.
-

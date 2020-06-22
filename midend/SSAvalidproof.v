@@ -296,7 +296,7 @@ Section PRESERVATION.
         check_instrs_spec tf rinstr pinstr.
   Proof.
     intros. inv H. 
-    destruct H1 as [Hsig [Hstack [Herased [Hdef [Hphipar [Hpara Hnodup]]]]]].
+    destruct H1 as [Hsig [Hstack [Herased [Hdef [Hphipar Hnodup]]]]].
     assert (Herased2:= erased_funct_erased_instr pc f tf rinstr Herased H0).
     destruct Herased2 as [pinstr [Htf Hrpinstr]].
     exists pinstr. split; eauto.
@@ -401,7 +401,6 @@ Import DLib.
       (NODUP: check_no_duplicates_spec tf )
       (PHI: (fn_phicode tf)! pc = Some block)
       (PRED: index_pred (make_predecessors (fn_code tf) successors_instr) pc0 pc = Some k)
-      (BPARA: para_block block)
       (AG: agree (G pc0) rs rs' (Lin f pc0 (Lout live)))
       (WTEDGE: wt_edge tf (Lin f pc (Lout live)) G pc0 pc),
       agree (G pc) rs (phi_store  k block rs') (Lin f pc (Lout live)).
@@ -719,7 +718,7 @@ Ltac exploit_hyps SPEC :=
      | _ => idtac
    end);
   (match goal with
-     | [ H1 : structural_checks_spec _ _ |- _ ] => destruct H1 as [SSIG [SSTACK [SERAS [SUDEF [SPHI [SPARA SDUP]]]]]]; auto
+     | [ H1 : structural_checks_spec _ _ |- _ ] => destruct H1 as [SSIG [SSTACK [SERAS [SUDEF [SPHI SDUP]]]]]; auto
      | _ => idtac
    end)).
 
@@ -783,7 +782,7 @@ Proof.
     eapply phistore_preserve_agree  with (pc:= pc') (pc0:= pc) ; eauto. 
     intros. exploit (wf_live_incl f (Lout live) HWL pc pc') ; eauto.
     intuition. inv H5 ; allinv.  
-    
+
   - (* 2 - from a state with no phi-block at pc' *)
     exists (State ts tf sp pc' rs' m).
     split.  constructor ; auto.
@@ -1043,7 +1042,7 @@ Proof.
 
     inv H1.
     exploit typecheck_function_correct; eauto.
-    intros [Γ [WTF [WFINIT [HERA [HNORM [[HCK [HPARA HNODUP]] HH]]]]]].
+    intros [Γ [WTF [WFINIT [HERA [HNORM [[HCK HNODUP] HH]]]]]].
     inv HERA. 
 
     exists (State ts x (Vptr stk Ptrofs.zero) x.(fn_entrypoint) (init_regs args x.(fn_params)) m').
