@@ -24,6 +24,7 @@ Require Import SSA.
 Require Import CSSApar.
 Require Parmov.
 Require Import Dom.
+Require Import Registers.
 
 (** * Abstract syntax *)
 
@@ -35,7 +36,6 @@ Record function: Type := mkfunction {
   fn_code: code;
   fn_parcopycode: parcopycode;
 
-  fn_max_indice: nat;
   fn_entrypoint: node
 }.
 
@@ -196,7 +196,7 @@ Variable ge: genv.
 Definition find_function
   (ros: reg + ident) (rs: regset) : option fundef :=
   match ros with
-  | inl r => Genv.find_funct ge (rs #2 r)
+  | inl r => Genv.find_funct ge (rs # r)
   | inr symb =>
       match Genv.find_symbol ge symb with
       | None => None
@@ -232,21 +232,21 @@ Inductive step: state -> trace -> state -> Prop :=
 | exec_Iop:
     forall s f sp pc rs m op args res pc' v,
     (fn_code f)!pc = Some(SSA.Iop op args res pc') ->
-    eval_operation ge sp op rs##2 args m = Some v ->
+    eval_operation ge sp op rs## args m = Some v ->
     step (State s f sp pc rs m)
-      E0 (State s f sp pc' (rs#2 res <- v) m)
+      E0 (State s f sp pc' (rs# res <- v) m)
 | exec_Iload:
     forall s f sp pc rs m chunk addr args dst pc' a v,
     (fn_code f)!pc = Some(SSA.Iload chunk addr args dst pc') ->
-    eval_addressing ge sp addr rs##2 args = Some a ->
+    eval_addressing ge sp addr rs## args = Some a ->
     Mem.loadv chunk m a = Some v ->
     step (State s f sp pc rs m)
-      E0 (State s f sp pc' (rs#2 dst <- v) m)
+      E0 (State s f sp pc' (rs# dst <- v) m)
 | exec_Istore:
     forall s f sp pc rs m chunk addr args src pc' a m',
     (fn_code f)!pc = Some(SSA.Istore chunk addr args src pc') ->
-    eval_addressing ge sp addr rs##2 args = Some a ->
-    Mem.storev chunk m a rs#2 src = Some m' ->
+    eval_addressing ge sp addr rs## args = Some a ->
+    Mem.storev chunk m a rs# src = Some m' ->
     step (State s f sp pc rs m)
       E0 (State s f sp pc' rs m')
 | exec_Icall:
@@ -255,7 +255,7 @@ Inductive step: state -> trace -> state -> Prop :=
     find_function ros rs = Some fd ->
     funsig fd = sig ->
     step (State s f sp pc rs m)
-      E0 (Callstate (Stackframe res f sp pc' rs :: s) fd rs##2 args m)
+      E0 (Callstate (Stackframe res f sp pc' rs :: s) fd rs## args m)
 | exec_Itailcall:
     forall s f stk pc rs m sig ros args fd m',
     (fn_code f)!pc = Some(SSA.Itailcall sig ros args) ->
@@ -263,30 +263,30 @@ Inductive step: state -> trace -> state -> Prop :=
     funsig fd = sig ->
     Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
     step (State s f (Vptr stk Ptrofs.zero) pc rs m)
-         E0 (Callstate s fd rs##2 args m')
+         E0 (Callstate s fd rs## args m')
 | exec_Ibuiltin:
   forall s f sp pc rs m ef args vargs res vres pc' t m',
     (fn_code f)!pc = Some(Ibuiltin ef args res pc') ->
-    eval_builtin_args ge (fun r => rs#2 r) sp m args vargs ->
+    eval_builtin_args ge (fun r => rs# r) sp m args vargs ->
     external_call ef ge vargs m t vres m' ->
     step (State s f sp pc rs m)
-    t (State s f sp pc' (regmap2_setres _ res vres rs) m')
+    t (State s f sp pc' (regmap_setres res vres rs) m')
 | exec_Icond_true:
     forall s f sp pc rs m cond args ifso ifnot,
     (fn_code f)!pc = Some(SSA.Icond cond args ifso ifnot) ->
-    eval_condition cond rs##2 args m = Some true ->
+    eval_condition cond rs## args m = Some true ->
     step (State s f sp pc rs m)
       E0 (State s f sp ifso rs m)
 | exec_Icond_false:
     forall s f sp pc rs m cond args ifso ifnot,
     (fn_code f)!pc = Some(SSA.Icond cond args ifso ifnot) ->
-    eval_condition cond rs##2 args m = Some false ->
+    eval_condition cond rs## args m = Some false ->
     step (State s f sp pc rs m)
       E0 (State s f sp ifnot rs m)
 | exec_Ijumptable:
     forall s f sp pc rs m arg tbl n pc',
     (fn_code f)!pc = Some(SSA.Ijumptable arg tbl) ->
-    rs#2 arg = Vint n ->
+    rs# arg = Vint n ->
     list_nth_z tbl (Int.unsigned n) = Some pc' ->
     step (State s f sp pc rs m)
       E0 (State s f sp pc' rs m)
@@ -295,7 +295,7 @@ Inductive step: state -> trace -> state -> Prop :=
     (fn_code f)!pc = Some(SSA.Ireturn or) ->
     Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
     step (State s f (Vptr stk Ptrofs.zero) pc rs m)
-      E0 (Returnstate s (regmap2_optget or Vundef rs) m')
+      E0 (Returnstate s (regmap_optget or Vundef rs) m')
 | exec_function_internal:
     forall s f args m m' stk,
     Mem.alloc m 0 f.(fn_stacksize) = (m', stk) ->
@@ -314,7 +314,7 @@ Inductive step: state -> trace -> state -> Prop :=
 | exec_return:
     forall res f sp pc rs s vres m,
     step (Returnstate (Stackframe res f sp pc rs :: s) vres m)
-      E0 (State s f sp pc (rs#2 res <- vres) m).
+      E0 (State s f sp pc (rs# res <- vres) m).
 
 Hint Constructors step: core.
 

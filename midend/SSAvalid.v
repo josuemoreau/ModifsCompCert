@@ -1,5 +1,4 @@
 (** A posteriori validation of SSA transformation. *)
-
 Require Recdef.
 Require Import FSets.
 Require Import Coqlib.
@@ -24,11 +23,10 @@ Require Import SSAutils.
 Require Import Integers.
 Require Import Floats.
 Require Import Utils.
-Require Import TrMaps2.
 Require Import NArith.
 Require Import LightLive.
 Require Import RTLdfs.
-
+Require Import Bijection.
 Local Open Scope string_scope.
 
 (** * Type and value definitions *)
@@ -42,35 +40,35 @@ Definition dft_pos := xH.
 (** * Auxiliary checkers for some of the structural invariants of code *)
 
 (** Checker for the uniqueness of definitions *)
-Definition record_assigned_reg (t: (P2Tree.t (list positive))) (pc:node) (i: instruction) : (P2Tree.t (list positive)):=
+Definition record_assigned_reg (t: (PTree.t (list positive))) (pc:node) (i: instruction) : (PTree.t (list positive)):=
   match i with 
     | (Iop  _ _ r _ ) 
     | (Iload _ _ _ r _ ) 
     | (Icall _ _ _ r _ ) 
     | (Ibuiltin _ _ (BR r) _ ) => 
-      match t !2 r with 
-        | Some l => (P2Tree.set r (pc::l) t)
-        | None => (P2Tree.set r (pc::nil) t)
+      match t ! r with 
+        | Some l => (PTree.set r (pc::l) t)
+        | None => (PTree.set r (pc::nil) t)
       end
     | _ => t
   end.
 
-Definition add_phi_assigned_reg (pc:node) (t : (P2Tree.t (list positive))) (phi: phiinstruction) : (P2Tree.t (list positive)) :=
+Definition add_phi_assigned_reg (pc:node) (t : (PTree.t (list positive))) (phi: phiinstruction) : (PTree.t (list positive)) :=
   match phi with 
     | Iphi args dst => 
-      match t !2 dst with 
-        | Some l => (P2Tree.set dst (pc::l) t)
-        | None => (P2Tree.set dst (pc::nil) t)
+      match t ! dst with 
+        | Some l => (PTree.set dst (pc::l) t)
+        | None => (PTree.set dst (pc::nil) t)
       end
   end.
 
-Definition record_assigned_reg_phi (t: (P2Tree.t (list positive))) (pc:node) (phib: phiblock) : (P2Tree.t (list positive)):=
-  List.fold_left (add_phi_assigned_reg pc) phib t.
+Definition record_assigned_reg_phi (t: (PTree.t (list positive))) (pc:node) (phib: phiblock) : (PTree.t (list positive)):=
+  fold_left (add_phi_assigned_reg pc) phib t.
 
 Definition check_unique_def (tf: SSA.function) : bool :=
-  let def_code := PTree.fold record_assigned_reg (fn_code tf) (P2Tree.empty (list positive))
+  let def_code := PTree.fold record_assigned_reg (fn_code tf) (PTree.empty (list positive))
     in let def_code_phicode := PTree.fold record_assigned_reg_phi (fn_phicode tf) def_code
-      in P2Tree.fold (fun res r _ => res && match def_code_phicode !2 r with 
+      in PTree.fold (fun res r _ => res && match def_code_phicode ! r with 
                                         | Some (x::y::m) => false
                                         | _ => true
                                            end) 
@@ -109,7 +107,7 @@ Definition check_instr_inv (code: RTLt.code) (entry: node) (preds: PTree.t (list
         | None => true
         | Some nil => false
         | Some (x::nil) => true
-        | Some (x::y::m) => (List.fold_left (fun res pc => res && (instr_is_nop code pc)) (x::y::m) true)
+        | Some (x::y::m) => (fold_left (fun res pc => res && (instr_is_nop code pc)) (x::y::m) true)
       end.
 
 Definition no_pred (preds: PTree.t (list positive)) (i:node) : bool :=
@@ -133,7 +131,8 @@ end.
 Definition check_code_at_phipoints (tf: SSA.function) : bool :=
   forall_ptree (fun pc _ => match (fn_code tf)!pc with None => false | _ => true end)
   (fn_phicode tf).
-  
+
+
 (** *  More auxiliary definitions *)
 Local Open Scope error_monad_scope.
 
@@ -156,7 +155,7 @@ Definition check_os (f:reg->bool) (fn:reg + ident) : bool :=
   end.
 
 Definition upd_list {A:Type} (l:list positive) (g:A) (m: PTree.t A) : PTree.t A :=
-  List.fold_left (fun m p => PTree.set p g m) l m.
+  fold_left (fun m p => PTree.set p g m) l m.
 
 Definition read_gamma (g:PTree.t index) (x:Registers.reg) : index :=
   match g! x with
@@ -181,13 +180,22 @@ defined at that point (if any) and (iii) a similar map for phi-blocks.
 This certificate will be then transmitted to the generating
 validator. *)
 
-Parameter extern_gen_ssa : RTLt.function -> (node -> Regset.t) -> ( nat * (PTree.t index) * (PTree.t (PTree.t index))).
+Parameter extern_gen_ssa : RTLt.function -> (node -> Regset.t) -> (nat * (PTree.t index) * (PTree.t (PTree.t index))).
 
-(** The validator is then run on the RTLt function, and uses the result
-of [extern_gen_ssa] to build on the fly the SSA form of the function.
-To do so, it will rely on a global typing information of type
-[ttgamma], that it will update along the traversal of the RTLt code.
-*)
+(** Checker for validity of computed indexes *)
+Definition check_valid_index (size: nat) (defs: PTree.t index) : bool :=
+  forall_ptree (fun pc i => Bij.valid_index size i) defs.
+
+Definition check_valid_index_phis (size: nat) (phidefs: PTree.t (PTree.t index)): bool :=
+  forall_ptree (fun pc phis =>
+                  forall_ptree (fun r i => Bij.valid_index size i) phis)
+               phidefs.
+
+(** The validator is then run on the RTLt function, and uses the
+    result of [extern_gen_ssa] to build on the fly the SSA form of the
+    function.  To do so, it will rely on a global typing information
+    of type [ttgamma], that it will update along the traversal of the
+    RTLt code.  *)
 
 (** Definition for the initial global typing context *) 
 Definition entry_Gamma (tf : RTLt.function) : ttgamma :=
@@ -198,7 +206,7 @@ Definition entry_Gamma (tf : RTLt.function) : ttgamma :=
    code. Finally, it keeps up-to-date the list of the junctions points
    that have been visited so far. *)
 
-Definition update_ctx (preds: PTree.t (list positive)) 
+Definition update_ctx (size: nat) (preds: PTree.t (list positive)) 
   (def:PTree.t index) 
   (def_phi:PTree.t (PTree.t index)) 
   (code: PTree.t RTL.instruction)
@@ -210,7 +218,7 @@ Definition update_ctx (preds: PTree.t (list positive))
     | OK (G, new_code, juncpoints) =>
       do instr <- get_option (code ! pc) "" ;     
       do g <- get_option (G ! pc) "" ; 
-      let use := fun (x:Registers.reg) => (x,read_gamma g  x) in
+      let use := fun (x:reg) => Bij.pamr size (x,read_gamma g  x) in
         match instr with
           | RTL.Inop l => 
             if is_joinpoint preds l then
@@ -252,43 +260,43 @@ Definition update_ctx (preds: PTree.t (list positive))
               OK (G, PTree.set pc (Ireturn (Some (use arg))) new_code, juncpoints)
           | RTL.Icond cond args ifso ifno => 
               OK (upd_list (ifso::ifno::nil) g G, 
-                  PTree.set pc (Icond cond (List.map use args) ifso ifno) new_code,
+                  PTree.set pc (Icond cond (map use args) ifso ifno) new_code,
                   juncpoints)
           | RTL.Iop op args dest succ => 
             do i <- get_option (def ! pc) "" ; 
-            let dest' := (dest,i) in
+            let dest' := Bij.pamr size (dest,i) in
             if negb (Pos.eqb xH i) then
               OK (PTree.set succ (PTree.set dest i g) G,
-                  PTree.set pc (Iop op (List.map use args) dest' succ) new_code,
+                  PTree.set pc (Iop op (map use args) dest' succ) new_code,
                   juncpoints)
             else Error (msg "SSAvalid 2")
           | RTL.Iload chunk addr args dest succ => 
             do i <- get_option (def ! pc) "" ; 
-            let dest' := (dest,i) in
+            let dest' := Bij.pamr size (dest,i) in
             if negb (Pos.eqb xH i) then
               OK (PTree.set succ (PTree.set dest i g) G,
-                  PTree.set pc (Iload chunk addr (List.map use args) dest' succ) new_code,
+                  PTree.set pc (Iload chunk addr (map use args) dest' succ) new_code,
                   juncpoints)
             else Error (msg "SSAvalid 3")
           | RTL.Icall sig fn args dest succ => 
             do i <- get_option (def ! pc) "" ;
-            let dest' := (dest,i) in
+            let dest' := Bij.pamr size (dest,i) in
             if negb (Pos.eqb xH i) then
               OK (PTree.set succ (PTree.set dest i g) G,
-                  PTree.set pc (Icall sig (map_os use fn) (List.map use args) dest' succ) new_code,
+                  PTree.set pc (Icall sig (map_os use fn) (map use args) dest' succ) new_code,
                   juncpoints)
             else Error (msg "SSAvalid 4")
           | RTL.Itailcall sig fn args => 
             OK (G,
-                PTree.set pc (Itailcall sig (map_os use fn) (List.map use args)) new_code,
+                PTree.set pc (Itailcall sig (map_os use fn) (map use args)) new_code,
                 juncpoints)
           | RTL.Ibuiltin ef args (BR dest) succ => 
             do i <- get_option (def ! pc) "" ; 
-              let dest' := (dest,i) in                              
+              let dest' := Bij.pamr size (dest,i) in                              
               if negb (Pos.eqb xH i) then
                 OK (PTree.set succ (PTree.set dest i g) G,
                     PTree.set pc (Ibuiltin ef
-                                           (List.map (map_builtin_arg use) args)
+                                           (map (map_builtin_arg use) args)
                                            (BR dest') succ) new_code,
                     juncpoints)
               else Error (msg "SSAvalid 5")
@@ -296,13 +304,13 @@ Definition update_ctx (preds: PTree.t (list positive))
           | RTL.Ibuiltin ef args dest succ => 
                 OK (PTree.set succ g G,
                     PTree.set pc (Ibuiltin ef
-                                           (List.map (map_builtin_arg use) args)
-                                           (map_builtin_res (fun r => (r,xH)) dest) succ) new_code,
+                                           (map (map_builtin_arg use) args)
+                                           (map_builtin_res (fun r => Bij.pamr size (r,xH)) dest) succ) new_code,
                     juncpoints)
 
           | RTL.Istore chunk addr args src succ => 
             OK (PTree.set succ g G,
-                PTree.set pc (Istore chunk addr (List.map use args) (use src) succ) new_code,
+                PTree.set pc (Istore chunk addr (map use args) (use src) succ) new_code,
                 juncpoints)
         end
   end.
@@ -313,19 +321,19 @@ Definition update_ctx (preds: PTree.t (list positive))
    At this stage, we know that if a variable is not assigned in
    phi-block, then all preceeding gammas agree on the index.  *)
 
-Definition xbuild_phi_block (preds: list positive)
+Definition xbuild_phi_block (size: nat) (preds: list positive)
            (livepc: Regset.t) 
            (def_phi: (PTree.t index)) predspc := 
   PTree.fold
     (fun phis x xdef =>
        if Regset.mem x livepc then
-         let phi_args := List.map (fun pc => (x,read_gamma (predspc pc) x)) preds in
-         let phi_def := (x,xdef) in
+         let phi_args := map (fun pc => Bij.pamr size (x,read_gamma (predspc pc) x)) preds in
+         let phi_def := Bij.pamr size (x,xdef) in
          (Iphi phi_args phi_def)::phis
        else phis
     ) def_phi nil.
         
-Definition build_phi_block (preds: PTree.t (list positive)) 
+Definition build_phi_block (size:nat) (preds: PTree.t (list positive)) 
   (live: node -> Regset.t) 
   (def_phi:PTree.t (PTree.t index))
   (G:ttgamma)
@@ -339,7 +347,7 @@ Definition build_phi_block (preds: PTree.t (list positive))
             | None => (* should not happen *) PTree.empty _ 
             | Some m => m
           end) in
-  let new_phi_block := xbuild_phi_block preds live def_phi get_Gpreds in
+  let new_phi_block := xbuild_phi_block size preds live def_phi get_Gpreds in
       if forall_ptree (fun x xdef => negb (Pos.eqb xH xdef)) def_phi then
         match acc with
           | Error msg => Error msg
@@ -397,39 +405,41 @@ Definition compute_test_dom (entry: node) (code: code): option (node -> node -> 
    external parameters for the function  
  *)
 
-Definition typecheck_function
-  (f: RTLt.function) (max_indice:nat) 
-  (def:PTree.t index) (def_phi:PTree.t (PTree.t index))
-  (live:node -> Regset.t) : res SSA.function :=
+Definition typecheck_function (f: RTLt.function) (max_index:nat) 
+           (def:PTree.t index) (def_phi:PTree.t (PTree.t index))
+           (live:node -> Regset.t) : res SSA.function :=
   let G := entry_Gamma f in     
   let preds := (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) in
-  if check_function_inv f preds then
-    (match fold_left (update_ctx  preds def def_phi (RTLt.fn_code f) live) 
-         (fn_dfs f) (OK (G,PTree.empty _,nil)) with
-        | Error msg => Error msg
-        | OK (G,new_code,juncpoints) =>
-          do phi_code <- fold_left (build_phi_block  preds live def_phi G) juncpoints (OK (PTree.empty _));
-            match compute_test_dom (RTLt.fn_entrypoint f) new_code with
-            | Some domtest => 
-              let params:= (List.map (fun r => (r,dft_pos)) (RTLt.fn_params f)) in 
-              let fwo := (mkfunction
-                            (RTLt.fn_sig f)
-                            params
-                            (RTLt.fn_stacksize f)
-                            new_code
-                            phi_code
-                            max_indice
-                            (RTLt.fn_entrypoint f)
-                            (ext_params_list new_code phi_code params)
-                            domtest
-                         ) in
-            if check_unique_def fwo && check_code_at_phipoints fwo
-              then OK fwo
-            else Errors.Error (msg "SSAvalid 8") (* Function is not in SSA *)
-            | None => Error (msg "Could not compute dominators")
-            end
-       end)
+  if Bij.valid_index max_index dft_pos then
+    if check_valid_index max_index def && check_valid_index_phis max_index def_phi then 
+      if check_function_inv f preds then
+        (match fold_left (update_ctx max_index preds def def_phi (RTLt.fn_code f) live) 
+                         (fn_dfs f) (OK (G,PTree.empty _,nil)) with
+         | Error msg => Error msg
+         | OK (G,new_code,juncpoints) =>
+           do phi_code <- fold_left (build_phi_block max_index preds live def_phi G) juncpoints (OK (PTree.empty _));
+           match compute_test_dom (RTLt.fn_entrypoint f) new_code with
+           | Some domtest => 
+             let params:= (map (fun r => Bij.pamr max_index (r,dft_pos)) (RTLt.fn_params f)) in 
+             let fwo := (mkfunction
+                           (RTLt.fn_sig f)
+                           params
+                           (RTLt.fn_stacksize f)
+                           new_code
+                           phi_code
+                           (RTLt.fn_entrypoint f)
+                           (ext_params_list new_code phi_code params)
+                           domtest
+                        ) in
+             if check_unique_def fwo && check_code_at_phipoints fwo
+             then OK fwo
+             else Errors.Error (msg "SSAvalid 8") (* Function is not in SSA *)
+           | None => Error (msg "Could not compute dominators")
+           end
+         end)
       else Error (msg "SSAvalid 9") (* Program code is not well normalized *)
+    else Error (msg "Wrong index for definition")
+  else Error (msg "Wrong maximum index")
 . 
 
 (** * Actual code of the generating validator. *)

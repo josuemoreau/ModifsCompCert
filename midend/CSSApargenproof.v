@@ -120,11 +120,11 @@ Ltac monadInv H :=
 (** Utility lemmas *)
 Lemma Plt_neq :
   forall (r1 r2 : reg),
-  Plt (fst r1) (fst r2) ->
+  Plt r1 r2 ->
   r1 <> r2.
 Proof.
   intros.
-  assert (fst r1 <> fst r2) by auto with coqlib.
+  assert (r1 <> r2) by auto with coqlib.
   congruence.
 Qed.
 
@@ -423,14 +423,14 @@ Lemma ple_foldmaxreg_init :
   Ple m n ->
   Ple
     m
-    (List.fold_left (fun m r' => Pos.max m (fst (r' : reg)))
+    (List.fold_left (fun m r' => Pos.max m (r' : reg))
       l n).
 Proof.
   induction l; intros.
   simpl. auto.
   simpl.
   apply Ple_trans with
-    (Pos.max m (fst a)); auto.
+    (Pos.max m  a); auto.
   apply Pos.le_max_l.
   apply IHl.
   apply Pos.max_le_compat.
@@ -440,8 +440,8 @@ Qed.
 Lemma max_reg_in_list_correct_aux :
   forall l (r : reg) m,
   In r l ->
-  Ple (fst r)
-    (List.fold_left (fun m r' => Pos.max m (fst r')) l m).
+  Ple r
+    (List.fold_left (fun m r' => Pos.max m r') l m).
 Proof.
   induction l; intros.
   inv H.
@@ -456,7 +456,7 @@ Qed.
 Lemma max_reg_in_list_correct :
   forall l r,
   In r l ->
-  Ple (fst r) (max_reg_in_list l).
+  Ple r (max_reg_in_list l).
 Proof.
   unfold max_reg_in_list.
   intros.
@@ -466,7 +466,7 @@ Qed.
 
 Lemma max_reg_in_Icall_inl  :
   forall r args res x y,
-  Ple (fst r)
+  Ple r
     (get_max_reg_in_ins (Icall x (inl r) args res y)).
 Proof.
   intros.
@@ -477,7 +477,7 @@ Qed.
 
 Lemma max_reg_in_Itailcall_inl :
   forall r args sig,
-  Ple (fst r)
+  Ple r
     (get_max_reg_in_ins (Itailcall sig (inl r) args)).
 Proof.
   intros.
@@ -489,7 +489,7 @@ Qed.
 Lemma max_reg_in_Icall_args :
   forall ros args arg res sig y,
   In arg args ->
-  Ple (fst arg)
+  Ple arg
     (get_max_reg_in_ins (Icall sig ros args res y)).
 Proof.
   intros.
@@ -505,7 +505,7 @@ Qed.
 Lemma max_reg_in_Itailcall_args :
   forall ros args arg sig,
   In arg args ->
-  Ple (fst arg)
+  Ple arg
     (get_max_reg_in_ins (Itailcall sig ros args)).
 Proof.
   intros.
@@ -519,7 +519,7 @@ Qed.
 Lemma max_reg_in_Iop_args :
   forall op args arg res pc,
   In arg args ->
-  Ple (fst arg)
+  Ple arg
     (get_max_reg_in_ins (Iop op args res pc)).
 Proof.
   intros.
@@ -531,7 +531,7 @@ Qed.
 Lemma max_reg_in_Iload_args :
   forall chunk addr args arg dst pc,
   In arg args ->
-  Ple (fst arg)
+  Ple arg
     (get_max_reg_in_ins (Iload chunk addr args dst pc)).
 Proof.
   intros.
@@ -543,7 +543,7 @@ Qed.
 Lemma max_reg_in_Istore_args  :
   forall chunk addr args arg src pc,
   In arg args ->
-  Ple (fst arg)
+  Ple arg
     (get_max_reg_in_ins (Istore chunk addr args src pc)).
 Proof.
   intros.
@@ -554,7 +554,7 @@ Qed.
 
 Lemma max_reg_in_Istore_src :
   forall chunk addr args src pc,
-  Ple (fst src)
+  Ple src
     (get_max_reg_in_ins (Istore chunk addr args src pc)).
 Proof.
   intros.
@@ -566,7 +566,7 @@ Qed.
 Lemma max_reg_in_Ibuiltin_args :
   forall ef args arg res pc,
   In arg (params_of_builtin_args args) ->
-  Ple (fst arg)
+  Ple arg
     (get_max_reg_in_ins (Ibuiltin ef args res pc)).
 Proof.
   intros.
@@ -579,7 +579,7 @@ Qed.
 Lemma max_reg_in_Icond_args :
   forall cond args arg ifso ifnot,
   In arg args ->
-  Ple (fst arg)
+  Ple arg
     (get_max_reg_in_ins (Icond cond args ifso ifnot)).
 Proof.
   intros.
@@ -590,7 +590,7 @@ Qed.
 
 Lemma max_reg_in_Ijumptable_arg :
   forall arg tbl,
-  Ple (fst arg)
+  Ple arg
     (get_max_reg_in_ins (Ijumptable arg tbl)).
 Proof.
   intros.
@@ -601,7 +601,7 @@ Qed.
 
 Lemma max_reg_in_Ireturn_r :
   forall r,
-  Ple (fst r)
+  Ple r
     (get_max_reg_in_ins (Ireturn (Some r))).
 Proof.
   intros.
@@ -612,7 +612,7 @@ Qed.
 
 Lemma max_reg_in_phi_dst :
   forall dst args,
-  Ple (fst dst) (get_max_reg_in_phiins (Iphi args dst)).
+  Ple dst (get_max_reg_in_phiins (Iphi args dst)).
 Proof.
   intros.
   unfold get_max_reg_in_phiins.
@@ -623,7 +623,7 @@ Qed.
 Lemma max_reg_in_phi_arg :
   forall dst args arg,
   In arg args ->
-  Ple (fst arg) (get_max_reg_in_phiins (Iphi args dst)).
+  Ple arg (get_max_reg_in_phiins (Iphi args dst)).
 Proof.
   intros.
   unfold get_max_reg_in_phiins.
@@ -1020,9 +1020,9 @@ Inductive gen_new_regs_spec (maxreg : positive)
       nil nil
 | gen_new_regs_spec_cons:
     forall arg args arg' args' fs_max
-    (GNRSPECinit: (fst arg') = fs_init)
-    (GNRSPECold: Ple (fst arg) maxreg)
-    (GNRSPECfresh: Plt maxreg (fst arg'))
+    (GNRSPECinit: arg' = fs_init)
+    (GNRSPECold: Ple arg maxreg)
+    (GNRSPECfresh: Plt maxreg arg')
     (GNRSPECrec:
       gen_new_regs_spec maxreg (Pos.succ fs_init) fs_max
         args args'),
@@ -1051,7 +1051,7 @@ Lemma gen_new_regs_spec_ple_arg_maxreg :
     args args' ->
   forall k arg,
     nth_error args k = Some arg ->
-  Ple (fst arg) maxreg.
+  Ple arg maxreg.
 Proof.
   intros until args'.
   intro H. induction H; intros.
@@ -1066,7 +1066,7 @@ Lemma gen_new_regs_spec_plt_maxreg_arg' :
     args args' ->
   forall k arg',
     nth_error args' k = Some arg' ->
-  Plt maxreg (fst arg').
+  Plt maxreg arg'.
 Proof.
   intros until args'.
   intro H. induction H; intros.
@@ -1079,7 +1079,7 @@ Lemma gen_new_regs_spec_max_in :
   forall maxreg fs_init fs_max args args',
   gen_new_regs_spec maxreg fs_init fs_max
     args args' ->
-  (forall arg', In arg' args' -> Plt (fst arg') fs_max).
+  (forall arg', In arg' args' -> Plt arg' fs_max).
 Proof.
   intros until args'.
   intro H.
@@ -1087,7 +1087,7 @@ Proof.
   simpl in *.
   destruct Inargs' as [EQ | Inargs'].
   + rewrite <- EQ.
-    assert (Plt (fst arg') fs_max). (* Coq needs help *)
+    assert (Plt arg' fs_max). (* Coq needs help *)
     rewrite GNRSPECinit.
     apply Plt_Ple_trans with (Pos.succ fs_init).
     apply Plt_succ.
@@ -1115,7 +1115,7 @@ Lemma gen_new_regs_spec_min_in :
   forall maxreg fs_init fs_max args args',
   gen_new_regs_spec maxreg fs_init fs_max
     args args' ->
-  (forall arg', In arg' args' -> Ple fs_init (fst arg')).
+  (forall arg', In arg' args' -> Ple fs_init arg').
 Proof.
   intros until args'.
   intro H.
@@ -1123,11 +1123,11 @@ Proof.
   simpl in *.
   destruct Inargs' as [EQ | Inargs'].
   + rewrite <- EQ.
-    assert (Ple fs_init (fst arg')). (* Coq needs help *)
+    assert (Ple fs_init arg'). (* Coq needs help *)
     rewrite GNRSPECinit.
     apply Ple_refl.
     auto.
-  + assert (Ple (Pos.succ fs_init) (fst arg0')) by eauto.
+  + assert (Ple (Pos.succ fs_init) arg0') by eauto.
     apply Ple_trans with (Pos.succ fs_init).
     apply Ple_succ.
     auto.
@@ -1173,11 +1173,11 @@ Hint Resolve gen_new_regs_spec_nthNotNonetoNotNone: core.
 
 Lemma gen_new_regs_correct :
   forall args s s' args' INCR maxreg,
-  (Plt maxreg (fst (next_fresh_reg s))) ->
-  (forall arg, In arg args -> Ple (fst arg) maxreg) ->
+  (Plt maxreg (next_fresh_reg s)) ->
+  (forall arg, In arg args -> Ple arg maxreg) ->
   gen_new_regs args s = OK args' s' INCR ->
-  gen_new_regs_spec maxreg (fst (next_fresh_reg s))
-    (fst (next_fresh_reg s')) args args'.
+  gen_new_regs_spec maxreg (next_fresh_reg s)
+    (next_fresh_reg s') args args'.
 Proof.
   induction args; intros.
   + simpl in *.
@@ -1190,19 +1190,19 @@ Proof.
     auto.
   + simpl in *.
     monadInv H1.
-    assert (EQfs: fst x = fst (next_fresh_reg s)).
+    assert (EQfs: x =  (next_fresh_reg s)).
     { unfold gen_newreg in EQ. go. }
     apply gen_new_regs_spec_cons; auto.
-    - assert (Plt maxreg (fst x)). (* Coq needs help *)
+    - assert (Plt maxreg x). (* Coq needs help *)
       rewrite EQfs. auto.
       auto.
-    - assert (NextFs: Pos.succ (fst (next_fresh_reg s)) =
-        fst (next_fresh_reg s0)).
+    - assert (NextFs: Pos.succ (next_fresh_reg s) =
+        (next_fresh_reg s0)).
       unfold gen_newreg in EQ. go.
       rewrite NextFs.
       apply IHargs with (INCR := INCR2); auto.
       rewrite <- NextFs.
-      apply Plt_Ple_trans with (fst (next_fresh_reg s));
+      apply Plt_Ple_trans with (next_fresh_reg s);
         auto.
       apply Ple_succ.
 Qed.
@@ -1250,7 +1250,7 @@ Hint Resolve gen_new_regs_correct_phicode: core.
 Lemma add_parcopies_correct_fresh :
   forall parcopies copy_nodes s u s' INCR,
   add_parcopies parcopies copy_nodes s = OK u s' INCR ->
-  fst (next_fresh_reg s) = fst (next_fresh_reg s').
+  (next_fresh_reg s) = (next_fresh_reg s').
 Proof.
   induction parcopies; intros.
   + simpl in *. destruct copy_nodes; unfold ret in *;
@@ -1520,7 +1520,7 @@ Hint Resolve build_parcopies_correct_phicode: core.
 Lemma build_parcopies_correct_fresh:
   forall args args' s parcopies s' INCR,
   build_parcopies args args' s = OK parcopies s' INCR ->
-  fst (next_fresh_reg s) = fst (next_fresh_reg s').
+  (next_fresh_reg s) = (next_fresh_reg s').
 Proof.
   induction args; intros.
   + unfold build_parcopies in H.
@@ -1585,7 +1585,7 @@ Hint Resolve add_parcopy_correct_phicode: core.
 Lemma add_parcopy_correct_fresh:
   forall dst' dst pc s u s' INCR,
   add_parcopy (Iparcopy dst' dst) pc s = OK u s' INCR ->
-  fst (next_fresh_reg s) = fst (next_fresh_reg s').
+  (next_fresh_reg s) = (next_fresh_reg s').
 Proof.
   intros. unfold add_parcopy in H. flatten H. auto.
 Qed.
@@ -1595,7 +1595,7 @@ Hint Resolve add_parcopy_correct_fresh: core.
 Lemma add_new_phi_correct_fresh:
   forall dst' args' pc s u s' INCR,
   add_new_phi dst' args' pc s = OK u s' INCR ->
-  fst (next_fresh_reg s) = fst (next_fresh_reg s').
+  (next_fresh_reg s) =  (next_fresh_reg s').
 Proof.
   intros.
   unfold add_new_phi in H.
@@ -1672,11 +1672,11 @@ Inductive handle_phi_block_spec (maxreg: positive)
       phicode1 phicode2 phicode3
 
     (PBSPECargsfresh:
-      (forall arg, In arg args -> Ple (fst arg) maxreg))
-    (PBSPECdst_old: Ple (fst dst) maxreg)
+      (forall arg, In arg args -> Ple arg maxreg))
+    (PBSPECdst_old: Ple dst maxreg)
     (PBSPECfs_init_fresh:  Plt maxreg fs_init)
 
-    (PBSPECnewreg: (fst dst') = fs_init)
+    (PBSPECnewreg: dst' = fs_init)
     (PBSPECgen_new_regs:
       gen_new_regs_spec maxreg (Pos.succ fs_init) fs_next
         args args')
@@ -1728,7 +1728,7 @@ Lemma handle_phi_block_spec_ple_init_arg :
   phicode2 ! pc = Some phib' ->
   In (Iphi args' dst') phib' ->
   In arg' args' ->
-  Ple fs_init (fst arg').
+  Ple fs_init arg'.
 Proof.
   intros until parcode2.
   intro H; induction H; intros.
@@ -1739,7 +1739,7 @@ Proof.
     apply Ple_succ.
     inv PBSPECnew_phi.
     rewrite PTree.gss in H1.
-    assert (RW: Iphi args' dst' :: phib'0 = phib')
+    assert (RW: Iphi args' fs_init :: phib'0 = phib')
       by congruence.
     rewrite <- RW in *.
     inv H2; go.
@@ -1756,7 +1756,7 @@ Lemma handle_phi_block_spec_ple_init_dst :
   phicode1 ! pc = Some nil ->
   phicode2 ! pc = Some phib' ->
   In (Iphi args' dst') phib' ->
-  Ple fs_init (fst dst').
+  Ple fs_init dst'.
 Proof.
   intros until parcode2.
   intro H; induction H; intros.
@@ -1765,15 +1765,15 @@ Proof.
     inv H1.
   + inv PBSPECnew_phi.
     rewrite PTree.gss in H1.
-    assert (RW: Iphi args' dst' :: phib'0 = phib')
+    assert (RW: Iphi args' fs_init :: phib'0 = phib')
       by congruence.
     rewrite <- RW in *.
     inv H2; go.
-    assert (EQdst: dst' = dst'0) by congruence.
+    assert (EQdst: fs_init = dst'0) by congruence.
     rewrite EQdst.
     apply Ple_refl.
     apply Ple_trans with fs_next; eauto.
-    apply Ple_trans with (Pos.succ (fst dst')).
+    apply Ple_trans with (Pos.succ fs_init).
     apply Ple_succ.
     eauto.
 Qed.
@@ -1806,7 +1806,7 @@ Lemma handle_phi_block_spec_plt_arg :
   In (Iphi args'' dst'') phib' ->
   In arg' args' ->
   In arg'' args'' ->
-  Plt (fst arg') (fst arg'').
+  Plt arg' arg''.
 Proof.
   intros.
   induction H; try congruence.
@@ -1827,13 +1827,13 @@ Lemma handle_phi_block_spec_plt_dst :
     args'' dst'',
   phicode2 ! pc = Some (Iphi args' dst' :: phib') ->
   In (Iphi args'' dst'') phib' ->
-  Plt (fst dst') (fst dst'').
+  Plt dst' dst''.
 Proof.
   intros.
   induction H; try congruence.
   apply Plt_Ple_trans with fs_next;
     inv PBSPECnew_phi; normalize_new_phi.
-  apply Plt_Ple_trans with (Pos.succ (fst dst')).
+  apply Plt_Ple_trans with (Pos.succ fs_init).
   apply Plt_succ.
   eapply gen_new_regs_spec_incr; eauto.
   eapply handle_phi_block_spec_ple_init_dst; eauto.
@@ -1855,7 +1855,7 @@ Lemma handle_phi_block_spec_fresh1 :
   arg' <> arg''.
 Proof.
   intros.
-  assert (Plt (fst arg') (fst arg'')).
+  assert (Plt arg' arg'').
   assert (In arg'' args'').
   eauto.
   eapply handle_phi_block_spec_plt_arg; eauto.
@@ -1876,7 +1876,7 @@ Lemma handle_phi_block_spec_fresh2 :
   dst' <> dst''.
 Proof.
   intros.
-  assert (Plt (fst dst') (fst dst'')).
+  assert (Plt dst' dst'').
   eapply handle_phi_block_spec_plt_dst; eauto.
   auto.
 Qed.
@@ -1898,7 +1898,7 @@ Lemma handle_phi_block_spec_fresh3 :
   arg' <> dst''.
 Proof.
   intros.
-  assert (Plt (fst arg') (fst dst'')).
+  assert (Plt arg' dst'').
   inv H0; go.
   inv PBSPECnew_phi; normalize_new_phi.
   apply Plt_Ple_trans with fs_next0.
@@ -1922,7 +1922,7 @@ Proof.
   induction H.
   exists phib; auto.
   inv PBSPECnew_phi.
-  exists (Iphi args' dst' :: phib').
+  exists (Iphi args' fs_init :: phib').
   rewrite PTree.gss. auto.
 Qed.
 
@@ -1948,7 +1948,7 @@ Proof.
   inv HNoDups; auto.
   inv PBSPECadd_parcopy.
   rewrite PTree.gss in EQparcother.
-  exists (Iparcopy dst' dst :: parcb).
+  exists (Iparcopy fs_init dst :: parcb).
   auto.
 Qed.
 
@@ -2023,13 +2023,13 @@ Lemma handle_phi_block_correct :
   NoDup (pc :: preds) ->
   forall block s u s' INCR,
   (forall args dst, In (Iphi args dst) block
-    -> Ple (fst dst) maxreg) ->
+    -> Ple dst maxreg) ->
   (forall args dst, In (Iphi args dst) block ->
-    forall arg, In arg args -> Ple (fst arg) maxreg) ->
-  (Plt maxreg (fst (next_fresh_reg s))) ->
+    forall arg, In arg args -> Ple arg maxreg) ->
+  (Plt maxreg (next_fresh_reg s)) ->
   handle_phi_block preds block pc s = OK u s' INCR ->
   handle_phi_block_spec maxreg preds pc
-    block (fst (next_fresh_reg s)) (fst (next_fresh_reg s'))
+    block (next_fresh_reg s) (next_fresh_reg s')
     (st_phicode s) (st_phicode s')
     (st_parcopycode s) (st_parcopycode s').
 Proof.
@@ -2071,25 +2071,25 @@ Proof.
     assert (Hdst': dst' = next_fresh_reg s).
     unfold gen_newreg in EQ. congruence.
 
-    assert (freshs0: Plt maxreg (fst (next_fresh_reg s0))).
-    apply Plt_Ple_trans with (fst (next_fresh_reg s)).
+    assert (freshs0: Plt maxreg (next_fresh_reg s0)).
+    apply Plt_Ple_trans with  (next_fresh_reg s).
     auto.
     inversion INCR0; auto.
 
     assert (Hnew_regs_spec:
       gen_new_regs_spec maxreg
-        (fst (next_fresh_reg s0)) (fst (next_fresh_reg s1))
+        (next_fresh_reg s0)  (next_fresh_reg s1)
         args args').
     eapply gen_new_regs_correct; eauto.
 
-    assert (freshs1: Plt maxreg (fst (next_fresh_reg s1))).
-    apply Plt_Ple_trans with (fst (next_fresh_reg s0)).
+    assert (freshs1: Plt maxreg (next_fresh_reg s1)).
+    apply Plt_Ple_trans with (next_fresh_reg s0).
     auto.
     inversion INCR2; auto.
 
     assert(IHspec:
       handle_phi_block_spec maxreg preds pc block
-        (fst (next_fresh_reg s1)) (fst (next_fresh_reg s2))
+        (next_fresh_reg s1)  (next_fresh_reg s2)
         (st_phicode s1) (st_phicode s2)
         (st_parcopycode s1) (st_parcopycode s2)).
     eapply IHblock; eauto.
@@ -2120,27 +2120,22 @@ Proof.
     { apply handle_phi_block_spec_cons
         with (args' := args')
           (dst' := dst')
-          (fs_next := fst (next_fresh_reg s1))
+          (fs_next := (next_fresh_reg s1))
           (parcopies := parcopies)
           (parcode2 := st_parcopycode s2)
           (parcode3 := st_parcopycode s4)
           (phicode2 := st_phicode s2); eauto.
 
       - unfold gen_newreg in EQ. go.
-      - unfold gen_newreg in EQ.
-        assert (ss0: Pos.succ (fst (next_fresh_reg s))
-          = fst (next_fresh_reg s0)) by go.
-        rewrite ss0.
-        eapply gen_new_regs_correct; eauto.
-      - assert (s2s'fs: fst (next_fresh_reg s') =
-          fst (next_fresh_reg s2)).
+      - assert (s2s'fs: (next_fresh_reg s') =
+           (next_fresh_reg s2)).
         { symmetry.
-          replace (fst (next_fresh_reg s'))
-            with (fst (next_fresh_reg s5)).
-          replace (fst (next_fresh_reg s5))
-            with (fst (next_fresh_reg s4)).
-          replace (fst (next_fresh_reg s4))
-            with (fst (next_fresh_reg s3)).
+          replace  (next_fresh_reg s')
+            with  (next_fresh_reg s5).
+          replace  (next_fresh_reg s5)
+            with (next_fresh_reg s4).
+          replace  (next_fresh_reg s4)
+            with  (next_fresh_reg s3).
           eauto. eauto. eauto. eauto. }
         rewrite s2s'fs.
         assert (ss1parcode: st_parcopycode s =
@@ -2226,12 +2221,12 @@ Proof.
     intros arg' nth_args' arg nth_args.
     inv PBSPECnew_phi.
     replace phib' with
-      (Iphi args' dst' :: phib'0) in *.
+      (Iphi args' fs_init :: phib'0) in *.
     inv PBSPECadd_parcopy.
     set (parcode3 := PTree.set pc
-      (Iparcopy dst' dst :: parcb0) parcode2) in *.
+      (Iparcopy fs_init dst :: parcb0) parcode2) in *.
     replace parcb' with
-      (Iparcopy dst' dst :: parcb0) in *.
+      (Iparcopy fs_init dst :: parcb0) in *.
     {
       case_eq (parcode3 ! pred); intros.
       + assert (parcode4 ! pred =
@@ -2249,7 +2244,7 @@ Proof.
         - intros.
           eapply handle_phi_block_spec_fresh1; eauto.
         - intros.
-          assert (dst' <> dst'').
+          assert (fs_init <> dst'').
           eapply handle_phi_block_spec_fresh2; eauto.
           auto.
         - intros.
@@ -2296,7 +2291,7 @@ Lemma equiv_phib_spec_plt_maxreg_phib'dst :
   equiv_phib_spec maxreg k phib parcb phib' parcb' ->
   forall args' dst',
   In (Iphi args' dst') phib' ->
-  Plt maxreg (fst dst').
+  Plt maxreg dst'.
 Proof.
   intros until parcb'.
   intro H. induction H; intros args'' dst'' HIn.
@@ -2311,7 +2306,7 @@ Lemma equiv_phib_spec_plt_maxreg_phib'arg :
   forall arg' args' dst',
   In (Iphi args' dst') phib' ->
   nth_error args' k = Some arg' ->
-  Plt maxreg (fst arg').
+  Plt maxreg arg'.
 Proof.
   intros until parcb'.
   intro H. induction H;
@@ -2394,7 +2389,7 @@ Lemma equiv_phib_spec_ple_phibdst_maxreg :
   equiv_phib_spec maxreg k phib parcb phib' parcb' ->
   forall args dst,
   In (Iphi args dst) phib ->
-  Ple (fst dst) maxreg.
+  Ple dst maxreg.
 Proof.
   intros until parcb'.
   intro H. induction H; intros args0 dst0 HIn.
@@ -2414,9 +2409,9 @@ Proof.
   induction H.
   constructor.
   constructor 2; auto; intros.
-  + assert (Plt maxreg (fst dst'')).
+  + assert (Plt maxreg  dst'').
     eapply equiv_phib_spec_plt_maxreg_phib'dst; eauto.
-    assert (Plt (fst arg) (fst dst'')).
+    assert (Plt arg  dst'').
     apply Ple_Plt_trans with maxreg; auto.
     auto.
   + assert (HIn:
@@ -2426,9 +2421,9 @@ Proof.
     eapply equiv_phib_spec_parcbdst_inphib'; eauto.
     destruct HIn as [args'0 [dst'0 HIn]].
     destruct HIn.
-    assert (Plt maxreg (fst dst'')).
+    assert (Plt maxreg dst'').
     eapply equiv_phib_spec_plt_maxreg_phib'arg; eauto.
-    assert (Plt (fst arg) (fst dst'')).
+    assert (Plt arg  dst'').
     apply Ple_Plt_trans with maxreg; auto.
     auto.
   + assert (HIn:
@@ -2449,7 +2444,7 @@ Proof.
       In (Iphi args'0 dst'') phib).
     eapply equiv_phib_spec_parcb'dst_inphib; eauto.
     destruct HIn as [args'0 HIn].
-    assert (Plt (fst dst'') (fst dst')).
+    assert (Plt dst'' dst').
     apply Ple_Plt_trans with maxreg.
     eapply equiv_phib_spec_ple_phibdst_maxreg; eauto.
     auto.
@@ -2520,7 +2515,7 @@ Lemma handle_phi_block_spec_from_handle_phi_block :
   (make_predecessors (fn_code f) successors_instr) ! pc
     = Some preds ->
   wf_ssa_function f ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s1)) ->
+  Plt (get_maxreg f) (next_fresh_reg s1) ->
   initialize_phi_block pc s1 = OK x s INCR ->
   initialize_parcopy_blocks (pc :: preds) s =
     OK x0 s0 INCR1 ->
@@ -2529,8 +2524,8 @@ Lemma handle_phi_block_spec_from_handle_phi_block :
   handle_phi_block preds phib pc s0 = OK u s2 INCR2 ->
   handle_phi_block_spec (get_maxreg f) preds pc
     phib
-    (fst (next_fresh_reg s0))
-    (fst (next_fresh_reg s2))
+    (next_fresh_reg s0)
+    (next_fresh_reg s2)
     (st_phicode s0) (st_phicode s2)
     (st_parcopycode s0) (st_parcopycode s2).
 Proof.
@@ -2561,9 +2556,9 @@ Proof.
       eapply max_reg_in_phicode; eauto.
       apply max_reg_correct_phicode.
     + apply Plt_Ple_trans with
-        (fst (next_fresh_reg s)).
+        (next_fresh_reg s).
       apply Plt_Ple_trans with
-        (fst (next_fresh_reg s1)).
+        (next_fresh_reg s1).
       auto.
       inversion INCR; auto.
       inversion INCR1; auto.
@@ -2582,7 +2577,7 @@ Lemma copy_node_cssagen_spec_parcode_other :
     ! pc = Some preds ->
   pc' <> pc ->
   ~ In pc' preds ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s1)) ->
+  Plt (get_maxreg f) (next_fresh_reg s1) ->
   (st_parcopycode s1) ! pc' = (st_parcopycode s2) ! pc'.
 Proof.
   intros until preds.
@@ -2607,8 +2602,8 @@ Proof.
     assert(Hb:
       handle_phi_block_spec (get_maxreg f) preds pc
         phib
-        (fst (next_fresh_reg s0))
-        (fst (next_fresh_reg s2))
+        (next_fresh_reg s0)
+        (next_fresh_reg s2)
         (st_phicode s0) (st_phicode s2)
         (st_parcopycode s0) (st_parcopycode s2)).
     eapply handle_phi_block_spec_from_handle_phi_block;
@@ -2631,7 +2626,7 @@ Lemma copy_node_cssagen_spec_phicode_other :
   (make_predecessors (fn_code f) successors_instr)
     ! pc = Some preds ->
   pc' <> pc ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s1)) ->
+  Plt (get_maxreg f) (next_fresh_reg s1) ->
   (st_phicode s1) ! pc' = (st_phicode s2) ! pc'.
 Proof.
   intros until preds.
@@ -2659,8 +2654,8 @@ Proof.
     assert(Hb:
       handle_phi_block_spec (get_maxreg f) preds pc
         phib
-        (fst (next_fresh_reg s0))
-        (fst (next_fresh_reg s2))
+        (next_fresh_reg s0)
+        (next_fresh_reg s2)
         (st_phicode s0) (st_phicode s2)
         (st_parcopycode s0) (st_parcopycode s2)).
     eapply handle_phi_block_spec_from_handle_phi_block;
@@ -2681,7 +2676,7 @@ Lemma copy_node_cssagenspec_other :
     pc k ->
   wf_ssa_function f ->
   normalized_jp f ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s1)) ->
+  Plt (get_maxreg f) (next_fresh_reg s1) ->
   copy_node
     (make_predecessors (fn_code f) successors_instr)
     (fn_code f) (fn_phicode f) pc' s1
@@ -2780,7 +2775,7 @@ Lemma copy_node_cssagenspec_other_mfold :
     (fn_code f) (fn_phicode f))
     l s1 = OK u s2 incr ->
   ~ In pc l ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s1)) ->
+  Plt (get_maxreg f) (next_fresh_reg s1) ->
   cssa_spec
     (get_maxreg f)
     (make_predecessors (fn_code f) successors_instr)
@@ -2809,7 +2804,7 @@ Proof.
     destruct x.
     eapply copy_node_cssagenspec_other; eauto.
     eapply IHl; eauto.
-    apply Plt_Ple_trans with (fst (next_fresh_reg s1)).
+    apply Plt_Ple_trans with (next_fresh_reg s1).
     auto. inversion INCR; auto.
     go.
 Qed.
@@ -2818,7 +2813,7 @@ Lemma copy_node_cssagenspec :
   forall f pc s1 s2 incr k,
     wf_ssa_function f ->
     normalized_jp f ->
-    Plt (get_maxreg f) (fst (next_fresh_reg s1)) ->
+    Plt (get_maxreg f) (next_fresh_reg s1) ->
     copy_node
       (make_predecessors (fn_code f) successors_instr)
       (fn_code f) (fn_phicode f) pc s1
@@ -2846,8 +2841,8 @@ Proof.
       assert(Hb:
         handle_phi_block_spec (get_maxreg f) l pc
           phib
-          (fst (next_fresh_reg s0))
-          (fst (next_fresh_reg s2))
+          (next_fresh_reg s0)
+          (next_fresh_reg s2)
           (st_phicode s0) (st_phicode s2)
           (st_parcopycode s0) (st_parcopycode s2)).
       eapply handle_phi_block_spec_from_handle_phi_block;
@@ -2896,8 +2891,8 @@ Proof.
 
       apply handle_phi_block_spec_equiv_phib
         with (preds := l) (pc := pc)
-        (fs_init := fst (next_fresh_reg s0))
-        (fs_last := fst (next_fresh_reg s2))
+        (fs_init :=  (next_fresh_reg s0))
+        (fs_last :=  (next_fresh_reg s2))
         (phicode1 := st_phicode s0)
         (phicode2 := st_phicode s2)
         (parcode1 := st_parcopycode s0)
@@ -2920,7 +2915,7 @@ Lemma mfold_copy_node_correct :
     (make_predecessors (fn_code f) successors_instr)
     (fn_code f) (fn_phicode f))
     l s = OK u s' incr ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s)) ->
+  Plt (get_maxreg f) (next_fresh_reg s) ->
   NoDup l ->
   In pc l ->
   cssa_spec (get_maxreg f)
@@ -2945,11 +2940,11 @@ Proof.
         (s1 := s) (incr := INCR); go.
       inv H1.
       eapply copy_node_cssagenspec_other_mfold; eauto.
-      apply Plt_Ple_trans with (fst (next_fresh_reg s)).
+      apply Plt_Ple_trans with (next_fresh_reg s).
       auto. inversion INCR; auto.
     - apply IHl with
         (u := u) (s := s0) (incr := INCR0); auto.
-      apply Plt_Ple_trans with (fst (next_fresh_reg s)).
+      apply Plt_Ple_trans with (next_fresh_reg s).
       auto. inversion INCR; auto.
       inv H1; auto.
 Qed.
@@ -3082,7 +3077,7 @@ Proof.
     eapply mfold_copy_node_correct; eauto.
     unfold init_state in *.
     assert (RWinitreg: next_fresh_reg init =
-      (Pos.succ (get_maxreg f), 1%positive))
+      Pos.succ (get_maxreg f))
       by go.
     rewrite RWinitreg. simpl.
     apply Plt_succ.
@@ -3125,8 +3120,8 @@ Section PRESERVATION.
 
     Inductive match_regset (max_reg: positive) : SSA.regset -> SSA.regset -> Prop :=
     | mrg_intro : forall rs rs',
-        (forall r, (Ple (fst r) max_reg) ->
-                   rs#2 r = rs'#2 r) ->
+        (forall r, (Ple r max_reg) ->
+                   rs# r = rs'# r) ->
         match_regset max_reg rs rs'.
 
     Inductive match_stackframes :
@@ -3283,9 +3278,9 @@ Qed.
 
 Lemma registers_equal:
   forall rs rs' args max_reg,
-    (forall r, In r args -> Ple (fst r) max_reg) ->
+    (forall r, In r args -> Ple r max_reg) ->
     match_regset max_reg rs rs'
-    -> rs' ##2 args = rs ##2 args.
+    -> rs' ## args = rs ## args.
 Proof.
   intros.
   inv H0.
@@ -3306,7 +3301,7 @@ Qed.
 
 Lemma spec_ros_r_find_function:
   forall rs rs' f r,
-  rs #2 r = rs' #2 r ->
+  rs # r = rs' # r ->
   SSA.find_function ge (inl _ r) rs = Some f ->
   exists tf,
      CSSApar.find_function tge (inl _ r) rs' = Some tf
@@ -3348,48 +3343,48 @@ Lemma parcopy_store_other :
   forall rs r parcb,
   (forall src dst, In (Iparcopy src dst) parcb
     -> r <> dst) ->
-  rs !!2 r = (parcopy_store parcb rs) !!2 r.
+  rs !! r = (parcopy_store parcb rs) !! r.
 Proof.
   intros rs r parcb.
   induction parcb; go.
   intros.
   simpl. destruct a.
-  rewrite P2Map.gso; go.
+  rewrite PMap.gso; go.
 Qed.
 
 Lemma copy_out_of_parcb :
   forall (rs : SSA.regset) (parcb : parcopyblock)
-    (src dst : SSA.reg),
+    (src dst : reg),
   (forall src' dst', In (CSSApar.Iparcopy src' dst') parcb
     -> src <> dst') ->
   parcopy_store (CSSApar.Iparcopy src dst :: parcb) rs =
-    (parcopy_store parcb rs)#2 dst <-
-      ((parcopy_store parcb rs) #2 src).
+    (parcopy_store parcb rs)# dst <-
+      ((parcopy_store parcb rs) # src).
 Proof.
   intros.
   simpl.
-  assert (rs !!2 src =
-    (parcopy_store parcb rs) !!2 src).
+  assert (rs !! src =
+    (parcopy_store parcb rs) !! src).
   eapply parcopy_store_other; go.
   go.
 Qed.
 
 Lemma copy_out_of_phib :
   forall (rs : SSA.regset) (phib : phiblock)
-    (src dst : SSA.reg) (args : list SSA.reg) (k : nat),
+    (src dst : reg) (args : list reg) (k : nat),
   (forall args' dst', In (Iphi args' dst') phib
     -> src <> dst') ->
   nth_error args k = Some src ->
   phi_store k (Iphi args dst :: phib) rs =
-    (phi_store k phib rs)#2 dst <-
-      ((phi_store k phib rs) #2 src).
+    (phi_store k phib rs)# dst <-
+      ((phi_store k phib rs) # src).
 Proof.
   intros. simpl.
   case_eq (nth_error args k); intros; go.
   assert (EQ: r = src) by congruence.
   rewrite EQ in *.
-  assert (rs !!2 src =
-    (phi_store k phib rs) !!2 src).
+  assert (rs !! src =
+    (phi_store k phib rs) !! src).
   eapply phi_store_other; go.
   go.
 Qed.
@@ -3399,7 +3394,7 @@ Lemma equiv_phib_fresh_parcb :
   forall maxreg k phib parcb phib' parcb' src dst
   (EQ_PHIB: equiv_phib maxreg k phib parcb phib' parcb')
   (IN_parcb: In (Iparcopy src dst) parcb),
-  Plt maxreg (fst dst).
+  Plt maxreg dst.
 Proof.
   intros.
   induction EQ_PHIB; go.
@@ -3411,7 +3406,7 @@ Lemma equiv_phib_fresh_parcb' :
   forall maxreg k phib parcb phib' parcb' src dst
   (EQ_PHIB: equiv_phib maxreg k phib parcb phib' parcb')
   (IN_parcb: In (Iparcopy src dst) parcb'),
-  Plt maxreg (fst src).
+  Plt maxreg src.
 Proof.
   intros.
   induction EQ_PHIB; go.
@@ -3424,7 +3419,7 @@ Lemma equiv_phib_fresh_phib'1 :
   (EQ_PHIB: equiv_phib maxreg k phib parcb phib' parcb')
   (IN_parcb: In (Iphi args dst) phib')
   (ARG: nth_error args k = Some arg),
-  Plt maxreg (fst arg).
+  Plt maxreg arg.
 Proof.
   intros.
   induction EQ_PHIB; go.
@@ -3436,7 +3431,7 @@ Lemma equiv_phib_fresh_phib'2 :
   forall maxreg k phib parcb phib' parcb' args dst
   (EQ_PHIB: equiv_phib maxreg k phib parcb phib' parcb')
   (IN_parcb: In (Iphi args dst) phib'),
-  Plt maxreg (fst dst).
+  Plt maxreg dst.
 Proof.
   intros.
   induction EQ_PHIB; go.
@@ -3449,7 +3444,7 @@ Lemma equiv_phib_notfresh_phib1 :
   (EQ_PHIB: equiv_phib maxreg k phib parcb phib' parcb')
   (IN_parcb: In (Iphi args dst) phib)
   (ARG: nth_error args k = Some arg),
-  Ple (fst arg) maxreg.
+  Ple arg maxreg.
 Proof.
   intros.
   induction EQ_PHIB; go.
@@ -3461,7 +3456,7 @@ Lemma equiv_phib_notfresh_phib2 :
   forall maxreg k phib parcb phib' parcb' args dst
   (EQ_PHIB: equiv_phib maxreg k phib parcb phib' parcb')
   (IN_parcb: In (Iphi args dst) phib),
-  Ple (fst dst) maxreg.
+  Ple dst maxreg.
 Proof.
   intros.
   induction EQ_PHIB; go.
@@ -3518,15 +3513,13 @@ Qed.
 
 Lemma reg_Ple_Plt_not_eq :
   forall maxreg (r1 r2 : reg),
-  Ple (fst r1) maxreg ->
-  Plt maxreg (fst r2) ->
+  Ple r1 maxreg ->
+  Plt maxreg r2 ->
   r1 <> r2.
 Proof.
   intros.
-  destruct r1. destruct r2.
   simpl in *.
-  assert (r <> r0); try congruence.
-  assert (Plt r r0); auto with coqlib.
+  assert (Plt r1 r2); auto with coqlib.
   apply Ple_Plt_trans with maxreg; auto with coqlib.
 Qed.
 
@@ -3568,7 +3561,7 @@ Proof.
   { simpl in H. contradiction. }
   simpl in *.
   destruct a.
-  case_eq (p2eq r dst); intros.
+  case_eq (peq r dst); intros.
   + rewrite e in *. go.
   + simpl in H.
     destruct H. congruence.
@@ -3594,7 +3587,7 @@ Lemma in_phib_dst_simul :
   (forall args' dst', In (Iphi args' dst') phib
     -> nth_error args' k <> None) ->
   nth_error args k = Some arg ->
-  (phi_store k phib rs) !!2 r = rs !!2 arg.
+  (phi_store k phib rs) !! r = rs !! arg.
 Proof.
   induction phib; intros r k args arg HNoDup H.
   { simpl in H. contradiction. }
@@ -3602,15 +3595,15 @@ Proof.
   destruct a.
   case_eq (nth_error l k); intros.
   + simpl in *.
-    case_eq (p2eq r r0); intros.
+    case_eq (peq r r0); intros.
     - rewrite e in *.
-      rewrite P2Map.gss.
+      rewrite PMap.gss.
       destruct H; go.
       inv HNoDup.
       assert (In r0 (map phib_dst phib)).
       eapply in_phib_dst_in; eauto.
       contradiction.
-    - rewrite P2Map.gso; auto.
+    - rewrite PMap.gso; auto.
       destruct H; go.
       inv HNoDup.
       eapply IHphib; eauto.
@@ -3622,7 +3615,7 @@ Lemma in_parcb_dst_simul :
   forall rs (r : reg) (parcb : parcopyblock) src,
   NoDup (map parc_dst parcb) ->
   In (Iparcopy src r) parcb ->
-  (parcopy_store parcb rs) !!2 r = rs !!2 src.
+  (parcopy_store parcb rs) !! r = rs !! src.
 Proof.
   induction parcb; intros.
   { simpl in H. contradiction. }
@@ -3633,9 +3626,9 @@ Proof.
     assert (EQ2: r1 = r) by congruence.
     rewrite EQ1 in *. rewrite EQ2 in *.
     inv H.
-    apply P2Map.gss.
+    apply PMap.gss.
   + inv H.
-    rewrite P2Map.gso; auto.
+    rewrite PMap.gso; auto.
     unfold not in *; intros. go.
 Qed.
 
@@ -3734,11 +3727,11 @@ Lemma phi_store_emulation :
   unique_def_phib_spec phib ->
   equiv_phib maxreg k phib parcb phib' parcb' ->
   forall r,
-  Ple (fst r) maxreg ->
-  (phi_store k phib rs) !!2 r =
+  Ple r maxreg ->
+  (phi_store k phib rs) !! r =
   (parcopy_store parcb'
     (phi_store k phib'
-      (parcopy_store parcb rs'))) !!2 r.
+      (parcopy_store parcb rs'))) !! r.
 Proof.
   intros rs rs' k phib parcb phib' parcb' maxreg MREG
     WFphib EQ_PHIB.
@@ -3757,26 +3750,26 @@ Proof.
       (parcopy_store (Iparcopy arg arg' :: parcb) rs')
       phib' arg' dst' args' k; go.
     rewrite copy_out_of_parcb; go.
-    case_eq (p2eq r dst); intros; go.
+    case_eq (peq r dst); intros; go.
     + rewrite e in *.
       symmetry. simpl.
       case_eq (nth_error args k); go; intros.
-      rewrite P2Map.gss.
+      rewrite PMap.gss.
       assert (R_EQ: r0 = arg) by go.
       rewrite R_EQ in *.
-      repeat rewrite P2Map.gss.
+      repeat rewrite PMap.gss.
       rewrite <- parcopy_store_other; go.
-      rewrite P2Map.gss.
+      rewrite PMap.gss.
       rewrite <- phi_store_other; go.
-      rewrite P2Map.gss.
+      rewrite PMap.gss.
       rewrite <- parcopy_store_other; go.
       inv MREG. auto.
     + symmetry. simpl.
       case_eq (nth_error args k); go; intros.
-      rewrite P2Map.gso; auto.
+      rewrite PMap.gso; auto.
       rewrite IHEQ_PHIB; auto.
       unfold rec_simuled_store.
-      case_eq (in_dec p2eq r (map parc_dst parcb')); intros.
+      case_eq (in_dec peq r (map parc_dst parcb')); intros.
       {
         assert (Exists_src: exists src,
           In (Iparcopy src r) parcb').
@@ -3784,9 +3777,9 @@ Proof.
         destruct Exists_src as [src In_src_r_parcb'].
         rewrite in_parcb_dst_simul with (src := src); go.
         symmetry.
-        rewrite P2Map.gso; go.
+        rewrite PMap.gso; go.
         rewrite in_parcb_dst_simul with (src := src); go.
-        rewrite P2Map.gso.
+        rewrite PMap.gso.
 
         assert (Exists_args'': exists args'',
           In (Iphi args'' src) phib').
@@ -3799,7 +3792,7 @@ Proof.
         rewrite in_phib_dst_simul
           with (arg := arg'') (args := args''); go.
         rewrite <- parcopy_store_other; go.
-        rewrite P2Map.gso.
+        rewrite PMap.gso.
         symmetry.
         rewrite in_phib_dst_simul
           with (arg := arg'') (args := args''); go.
@@ -3811,11 +3804,11 @@ Proof.
         rewrite <- phi_store_other; go.
         rewrite <- parcopy_store_other; go.
         symmetry.
-        repeat rewrite P2Map.gso; auto.
+        repeat rewrite PMap.gso; auto.
         rewrite <- parcopy_store_other.
-        rewrite P2Map.gso; auto.
+        rewrite PMap.gso; auto.
         rewrite <- phi_store_other; go.
-        rewrite P2Map.gso; auto.
+        rewrite PMap.gso; auto.
         rewrite <- parcopy_store_other; go.
         apply parcb_not_in; auto.
         apply parcb_not_in; auto.
@@ -3880,9 +3873,9 @@ Qed.
 Lemma match_regset_args :
   forall args maxreg rs rs',
   match_regset maxreg rs rs' ->
-  (forall arg, In arg args -> Ple (fst arg)
+  (forall arg, In arg args -> Ple arg
     maxreg) ->
-  rs' ##2 args = rs ##2 args.
+  rs' ## args = rs ## args.
 Proof.
   induction args; go.
   intros.
@@ -3982,14 +3975,14 @@ Proof.
       eapply equiv_phib_spec_correct; eauto.
   }
   (* iop *)
-  { exists (CSSApar.State ts tf sp pc' (rs' #2 res <- v) m).
+  { exists (CSSApar.State ts tf sp pc' (rs' # res <- v) m).
     split.
     + econstructor; eauto.
       assert ((CSSApar.fn_code tf) ! pc =
         Some (Iop op args res pc')).
       erewrite instructions_preserved; eauto; simpl; eauto.
       eauto.
-      assert (REGS_EQ: rs' ##2 args = rs ##2 args).
+      assert (REGS_EQ: rs' ## args = rs ## args).
       { eapply registers_equal; intros; eauto.
         apply Ple_trans with
           (get_max_reg_in_ins
@@ -4005,17 +3998,17 @@ Proof.
       eapply symbols_preserved.
     + constructor; eauto.  constructor.
       inv MREG.  intros.
-      rewrite P2Map.gsspec.  rewrite P2Map.gsspec.
-      destruct p2eq; eauto.  }
+      rewrite PMap.gsspec.  rewrite PMap.gsspec.
+      destruct peq; eauto.  }
   (* iload *)
-  { exists (CSSApar.State ts tf sp pc' (rs' #2 dst <- v) m).
+  { exists (CSSApar.State ts tf sp pc' (rs' # dst <- v) m).
     split.
     + eapply CSSApar.exec_Iload; eauto.
       assert ((CSSApar.fn_code tf) ! pc =
         Some (Iload chunk addr args dst pc')).
       erewrite instructions_preserved; eauto; simpl; eauto.
       eauto.
-      assert (REGS_EQ: rs' ##2 args = rs ##2 args).
+      assert (REGS_EQ: rs' ## args = rs ## args).
       { eapply registers_equal; eauto; intros.
         apply Ple_trans with
           (get_max_reg_in_ins
@@ -4031,8 +4024,8 @@ Proof.
       eapply symbols_preserved.
     + constructor; eauto. constructor.
       inv MREG. intros.
-      rewrite P2Map.gsspec. rewrite P2Map.gsspec.
-      destruct p2eq; eauto.  }
+      rewrite PMap.gsspec. rewrite PMap.gsspec.
+      destruct peq; eauto.  }
   (* istore *)
   { exists (CSSApar.State ts tf sp pc' rs' m').
     split.
@@ -4041,7 +4034,7 @@ Proof.
         Some (Istore chunk addr args src pc')).
       { erewrite instructions_preserved; eauto; simpl; eauto. }
       eauto.
-      assert (REGS_EQ: rs' ##2 args = rs ##2 args).
+      assert (REGS_EQ: rs' ## args = rs ## args).
       { eapply registers_equal; eauto; intros.
         apply Ple_trans with
           (get_max_reg_in_ins
@@ -4081,9 +4074,9 @@ Proof.
       apply WF_PROG with id.
       auto.
     }
-    assert (RW: rs' ##2 args = rs ##2 args).
+    assert (RW: rs' ## args = rs ## args).
     { assert(Pleargs: forall arg, In arg args ->
-        Ple (fst arg) (get_maxreg f)); intros.
+        Ple arg (get_maxreg f)); intros.
       apply Ple_trans with
         (get_max_reg_in_ins (Icall (funsig fd)
           ros args res pc')).
@@ -4101,7 +4094,7 @@ Proof.
         /\ transl_fundef fd = Errors.OK tfd).
       apply spec_ros_r_find_function
         with (rs := rs); auto.
-      assert (Ple (fst r) (get_maxreg f)).
+      assert (Ple  r (get_maxreg f)).
       {
         apply Ple_trans with
           (get_max_reg_in_ins (Icall (funsig fd)
@@ -4118,7 +4111,7 @@ Proof.
       destruct Htfd as [tfd Hfindtfd].
       exists (CSSApar.Callstate
         (CSSApar.Stackframe res tf sp pc' rs' :: ts)
-        tfd (rs'##2 args) m).
+        tfd (rs'## args) m).
       split.
       + apply CSSApar.exec_Icall
           with (sig := CSSApar.funsig tfd)
@@ -4144,7 +4137,7 @@ Proof.
       destruct Htfd as [tfd Htfd].
       exists (CSSApar.Callstate
         (CSSApar.Stackframe res tf sp pc' rs' :: ts)
-        tfd (rs'##2 args) m).
+        tfd (rs'## args) m).
       split.
       + apply CSSApar.exec_Icall
           with (sig := CSSApar.funsig tfd)
@@ -4178,9 +4171,9 @@ Proof.
       apply WF_PROG with id.
       auto.
     }
-    assert (RW: rs' ##2 args = rs ##2 args).
+    assert (RW: rs' ## args = rs ## args).
     { assert(Pleargs: forall arg, In arg args ->
-        Ple (fst arg) (get_maxreg f)); intros.
+        Ple arg (get_maxreg f)); intros.
       apply Ple_trans with
         (get_max_reg_in_ins (Itailcall (funsig fd)
           ros args)).
@@ -4198,7 +4191,7 @@ Proof.
         /\ transl_fundef fd = Errors.OK tfd).
       apply spec_ros_r_find_function
         with (rs := rs); auto.
-      assert (Ple (fst r) (get_maxreg f)).
+      assert (Ple r (get_maxreg f)).
       {
         apply Ple_trans with
           (get_max_reg_in_ins (Itailcall (funsig fd)
@@ -4214,7 +4207,7 @@ Proof.
 
       destruct Htfd as [tfd Hfindtfd].
       exists (CSSApar.Callstate
-        ts tfd rs'##2 args m').
+        ts tfd rs'## args m').
       split.
       + apply CSSApar.exec_Itailcall
           with (sig := CSSApar.funsig tfd)
@@ -4241,7 +4234,7 @@ Proof.
         with (rs := rs); auto.
       destruct Htfd as [tfd Htfd].
       exists (CSSApar.Callstate
-        ts tfd (rs'##2 args) m').
+        ts tfd (rs'## args) m').
       split.
       + apply CSSApar.exec_Itailcall
           with (sig := CSSApar.funsig tfd)
@@ -4262,7 +4255,7 @@ Proof.
         auto.
   }
   (* ibuiltin *)
-  { exists (CSSApar.State ts tf sp pc' (regmap2_setres val res vres rs') m').
+  { exists (CSSApar.State ts tf sp pc' (regmap_setres res vres rs') m').
     split.
     + eapply CSSApar.exec_Ibuiltin with (vargs:= vargs); eauto.
       * assert ((CSSApar.fn_code tf) ! pc =  Some (Ibuiltin ef args res pc')).
@@ -4270,7 +4263,7 @@ Proof.
         eauto.
       * eapply eval_builtin_args_preserved with (ge1:= ge); eauto.
         eapply symbols_preserved.
-        assert (forall r, In r (params_of_builtin_args args) -> rs !!2 r = rs' !!2 r).
+        assert (forall r, In r (params_of_builtin_args args) -> rs !! r = rs' !! r).
         { inv MREG.
           intros.
           eapply max_reg_in_code in H; eauto.
@@ -4321,8 +4314,8 @@ Proof.
       constructor. inv MREG. intros.
       destruct res ; auto.
       simpl.
-      rewrite P2Map.gsspec. rewrite P2Map.gsspec.
-      destruct p2eq; eauto.
+      rewrite PMap.gsspec. rewrite PMap.gsspec.
+      destruct peq; eauto.
   }
 
   (* ifso *)
@@ -4334,7 +4327,7 @@ Proof.
       { erewrite instructions_preserved; eauto; simpl;
         eauto. }
       eauto.
-      assert (REGS_EQ: rs' ##2 args = rs ##2 args).
+      assert (REGS_EQ: rs' ## args = rs ## args).
       { eapply registers_equal; eauto; intros.
         apply Ple_trans with
           (get_max_reg_in_ins
@@ -4357,7 +4350,7 @@ Proof.
       { erewrite instructions_preserved; eauto; simpl;
         eauto. }
       eauto.
-      assert (REGS_EQ: rs' ##2 args = rs ##2 args).
+      assert (REGS_EQ: rs' ## args = rs ## args).
       { eapply registers_equal; eauto; intros.
         apply Ple_trans with
           (get_max_reg_in_ins
@@ -4393,7 +4386,7 @@ Proof.
     + constructor; eauto. }
   (* ireturn *)
   { exists (CSSApar.Returnstate ts
-      (regmap2_optget or Vundef rs') m').
+      (regmap_optget or Vundef rs') m').
     split.
     + eapply CSSApar.exec_Ireturn; eauto.
       assert ((CSSApar.fn_code tf) ! pc =
@@ -4456,18 +4449,18 @@ Proof.
   {
     inv STACK.
     exists (CSSApar.State ts0 tf sp pc
-      (rs' #2 res <- vres) m).
+      (rs' # res <- vres) m).
     split.
     + eapply CSSApar.exec_return.
     + econstructor; eauto.
       econstructor; intros.
       inv MREG.
-      case_eq (p2eq res r); intros.
+      case_eq (peq res r); intros.
       - rewrite e in *.
-        rewrite P2Map.gss; auto.
-        rewrite P2Map.gss; auto.
-      - rewrite P2Map.gso; auto.
-        rewrite P2Map.gso; auto.
+        rewrite PMap.gss; auto.
+        rewrite PMap.gss; auto.
+      - rewrite PMap.gso; auto.
+        rewrite PMap.gso; auto.
   }
 Qed.
 

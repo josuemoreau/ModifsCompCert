@@ -24,7 +24,7 @@ Require Import CSSAninterf.
 Require Import CSSAutils.
 Require Import Classical.
 Require Import CSSApardef.
-Require Import TrMaps2.
+Require Import Registers.
 
 (*
   (pred)  u_k = a_k
@@ -82,28 +82,28 @@ Proof.
     unfold compute_ninterfere in Eq.
     flatten Eq. rewrite negb_false_iff in Eq2; auto.
   }
-  case_eq (p2eq r r'); intros Heqrr'.
+  case_eq (peq r r'); intros Heqrr'.
   { rewrite Heqrr' in *. constructor; auto. }
   intros Heqrr'2.
   destruct H; destruct H0;
   match goal with
-  | Hr: In r (map fst (P2Tree.elements (get_all_def f))),
-    Hr': In r' (map fst (P2Tree.elements (get_all_def f)))
+  | Hr: In r (map fst (PTree.elements (get_all_def f))),
+    Hr': In r' (map fst (PTree.elements (get_all_def f)))
     |- _ =>
       generalize mem_class_regs_correct; intros Hclass1;
       specialize (Hclass1 regrepr t
-        (map fst (P2Tree.elements (get_all_def f))) r);
+        (map fst (PTree.elements (get_all_def f))) r);
       exploit Hclass1; eauto; intros Hexists_class1;
       generalize mem_class_regs_correct; intros Hclass2;
       specialize (Hclass2 regrepr t
-        (map fst (P2Tree.elements (get_all_def f))) r');
+        (map fst (PTree.elements (get_all_def f))) r');
       exploit Hclass2; eauto; intros Hexists_class2
-  | Hr: In r (map fst (P2Tree.elements (get_all_def f))),
+  | Hr: In r (map fst (PTree.elements (get_all_def f))),
     Hr': SSARegSet.In r' (get_ext_params f (get_all_def f))
     |- _ =>
     generalize mem_class_regs_correct; intros Hclass1;
     specialize (Hclass1 regrepr t
-      (map fst (P2Tree.elements (get_all_def f))) r);
+      (map fst (PTree.elements (get_all_def f))) r);
     exploit Hclass1; eauto; intros Hexists_class1;
     generalize mem_class_regs_correct; intros Hclass2;
     specialize (Hclass2 regrepr t
@@ -113,11 +113,11 @@ Proof.
     [ exploit SSARegSet.elements_1; eauto;
       intros Hin; apply InA_In; auto | intros Hexists_class2]
   | Hr: SSARegSet.In r (get_ext_params f (get_all_def f)),
-    Hr': In r' (map fst (P2Tree.elements (get_all_def f)))
+    Hr': In r' (map fst (PTree.elements (get_all_def f)))
     |- _ =>
     generalize mem_class_regs_correct; intros Hclass1;
     specialize (Hclass1 regrepr t
-      (map fst (P2Tree.elements (get_all_def f))) r');
+      (map fst (PTree.elements (get_all_def f))) r');
     exploit Hclass1; eauto; intros Hexists_class1;
     generalize mem_class_regs_correct; intros Hclass2;
     specialize (Hclass2 regrepr t
@@ -155,8 +155,8 @@ Proof.
     assert(b r r' = true)
       by (eapply check_interference_in_class_correct; eauto;
       [ apply Hforall; eauto;
-        assert(Hin: In (regrepr r, cls) (P2Tree.elements t))
-         by (apply P2Tree.elements_correct; auto);
+        assert(Hin: In (regrepr r, cls) (PTree.elements t))
+         by (apply PTree.elements_correct; auto);
         eapply In_Insnd; eauto
       | intros; eapply ninterf_symmetric; eauto]);
     eapply compute_ninterfere_correct; eauto
@@ -196,20 +196,20 @@ Proof.
   exploit Hcssaphi; eauto.
   intros Hcssaarg.
   rewrite forallb_forall in Hcssaarg.
-  case_eq (p2eq r dst); intros;
-  case_eq (p2eq r' dst); intros.
+  case_eq (peq r dst); intros;
+  case_eq (peq r' dst); intros.
   congruence.
   exploit (Hcssaarg r'); eauto. inv Hinr'; auto. congruence.
   intros Eqr'dst. rewrite <- e in Eqr'dst.
-  destruct p2eq in Eqr'dst; go.
+  destruct peq in Eqr'dst; go.
   exploit (Hcssaarg r); eauto. inv Hinr; auto. congruence.
   intros Eqrdst. rewrite e.
-  destruct p2eq in Eqrdst; go.
+  destruct peq in Eqrdst; go.
   exploit (Hcssaarg r'); eauto. inv Hinr'; auto. congruence.
   intros Eqr'dst.
   exploit (Hcssaarg r); eauto. inv Hinr; auto. congruence.
   intros Eqrdst.
-  destruct p2eq in Eqr'dst; destruct p2eq in Eqrdst; go.
+  destruct peq in Eqr'dst; destruct peq in Eqrdst; go.
 Qed.
 
 (** ** Transformation stuff *)
@@ -245,7 +245,6 @@ Inductive tr_function: CSSApar.function -> RTLpar.function -> Prop :=
         f.(fn_stacksize)
         (transl_code regrepr f.(fn_code))
         (parcopycode_cleanup (transl_parcopycode regrepr f.(fn_parcopycode)))
-        f.(fn_max_indice)
         f.(fn_entrypoint)).
 
 Lemma transl_function_charact:
@@ -313,7 +312,7 @@ Inductive match_regset (f : CSSApar.function) (pc : node) :
     (forall r,
       (cssalive_spec f r pc /\ ~ lazydef f r pc)
       \/ lazydef f r pc ->
-      rs #2 r = rs' #2 (regrepr r)) ->
+      rs # r = rs' # (regrepr r)) ->
     match_regset f pc rs rs'.
 
 Inductive match_stackframes :
@@ -328,7 +327,7 @@ Inductive match_stackframes :
       (MRs: forall r,
         (cssalive_spec f r pc /\ ~ lazydef f r pc /\ r <> res)
         \/ lazydef f r pc ->
-        rs #2 r = rs' #2 (regrepr r))
+        rs # r = rs' # (regrepr r))
       (Hnotlive: forall r,
         regrepr r = regrepr res ->
         r <> res ->
@@ -406,12 +405,12 @@ Lemma parcb_transl_other :
     In (Iparcopy src dst) parcb ->
     (regrepr r) <> (regrepr dst) \/
     regrepr r = regrepr dst /\
-    rs' #2 (regrepr r) =
-      rs' #2 (regrepr src)) ->
+    rs' # (regrepr r) =
+      rs' # (regrepr src)) ->
   (parcopy_store 
     (parcb_cleanup (transl_parcb regrepr parcb)) rs')
-  #2 (regrepr r) =
-    rs' #2 (regrepr r).
+  # (regrepr r) =
+    rs' # (regrepr r).
 Proof.
   induction parcb; auto.
   intros f r rs' regrepr Hregrepr Hprops.
@@ -419,15 +418,15 @@ Proof.
   destruct a.
   flatten; go.
   simpl.
-  case_eq (p2eq (regrepr r)
+  case_eq (peq (regrepr r)
     (regrepr r1)); intros.
   + rewrite e in *.
-    rewrite P2Map.gss; eauto.
+    rewrite PMap.gss; eauto.
     exploit (Hprops r0 r1). go.
     intros Hprop.
     destruct Hprop; go.
     destruct H0; go.
-  + rewrite P2Map.gso; eauto.
+  + rewrite PMap.gso; eauto.
 Qed.
 
 (* NOTE: important *)
@@ -438,13 +437,13 @@ Lemma parcb_transl_store_in :
   (forall src' dst,
     In (Iparcopy src' dst) parcb ->
     (regrepr r) <> (regrepr dst) \/
-    rs' #2 (regrepr src') =
-      rs' #2 (regrepr src)) ->
+    rs' # (regrepr src') =
+      rs' # (regrepr src)) ->
   compute_regrepr f = Errors.OK regrepr ->
   (parcopy_store 
     (parcb_cleanup (transl_parcb regrepr parcb)) rs')
-    #2 (regrepr r)
-    = rs' #2 (regrepr src).
+    # (regrepr r)
+    = rs' # (regrepr src).
 Proof.
   induction parcb;
   intros f rs' r src regrepr Hin HNoDup Hprops Hregrepr;
@@ -459,7 +458,7 @@ Proof.
         rewrite EQ1, EQ2 in *.
         rewrite <- e.
         rewrite parcb_transl_other with (f := f); go; intros.
-        case_eq(p2eq (regrepr src) (regrepr dst)); auto; intros.
+        case_eq(peq (regrepr src) (regrepr dst)); auto; intros.
         right.
         split; auto.
         exploit Hprops; go; intros.
@@ -472,14 +471,14 @@ Proof.
       assert (EQ2: r0 = src) by congruence.
       rewrite EQ1, EQ2 in *.
       simpl.
-      rewrite P2Map.gss; auto.
+      rewrite PMap.gss; auto.
     - inv HNoDup.
-      case_eq (p2eq (regrepr r1) (regrepr r)); intros; simpl.
+      case_eq (peq (regrepr r1) (regrepr r)); intros; simpl.
       { rewrite e in *.
-        rewrite P2Map.gss.
+        rewrite PMap.gss.
         exploit (Hprops r0 r1); auto; intros.
         destruct H1; congruence. }
-      { rewrite P2Map.gso; eauto. }
+      { rewrite PMap.gso; eauto. }
 Qed.
 
 (* 
@@ -636,9 +635,9 @@ Lemma simul_parcb :
   (cssalive_spec f r pc' /\
       ~ assigned_parcopy_spec (fn_parcopycode f) pc r)
     \/ assigned_parcopy_spec (fn_parcopycode f) pc r ->
-  (parcopy_store parcb rs) !!2 r =
+  (parcopy_store parcb rs) !! r =
     (parcopy_store (parcb_cleanup (transl_parcb regrepr parcb)) rs')
-      !!2 (regrepr r).
+      !! (regrepr r).
 Proof.
   intros until m.
   intros WF Wcssaval Reach Regrepr Hphib Hinop
@@ -666,11 +665,11 @@ Proof.
     }
     assert(Hdotranslparcb:
       (parcopy_store (parcb_cleanup (transl_parcb regrepr parcb)) rs')
-        !!2 (regrepr r)
-      = rs' !!2 (regrepr r)).
+        !! (regrepr r)
+      = rs' !! (regrepr r)).
     {
       apply parcb_transl_other with (f := f); auto; intros.
-      case_eq (p2eq (regrepr r) (regrepr dst));
+      case_eq (peq (regrepr r) (regrepr dst));
         auto; intros.
       rewrite <- e in *. right.
       exploit compute_regrepr_correct; eauto.
@@ -696,7 +695,7 @@ Proof.
       exploit (cssaval_transfer_in_parcopy src dst); eauto; intros.
       assert(compute_cssaval_function f r
         = compute_cssaval_function f src) by congruence.
-      assert(rs !!2 r = rs !!2 src).
+      assert(rs !! r = rs !! src).
       eapply cssaval_spec_correct_2; eauto;
       match goal with
       | |- cssadom f ?src pc =>
@@ -756,7 +755,7 @@ Proof.
     eapply nodup_in_parcb_dst; eauto.
     {
       intros.
-      case_eq (p2eq (regrepr r) (regrepr dst)); auto; intros.
+      case_eq (peq (regrepr r) (regrepr dst)); auto; intros.
       right.
       exploit compute_regrepr_correct; eauto.
       { exists pc. go. }
@@ -772,7 +771,7 @@ Proof.
       exploit (cssaval_transfer_in_parcopy src r); eauto; intros.
       assert (compute_cssaval_function f src'
         = compute_cssaval_function f src) by congruence.
-      assert (Heq: rs !!2 src' = rs !!2 src).
+      assert (Heq: rs !! src' = rs !! src).
       eapply cssaval_spec_correct_2; eauto;
       match goal with
       | |- cssadom f ?src pc =>
@@ -830,8 +829,8 @@ Lemma simul_parcbphib :
   match_regset f pc rs rs' ->
   def f r d ->
   (phi_store k phib
-    (parcopy_store parcb rs)) !!2 r =
-  (parcopy_store (parcb_cleanup (transl_parcb regrepr parcb)) rs') !!2 (regrepr r).
+    (parcopy_store parcb rs)) !! r =
+  (parcopy_store (parcb_cleanup (transl_parcb regrepr parcb)) rs') !! (regrepr r).
 Proof.
   intros until m.
   intros WF Wcssaval Reach Hregrepr Hphib Hinop Hparcb Hparcb' Hindex
@@ -982,9 +981,9 @@ Lemma rewrite_with_cssaval_until_jp :
   In (Iparcopy src r) parcb' ->
   index_pred (get_preds f) pc pc' = Some k ->
   cssaval_spec f (compute_cssaval_function f) ->
-  (phi_store k phib (parcopy_store parcb rs)) !!2 src =
+  (phi_store k phib (parcopy_store parcb rs)) !! src =
   (phi_store k phib (parcopy_store parcb rs))
-  !!2 (compute_cssaval_function f src).
+  !! (compute_cssaval_function f src).
 Proof.
   intros.
   assert(Hinoppc':
@@ -1035,11 +1034,11 @@ Lemma simul_parcbphibparcb' :
   (parcopy_store parcb'
     (phi_store k phib
       (parcopy_store parcb rs)))
-  !!2 r =
+  !! r =
   (parcopy_store (parcb_cleanup (transl_parcb regrepr parcb'))
     (parcopy_store (parcb_cleanup (transl_parcb regrepr parcb))
       rs'))
-  !!2 (regrepr r).
+  !! (regrepr r).
 Proof.
   intros until m.
   intros WF Wcssaval Reach Hregrepr Hphib Hinop Hparcb Hparcb' Hindex
@@ -1062,7 +1061,7 @@ Proof.
       assert(USE': use f src' pc') by go.
       exploit exists_def; eauto; intros DEF';
       destruct DEF' as [src'def DEF'].
-      case_eq (p2eq (regrepr r) (regrepr dst)); auto; intros.
+      case_eq (peq (regrepr r) (regrepr dst)); auto; intros.
       right.
       exploit compute_regrepr_correct; go.
       intros Hninterf.
@@ -1135,7 +1134,7 @@ Proof.
         assert(USE0: use f src0 pc') by go.
         exploit exists_def; eauto; intros DEF0;
         destruct DEF0 as [src0def DEF0].
-        case_eq (p2eq (regrepr r) (regrepr dst)); auto; intros.
+        case_eq (peq (regrepr r) (regrepr dst)); auto; intros.
         right.
         exploit compute_regrepr_correct; go.
         intros Hninterf.
@@ -1263,8 +1262,8 @@ Qed.
 Lemma registers_equal :
   forall args (rs rs' : SSA.regset) regrepr,
   (forall r, In r args ->
-    rs !!2 r = rs' !!2 (regrepr r)) ->
-  rs ##2 args = rs' ##2 (map regrepr args).
+    rs !! r = rs' !! (regrepr r)) ->
+  rs ## args = rs' ## (map regrepr args).
 Proof.
   induction args; intros.
   go.
@@ -1941,7 +1940,7 @@ Qed.
 
 Lemma spec_ros_r_find_function:
   forall rs rs' f r regrepr,
-  rs #2 r = rs' #2 (regrepr r) ->
+  rs # r = rs' # (regrepr r) ->
   CSSApar.find_function ge (inl _ r) rs = Some f ->
   exists tf,
     RTLpar.find_function tge (inl _ (regrepr r)) rs' = Some tf
@@ -1971,8 +1970,8 @@ Qed.
 Lemma match_regset_args :
   forall args regrepr rs (rs' : SSA.regset),
   (forall r, In r args ->
-    rs #2 r = rs' #2 (regrepr r)) ->
-  rs ##2 args = rs' ##2 (map regrepr args).
+    rs # r = rs' # (regrepr r)) ->
+  rs ## args = rs' ## (map regrepr args).
 Proof.
   induction args; go.
   intros.
@@ -2087,23 +2086,23 @@ Lemma init_regs_match :
   (forall r', In r' params -> In r' (fn_params f)) ->
   compute_regrepr f = OK regrepr ->
   def f r d ->
-  (init_regs args params) !!2 r =
+  (init_regs args params) !! r =
     (init_regs args (map regrepr params))
-      !!2 (regrepr r).
+      !! (regrepr r).
 Proof.
   induction params;
   intros until regrepr; intros WF Hlive Hparams Hregrepr Hdef; simpl.
-  rewrite P2Map.gi.
-  rewrite P2Map.gi.
+  rewrite PMap.gi.
+  rewrite PMap.gi.
   auto.
   flatten; go.
-  rewrite P2Map.gi.
-  rewrite P2Map.gi.
+  rewrite PMap.gi.
+  rewrite PMap.gi.
   auto.
-  case_eq (p2eq a r); intros.
-  + rewrite e in *. repeat rewrite P2Map.gss. auto.
-  + rewrite P2Map.gsspec.
-    rewrite P2Map.gsspec.
+  case_eq (peq a r); intros.
+  + rewrite e in *. repeat rewrite PMap.gss. auto.
+  + rewrite PMap.gsspec.
+    rewrite PMap.gsspec.
     flatten; auto.
     exploit compute_regrepr_correct; eauto; intros Hninterf.
     inv Hninterf.
@@ -2289,7 +2288,7 @@ Proof.
     tauto.
   }
   { (* Iop *)
-    exists (RTLpar.State ts tf sp pc' (rs'#2 (regrepr res) <- v) m).
+    exists (RTLpar.State ts tf sp pc' (rs'# (regrepr res) <- v) m).
     split_but_remember.
     { 
       apply RTLpar.exec_Iop with (op := op) (args := map regrepr args).
@@ -2311,8 +2310,8 @@ Proof.
     econstructor; eauto. intros.
     do_reachability REACH x.
     econstructor; eauto. intros.
-    rewrite P2Map.gsspec.
-    rewrite P2Map.gsspec.
+    rewrite PMap.gsspec.
+    rewrite PMap.gsspec.
     inv MREG.
     flatten.
     eqregreprs regrepr0 regrepr.
@@ -2343,7 +2342,7 @@ Proof.
       end.
       assert(compute_cssaval_function f r0
         = compute_cssaval_function f r) by congruence.
-      assert(rs !!2 r0 = rs !!2 r).
+      assert(rs !! r0 = rs !! r).
       apply cssaval_spec_correct_2
         with (prog := prog) (f := f)
           (pc := pc) (s := s) (sp := sp) (m := m);
@@ -2393,7 +2392,7 @@ Proof.
     + apply not_lazydef_outside_inop; go.
   }
   { (* Iload *)
-    exists (RTLpar.State ts tf sp pc' (rs' #2 (regrepr dst) <- v) m).
+    exists (RTLpar.State ts tf sp pc' (rs' # (regrepr dst) <- v) m).
     split_but_remember.
     { 
       apply RTLpar.exec_Iload
@@ -2419,8 +2418,8 @@ Proof.
     econstructor; eauto; intros.
     do_reachability REACH x.
     econstructor; eauto; intros.
-    rewrite P2Map.gsspec.
-    rewrite P2Map.gsspec.
+    rewrite PMap.gsspec.
+    rewrite PMap.gsspec.
     inv MREG.
     flatten.
     eqregreprs regrepr0 regrepr.
@@ -2533,7 +2532,7 @@ Proof.
       apply WF_PROG with id.
       auto.
     }
-    assert(RW: rs ##2 args = rs' ##2 (map regrepr args)).
+    assert(RW: rs ## args = rs' ## (map regrepr args)).
     {
       apply match_regset_args.
       intros r Hin.
@@ -2567,7 +2566,7 @@ Proof.
       destruct Htfd as [tfd Hfind].
       exists (RTLpar.Callstate
         (RTLpar.Stackframe (regrepr res) tf sp pc' rs' :: ts)
-        tfd (rs' ##2 (map regrepr args)) m).
+        tfd (rs' ## (map regrepr args)) m).
       split_but_remember.
       - apply RTLpar.exec_Icall with (sig := RTLpar.funsig tfd)
           (ros := inl (regrepr r)).
@@ -2658,7 +2657,7 @@ Proof.
       destruct Htfd as [tfd Htfd].
       exists(RTLpar.Callstate
         (RTLpar.Stackframe (regrepr res) tf sp pc' rs' :: ts)
-        tfd (rs' ##2 (map regrepr args)) m).
+        tfd (rs' ## (map regrepr args)) m).
       split_but_remember.
       - apply RTLpar.exec_Icall
           with (sig := RTLpar.funsig tfd) (ros := inr i).
@@ -2757,7 +2756,7 @@ Proof.
        apply WF_PROG with id.
        auto.
      }
-     assert(RW: rs ##2 args = rs' ##2 (map regrepr args)).
+     assert(RW: rs ## args = rs' ## (map regrepr args)).
      {
        apply match_regset_args.
        intros r Hin.
@@ -2790,7 +2789,7 @@ Proof.
        }
        destruct Htfd as [tfd Hfind].
        exists (RTLpar.Callstate
-         ts tfd (rs' ##2 (map regrepr args)) m').
+         ts tfd (rs' ## (map regrepr args)) m').
        split_but_remember.
        - apply RTLpar.exec_Itailcall with (sig := RTLpar.funsig tfd)
            (ros := inl (regrepr r)).
@@ -2814,7 +2813,7 @@ Proof.
          with (rs := rs); auto.
        destruct Htfd as [tfd Htfd].
        exists(RTLpar.Callstate
-         ts tfd (rs' ##2 (map regrepr args)) m').
+         ts tfd (rs' ## (map regrepr args)) m').
        split_but_remember.
        - apply RTLpar.exec_Itailcall
            with (sig := RTLpar.funsig tfd) (ros := inr i).
@@ -2833,8 +2832,7 @@ Proof.
          go. go.
   }
   { (* Ibuiltin *)
-    exists (RTLpar.State ts tf sp pc' (regmap2_setres val
-                                                      (map_builtin_res regrepr res)
+    exists (RTLpar.State ts tf sp pc' (regmap_setres  (map_builtin_res regrepr res)
                                                       vres rs') m'). 
     split_but_remember.
     { eapply RTLpar.exec_Ibuiltin with(args := map (map_builtin_arg regrepr) args)
@@ -2843,7 +2841,7 @@ Proof.
       rewrite codeSome with (ins := (Ibuiltin ef args res pc')); go.
       - inv MREG.
         eqregreprs regrepr0 regrepr.
-        assert (forall r, In r (params_of_builtin_args args) -> rs !!2 r = rs' !!2 (regrepr r)).
+        assert (forall r, In r (params_of_builtin_args args) -> rs !! r = rs' !! (regrepr r)).
         { intros. apply H3.
           left. split; auto.
           (* properties of [r] *)
@@ -2900,8 +2898,8 @@ Proof.
       econstructor; eauto; intros.
       inv MREG. rewrite RegRepr0 in RegRepr. inv RegRepr.
       destruct res ; simpl; go.
-      - rewrite P2Map.gsspec.
-        rewrite P2Map.gsspec.
+      - rewrite PMap.gsspec.
+        rewrite PMap.gsspec.
         flatten.
         exploit liveorlazydef_exists_def; eauto; intros DEF.
         exploit compute_regrepr_correct; eauto; intros Hninterf.
@@ -3056,8 +3054,7 @@ Proof.
     { (* ireturn *)
       destruct or.
       {
-        exists (RTLpar.Returnstate ts
-                                   (regmap2_optget (Some (regrepr r)) Vundef rs') m').
+        exists (RTLpar.Returnstate ts (regmap_optget (Some (regrepr r)) Vundef rs') m').
         split_but_remember.
         { apply RTLpar.exec_Ireturn.
           rewrite codeSome with
@@ -3077,8 +3074,8 @@ Proof.
           econstructor; eauto.
           exists t.
           split; eauto.
-          replace (Returnstate s rs !!2 r m')
-            with (Returnstate s (regmap2_optget (Some r) Vundef rs)
+          replace (Returnstate s rs !! r m')
+            with (Returnstate s (regmap_optget (Some r) Vundef rs)
                               m').
           apply star_right
             with (t1 := t) (t2 := E0) (s2 :=
@@ -3093,7 +3090,7 @@ Proof.
         go. go.
         apply not_lazydef_outside_inop; go.
       }
-      exists (RTLpar.Returnstate ts (regmap2_optget None Vundef rs') m').
+      exists (RTLpar.Returnstate ts (regmap_optget None Vundef rs') m').
       split; eauto.
       apply RTLpar.exec_Ireturn.
       rewrite codeSome with
@@ -3111,8 +3108,8 @@ Proof.
         apply star_right
           with (t1 := t) (t2 := E0) (s2 :=
                                        (State s f (Vptr stk Ptrofs.zero) pc rs m)); go.
-        replace (regmap2_optget None Vundef rs')
-          with (regmap2_optget None Vundef rs).
+        replace (regmap_optget None Vundef rs')
+          with (regmap_optget None Vundef rs).
         eapply exec_Ireturn; go.
         auto.
         symmetry.
@@ -3187,14 +3184,14 @@ Proof.
     }
     { (* return state *)
       inv STACK.  
-      exists (RTLpar.State ts0 tf sp pc (rs' #2 (regrepr res) <- vres) m).
+      exists (RTLpar.State ts0 tf sp pc (rs' # (regrepr res) <- vres) m).
       split.
       + eapply RTLpar.exec_return.
       + econstructor; eauto.
         do_reachability REACH x.
         econstructor; eauto; intros.
-        rewrite P2Map.gsspec.
-        rewrite P2Map.gsspec.
+        rewrite PMap.gsspec.
+        rewrite PMap.gsspec.
         flatten.
         assert(~ cssalive_spec f r pc) by eauto.
         destruct H. tauto. contradict H. eauto.

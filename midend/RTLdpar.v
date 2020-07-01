@@ -45,8 +45,8 @@ Definition get_maxreg (f : function) :=
       (get_max_reg_in_parcode (fn_parcopycode f))
       (CSSApargen.max_reg_in_list (fn_params f))).
 
-Definition fresh_init (f : function) : SSA.reg :=
-  (Pos.succ (get_maxreg f), 1%positive).
+Definition fresh_init (f : function) : reg :=
+  (Pos.succ (get_maxreg f)).
 
 (** * Monad state for the transformation *)
 Record state : Type := mkstate {
@@ -421,20 +421,17 @@ Qed.
 
 (** Replacing parallel copies with seq copies *)
 
-Definition valid_ind (size:nat) (r : SSA.reg) : bool := 
-  Bij.valid_index size (snd r).
-
 Require Parmov.
 
-Definition seq_parmoves (fresh : SSA.reg) : list (SSA.reg*SSA.reg) -> list (SSA.reg*SSA.reg) :=
-  Parmov.parmove SSA.reg p2eq (fun _ => fresh).
+Definition seq_parmoves (fresh : reg) : list (reg * reg) -> list (reg * reg) :=
+  Parmov.parmove reg peq (fun _ => fresh).
 
 (* [copy_move s pc (src,dst)] puts at [pc] an [Omove src dst fresh] while de-indexing *)
-Lemma add_move_wf: forall s size dst src  succ (pc: node),
+Lemma add_move_wf: forall s dst src  succ (pc: node),
   Plt pc (st_nextnode_cp s) \/
   Plt pc (Pos.succ (st_nextnode_fs s)) /\ Ple (st_first_fs s) pc \/
   (PTree.set (st_nextnode_fs s)
-     (Iop Omove (Bij.pamr size src :: nil) (Bij.pamr size dst) succ) (st_code s)) ! pc = None.
+     (Iop Omove (src :: nil) dst succ) (st_code s)) ! pc = None.
 Proof.
   intros.
   destruct (peq pc (st_nextnode_fs s)). 
@@ -451,22 +448,21 @@ Proof.
       rewrite PTree.gso ; auto.  
 Qed.
 
-Lemma add_move_incr : forall s size src dst succ,
+Lemma add_move_incr : forall s src dst succ,
 state_incr s
            (mkstate 
               (st_nextnode_cp s)
               (st_first_fs s)
               (Pos.succ (st_nextnode_fs s))
               (PTree.set (st_nextnode_fs s)
-                         (Iop Omove (Bij.pamr size src :: nil) 
-                              (Bij.pamr size dst) succ) 
+                         (Iop Omove (src :: nil) dst succ) 
                          (st_code s))
               (st_renum s)
               (st_wf_next s)
               (Ple_trans (st_first_fs s) (st_nextnode_fs s)
                          (Pos.succ (st_nextnode_fs s)) (st_wf_next_fs s) 
                          (Ple_succ (st_nextnode_fs s)))
-              (add_move_wf s size dst src succ)). 
+              (add_move_wf s dst src succ)). 
 Proof.
   intros.
   econstructor ; eauto ; simpl in *.
@@ -481,7 +477,7 @@ Proof.
       right. rewrite PTree.gso ; auto with coqlib.
 Qed.
   
-Definition add_move (size : nat) (mov : SSA.reg * SSA.reg) : mon unit :=
+Definition add_move (mov : reg * reg) : mon unit :=
   fun s =>
     match mov with
     | (src, dst) =>
@@ -491,15 +487,15 @@ Definition add_move (size : nat) (mov : SSA.reg * SSA.reg) : mon unit :=
                 (st_nextnode_cp s)
                 (st_first_fs s)
                 (Pos.succ nx_fs)
-                (PTree.set nx_fs (RTL.Iop Omove ((Bij.pamr size src) :: nil) (Bij.pamr size dst)
+                (PTree.set nx_fs (RTL.Iop Omove (src :: nil) dst
                                           (Pos.succ nx_fs))
                            (st_code s))
                 (st_renum s)
                 (st_wf_next s)
                 (Ple_trans _ _ _ (st_wf_next_fs s) (Ple_succ nx_fs))
-                (add_move_wf s size dst src (Pos.succ nx_fs))
+                (add_move_wf s dst src (Pos.succ nx_fs))
              )
-             (add_move_incr _ _ _ _ _)
+             (add_move_incr _ _ _ _)
     end.
         
 (** Adding a [Inop] *)
@@ -573,92 +569,27 @@ Definition add_nop_pc (from: option node) (pc: node) : mon unit :=
           (add_nop_pc_wf s pc))
        (add_nop_pc_incr _ _ _).
 
-Fixpoint add_moves (size : nat) (Rfrom: option node) (last : node) (parcb : list (SSA.reg * SSA.reg)) : mon unit :=
+Fixpoint add_moves (Rfrom: option node) (last : node) (parcb : list (reg * reg)) : mon unit :=
     match parcb with
       | nil => add_nop_pc Rfrom last        
       | parc :: parcb =>
-        do u <- add_move size parc;
-          add_moves size Rfrom last parcb 
+        do u <- add_move parc;
+          add_moves Rfrom last parcb 
     end.
 
-(** Unindexing register in the code *)
-Definition ros_pamr (size: nat) (ros : SSA.reg + ident) : Errors.res (Registers.reg + ident) :=
-  match ros with 
-    | inl r => 
-      if (Bij.valid_index size (snd r)) then Errors.OK (inl ident (Bij.pamr size r))
-        else Errors.Error (Errors.msg "ros_pamr")
-    | inr id => Errors.OK (inr Registers.reg id) 
-  end.
-
-Definition opt_pamr (size: nat) (rop : option SSA.reg) : Errors.res (option Registers.reg) :=
-  match rop with 
-    | Some r => 
-      if (Bij.valid_index size (snd r)) then 
-        Errors.OK (Some (Bij.pamr size r))
-        else  Errors.Error (Errors.msg "opt_pamr")
-    | _ => Errors.OK None 
-  end.
-
-Definition map_pamr (size: nat) (ins : SSA.instruction) : Errors.res RTL.instruction :=
+(** From SSA to RTL instructions *)
+Definition map_pamr  (ins : SSA.instruction) : RTL.instruction :=
   match ins with 
-    | SSA.Inop s =>  Errors.OK (RTL.Inop s)
-
-    | SSA.Iop op args dst s => 
-      if (forallb (valid_ind size) (dst::args))
-        then Errors.OK (RTL.Iop op (map (Bij.pamr size) args) (Bij.pamr size dst) s)
-        else Errors.Error (Errors.msg "map_pamr")
-
-    | SSA.Iload ch ad args dst s =>  
-      if (forallb (valid_ind size) (dst::args))
-        then Errors.OK (RTL.Iload ch ad (map (Bij.pamr size) args) (Bij.pamr size dst) s)
-        else Errors.Error (Errors.msg "map_pamr")
-          
-    | SSA.Istore ch ad args src s => 
-      if (forallb (valid_ind size) (src::args))
-        then Errors.OK (RTL.Istore ch ad (map (Bij.pamr size) args) (Bij.pamr size src) s)
-        else Errors.Error (Errors.msg "map_pamr")
-
-    | SSA.Icall sig ros args dst s => 
-      if (forallb (valid_ind size) (dst::args))
-        then 
-          match (ros_pamr size ros) with 
-            | Errors.Error _ => Errors.Error (Errors.msg "map_pamr")
-            | Errors.OK optg => Errors.OK (RTL.Icall sig optg (map (Bij.pamr size) args) (Bij.pamr size dst) s)       
-          end
-        else Errors.Error (Errors.msg "map_pamr")
-
-    | SSA.Itailcall sig ros args => 
-      if (forallb (valid_ind size) args)
-        then 
-          match (ros_pamr size ros) with 
-            | Errors.Error _ => Errors.Error (Errors.msg "map_pamr")
-            | Errors.OK optg => Errors.OK (RTL.Itailcall sig optg (map (Bij.pamr size) args)) 
-          end
-        else Errors.Error (Errors.msg "map_pamr")
-
-    | SSA.Ibuiltin ef args dst s => 
-      if (forallb (valid_ind size) ((params_of_builtin_res dst)++(params_of_builtin_args args)))
-      then Errors.OK (RTL.Ibuiltin ef
-                                   (map (map_builtin_arg (Bij.pamr size)) args)
-                                   (map_builtin_res (Bij.pamr size) dst)
-                                   s)
-        else Errors.Error (Errors.msg "map_pamr")
-
-    | SSA.Icond cond args ifso ifnot => 
-      if (forallb (valid_ind size) args)
-        then Errors.OK (RTL.Icond cond (map (Bij.pamr size) args) ifso ifnot)
-        else Errors.Error (Errors.msg "map_pamr")
-
-    | SSA.Ijumptable arg tbl => 
-      if (valid_ind size arg)
-        then Errors.OK (RTL.Ijumptable (Bij.pamr size arg) tbl)
-        else Errors.Error (Errors.msg "map_pamr")
-
-    | SSA.Ireturn rop => 
-      match (opt_pamr size rop) with 
-        | Errors.Error _ => Errors.Error (Errors.msg "map_pamr")
-        | Errors.OK optg => Errors.OK (RTL.Ireturn optg)
-      end
+    | SSA.Inop s =>  RTL.Inop s
+    | SSA.Iop op args dst s => RTL.Iop op args dst s
+    | SSA.Iload ch ad args dst s => RTL.Iload ch ad args dst s
+    | SSA.Istore ch ad args src s => RTL.Istore ch ad args src s
+    | SSA.Icall sig ros args dst s => RTL.Icall sig ros args dst s
+    | SSA.Itailcall sig ros args => RTL.Itailcall sig ros args
+    | SSA.Ibuiltin ef args dst s => RTL.Ibuiltin ef args dst s
+    | SSA.Icond cond args ifso ifnot => RTL.Icond cond args ifso ifnot
+    | SSA.Ijumptable arg tbl => RTL.Ijumptable arg tbl
+    | SSA.Ireturn rop => RTL.Ireturn rop
   end.
 
 (** ** Copying the code of the function, whilst performing unindexing and inlining
@@ -666,7 +597,7 @@ Definition map_pamr (size: nat) (ins : SSA.instruction) : Errors.res RTL.instruc
 Definition copy_inop (pc max: node) (code:SSA.code) : mon unit :=
   fun s => copy_ins pc max (RTL.Inop (st_nextnode_fs s)) code s.
 
-Definition copy_wwo_add (tmp_reg: SSA.reg) (size: nat) (preds: PTree.t (list node)) (code : SSA.code) 
+Definition copy_wwo_add (tmp_reg: reg)  (preds: PTree.t (list node)) (code : SSA.code) 
                         (pcode : CSSApar.parcopycode) (max pc: node) : mon unit :=
   fun s =>
     match code ! pc with 
@@ -699,14 +630,9 @@ Definition copy_wwo_add (tmp_reg: SSA.reg) (size: nat) (preds: PTree.t (list nod
                | None =>  copy_ins pc max (RTL.Inop succ) code s
                | Some parcb => 
                  let mvs := parcb_to_moves parcb in 
-                 if forallb (fun (sd: (SSA.reg * SSA.reg)) => let (s,d) := sd in 
-                                       forallb (valid_ind size) (s::d::nil)) mvs
-                 then
                    (do u <-copy_inop pc max code ;
-                    do u'<-add_moves size (Some pc) succ (seq_parmoves tmp_reg mvs); 
+                    do u'<-add_moves (Some pc) succ (seq_parmoves tmp_reg mvs); 
                     ret tt) s
-                 else
-                   Error (Errors.msg "copy_mov")
              end
            | preds =>  
              (* succ is a join point (and pc is not). 
@@ -718,21 +644,13 @@ Definition copy_wwo_add (tmp_reg: SSA.reg) (size: nat) (preds: PTree.t (list nod
                | None => Error (Errors.msg "copy_wwo_add : no pcode")
                | Some parcb =>
                  let mvs := parcb_to_moves parcb in 
-                 if forallb (fun (sd: (SSA.reg * SSA.reg)) => let (s,d) := sd in 
-                                       forallb (valid_ind size) (s::d::nil)) mvs
-                 then
                  (do u <- copy_inop pc max code ; 
-                  do n <- add_moves size None succ (seq_parmoves tmp_reg mvs);
+                  do n <- add_moves None succ (seq_parmoves tmp_reg mvs);
                  ret tt) s
-                 else
-                   Error (Errors.msg "copy_mov")
              end
          end
-      | Some ins => (* no junction point -> just de-index instruction *)
-        match (map_pamr size ins) with 
-          | Errors.Error _ => Error (Errors.msg "copy_wwo_add valid")
-          | Errors.OK ins => copy_ins pc max ins code s
-        end
+      | Some ins => (* no junction point -> just convert to RTL type *)
+        copy_ins pc max (map_pamr ins) code s
     end.
 
 (** ** Sorting a list *)
@@ -778,18 +696,15 @@ Definition transl_function (f: RTLpar.function) : Errors.res RTL.function :=
   let '(init,max,lp) := init_state f in 
   let fresh := fresh_init f in
   let preds := make_predecessors (RTLpar.fn_code f) SSA.successors_instr in
-  match mfold_unit (copy_wwo_add fresh (fn_max_indice f) preds 
+  match mfold_unit (copy_wwo_add fresh preds 
                                  (fn_code f) (fn_parcopycode f) max) (sort_pp lp) init with
     | Error m => Errors.Error m
     | OK u s'' H => 
-      if valid_ind (fn_max_indice f) fresh
-         && forallb (valid_ind (fn_max_indice f)) (RTLpar.fn_params f) then
-        Errors.OK (RTL.mkfunction (RTLpar.fn_sig f)
-                                  (map (Bij.pamr (fn_max_indice f)) (RTLpar.fn_params f))
-                                  (RTLpar.fn_stacksize f)
-                                  (st_code s'')
-                                  (RTLpar.fn_entrypoint f)) 
-      else Errors.Error (Errors.msg "transl_function: valid")
+      Errors.OK (RTL.mkfunction (RTLpar.fn_sig f)
+                                (RTLpar.fn_params f)
+                                (RTLpar.fn_stacksize f)
+                                (st_code s'')
+                                (RTLpar.fn_entrypoint f)) 
   end.
 
 Definition transl_fundef := transf_partial_fundef transl_function.

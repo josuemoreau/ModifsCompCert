@@ -1,7 +1,5 @@
-(** This file contains some properties that are satisfied by
-well-typed functions.  For functions that satisfy certain structural
-invariants, we show that they satisfy some of the invariants required
-for [wf_ssa_functions] *)
+(** Some properties satisfied by well-typed functions with structural
+    invariants. These are requirements for [wf_ssa_functions] *)
 
 Require Import Classical.
 Require Import Coqlib.
@@ -27,18 +25,21 @@ Require Import KildallComp.
 Require Import Relation_Operators.
 Require Import LightLive.
 Require DomCompute.
+Require Import Bijection.
 
 Notation path_step := (fun f => path_step (cfg f) (exit f) (entry f)).
+
 Section WT_FUNCTION.
 
+Variable size: nat.  
 Variable f_rtl : RTLt.function.
 Variable f : function.
 Variable G : SSAvalid.tgamma.
 Variable live: PMap.t Regset.t.
 
-Hypothesis fn_wt : wt_function f_rtl f live G.
-Hypothesis fn_wfi : wf_init f G.
-Hypothesis fn_erased : check_erased_spec f_rtl f.
+Hypothesis fn_wt : wt_function size f_rtl f live G.
+Hypothesis fn_wfi : wf_init size f G.
+Hypothesis fn_erased : check_erased_spec size f_rtl f.
 Hypothesis fn_wfl : wf_live f_rtl (Lout live).
 
 Hypothesis fn_ssa : unique_def_spec f.
@@ -70,31 +71,31 @@ Hypothesis fn_phicode_inv2: forall jp i,
     f.(fn_code) ! jp = Some i -> 
     exists phib, f.(fn_phicode) ! jp = Some phib.
 
-Notation ui := (erase_reg).
-Notation gi := (get_index).
+Notation ui := (erase_reg size).
+Notation gi := (get_index size).
 Notation entry := fn_entrypoint.
 Hint Constructors rtl_path_step rtl_path: core.
 
-
 (** * Utility lemmas about indexed registers. *)
-Lemma pair_fst_snd : forall (A B C: Type) (f: A -> B * C) (a:A),
-  f a = ((fst (f a)),(snd (f a))).
-Proof.
-  intros. destruct (f0 a). auto.
-Qed.
-
-Lemma rmap_fst_snd : forall dst x, 
-  dst = (ui x, gi x) ->
-  dst = x.
+Lemma rmap_fst_snd : forall dst x,
+    Bij.valid_reg_ssa size dst = true ->
+    Bij.valid_reg_ssa size x = true -> 
+    Bij.rmap size dst = (ui x, gi x) ->
+    dst = x.
 Proof.
   intros.
   unfold erase_reg, get_index in *.
-  destruct x; simpl in *; congruence.
+  rewrite <- surjective_pairing in H1.
+  eapply Bij.INJ; eauto.
 Qed.  
 
-Lemma rmap_uigi : forall x, x = (ui x, gi x).
+Lemma rmap_uigi : forall x,
+    Bij.rmap size x = (ui x, gi x).
 Proof.
-  destruct x; simpl in *; congruence.
+  intros.
+  unfold erase_reg, get_index.
+  rewrite <- surjective_pairing.
+  auto. 
 Qed.
 Hint Resolve rmap_uigi : bij.
 
@@ -114,16 +115,16 @@ Proof.
   intros. simpl in *; congruence.
 Qed.
 
-Lemma erased_funct_erased_instr_2: forall pc f tf rinstr,
-  check_erased_spec f tf  ->
-  ((SSA.fn_code tf)!pc = Some rinstr) ->
+Lemma erased_funct_erased_instr_2: forall size pc f tf rinstr,
+  check_erased_spec size f tf  ->
+  (SSA.fn_code tf)!pc = Some rinstr ->
   exists pinstr,
-    ((RTLt.fn_code f) ! pc = Some pinstr)
-    /\ (pinstr =  (erase_instr rinstr)).
+    (RTLt.fn_code f) ! pc = Some pinstr
+    /\ pinstr =  (erase_instr size rinstr).
 Proof.
   clear.
   intros; inv H.
-  exists (erase_instr rinstr).
+  exists (erase_instr size rinstr).
   split ; auto.
   rewrite HCODE ; eauto.
   unfold erase_code.  
@@ -134,7 +135,9 @@ Qed.
 Lemma erased_assigned_code_spec : 
   forall pc x, 
     RTLutils.assigned_code_spec (RTLt.fn_code f_rtl) pc (ui x) ->
-    exists idx, assigned_code_spec (fn_code f) pc (((ui x),idx)).
+    exists rix idx,
+      Bij.rmap size rix = ((ui x),idx) /\
+      assigned_code_spec (fn_code f) pc rix.
 Proof.
   intros.
   inv H;
@@ -152,20 +155,35 @@ Proof.
     (destruct s0 ; congruence)
     | (destruct o ; congruence)]).
    
-   - destruct x; destruct r; inv H7; simpl in *; subst.
-     repeat econstructor; rewrite H3; eauto.
-   
-   - destruct x; destruct r; inv H8; simpl in *; subst.
-     exists p0; econstructor 2; eauto.
-   
-   - destruct r; destruct x; destruct s0; inv H5; simpl in *.
-     exists p; econstructor 3; eauto.
-     exists p; econstructor 3; eauto.
+   - exists r.
+     exists (snd (Bij.rmap size r)).
+     split; try econstructor; eauto.
+     rewrite H7.
+     unfold erase_reg.
+     rewrite <- surjective_pairing. auto. 
+
+   - exists r.
+     exists (snd (Bij.rmap size r)).
+     split; try solve [econstructor; eauto].
+     rewrite H8.
+     unfold erase_reg.
+     rewrite <- surjective_pairing. auto. 
+
+   - exists r.
+     exists (snd (Bij.rmap size r)).
+     split; try solve [econstructor; eauto].
+     destruct s0; inv H5.
+     + rewrite H8.
+       unfold erase_reg. rewrite <- surjective_pairing; auto. 
+     + rewrite H8.
+       unfold erase_reg. rewrite <- surjective_pairing; auto.
 
    - destruct b; inv H7; simpl in *; subst.
      rewrite H4 in *.
-     destruct x ; destruct x0 ; inv H4; simpl in *; subst.
-     exists p0; econstructor 4; eauto.
+     exists x0.
+     exists (snd (Bij.rmap size x0)).
+     split; try solve [econstructor; eauto].
+     unfold erase_reg. rewrite <- surjective_pairing; auto.     
 Qed.
 
 Lemma use_code_spec : 
@@ -244,8 +262,8 @@ Proof.
 Qed.
 
 Hint Constructors rtl_cfg: core.
-Lemma cfg_rtl_cfg : forall f tf pc1 pc2,
-  check_erased_spec f tf ->
+Lemma cfg_rtl_cfg : forall size f tf pc1 pc2,
+  check_erased_spec size f tf ->
   cfg tf pc1 pc2 -> 
   rtl_cfg f pc1 pc2.
 Proof.
@@ -265,12 +283,12 @@ Proof.
   intuition.
 Qed.  
 
-Lemma cfg_star_rtl_cfg_star : forall f tf, 
-  check_erased_spec f tf ->
+Lemma cfg_star_rtl_cfg_star : forall size f tf, 
+  check_erased_spec size f tf ->
   forall pc pc', (cfg tf)** pc pc' -> (rtl_cfg f)** pc pc'.
 Proof.
   clear.
-  intros f tf Her. 
+  intros size f tf Her. 
   eapply (clos_refl_trans_ind node) ; eauto.
   intros. inv H.
   exploit erased_funct_erased_instr_2 ; eauto.
@@ -289,8 +307,8 @@ Proof.
   intuition.
 Qed.
 
-Lemma reached_rtl_reached : forall f tf, 
-  check_erased_spec f tf ->
+Lemma reached_rtl_reached : forall size f tf, 
+  check_erased_spec size f tf ->
   forall pc , reached tf pc -> 
   rtl_reached f pc.
 Proof.
@@ -302,8 +320,8 @@ Qed.
 
 Import DLib.
 
-Lemma path_step_rtl_path_step : forall f tf s1 s2 pc, 
-  check_erased_spec f tf ->
+Lemma path_step_rtl_path_step : forall size f tf s1 s2 pc, 
+  check_erased_spec size f tf ->
   path_step tf s1 pc s2 -> 
   rtl_path_step f s1 pc s2.
 Proof.
@@ -331,8 +349,8 @@ Qed.
     
 Notation path := (fun f => path (cfg f) (exit f) (entry f)).
 
-Lemma path_rtl_path : forall f tf p s1 s2,
-  check_erased_spec f tf ->
+Lemma path_rtl_path : forall size f tf p s1 s2,
+  check_erased_spec size f tf ->
   path tf s1 p s2 -> 
   rtl_path f s1 p s2.
 Proof.
@@ -436,8 +454,126 @@ Ltac error_struct tf pc pc' :=
 
 Ltac well_typed :=
   match goal with
-    | [ Hwt : wt_instr _ _ _ |- _ ] => inv Hwt
+    | [ Hwt : wt_instr _ _ _ _ |- _ ] => inv Hwt
   end.
+
+Lemma use_code_valid_reg : forall x pc,
+    use_code f x pc ->
+    Bij.valid_reg_ssa size x = true.
+Proof.
+  inv fn_wt.
+  induction 1 ; intros;
+    try (assert (He: is_edge f pc s) by go;
+         (exploit WTE; eauto); (intros Hwte; inv Hwte; allinv);
+         [ well_typed; eauto
+         | error_struct f pc s]
+        ).
+  - assert (He: is_out_node f pc) by go.
+    exploit WTO; eauto. intros Hwte. inv Hwte; allinv.
+    well_typed; eauto.
+  - assert (He: is_out_node f pc) by go.
+    exploit WTO; eauto. intros Hwte. inv Hwte; allinv.
+    well_typed; eauto.
+  - destruct tbl.
+    + assert (He: is_out_node f pc) by go.
+      exploit WTO; eauto. intros Hwte. inv Hwte; allinv.
+      well_typed; eauto.
+    + assert (He: is_edge f pc n) by go.
+      exploit WTE; eauto. intros Hwte. inv Hwte; allinv.
+      * well_typed; eauto.
+      * error_struct f pc n.
+  - assert (He: is_out_node f pc) by go.
+    exploit WTO; eauto. intros Hwte. inv Hwte; allinv.
+    well_typed; eauto.
+Qed.
+
+Lemma use_phicode_valid_reg: forall x pc,
+    use_phicode f x pc ->
+    Bij.valid_reg_ssa size x = true.
+Proof.
+  inv fn_wt. intros ? ? PHIU. inv PHIU.
+  exploit pred_is_edge ; eauto. intros Hedge.
+  (exploit WTE ; eauto ; intros Hwte). 
+  inv Hwte; allinv. 
+  inv WTPHID0.
+  destruct (Bij.rmap size dst) as (dstr, dsti) eqn:EQ.
+  exploit USES; eauto. intros PHIU.
+  exploit index_pred_some_nth ; eauto. intros Hnth.
+  exploit (@list_map_nth_some node (Registers.reg -> positive) G) ; eauto. intros Hnth'.
+  exploit phiu_nth ; eauto. intuition. 
+Qed.
+
+Lemma def_code_valid_reg : forall x pc,
+    assigned_code_spec (fn_code f) pc x ->
+    Bij.valid_reg_ssa size x = true.
+Proof.
+  inv fn_wt.
+  induction 1 ; intros.
+
+  - assert (He: is_edge f pc succ) by go.
+    (exploit WTE; eauto); (intros Hwte; inv Hwte; allinv).
+    + well_typed; eauto.
+    + error_struct f pc succ.
+  - assert (He: is_edge f pc succ) by go.
+    (exploit WTE; eauto); (intros Hwte; inv Hwte; allinv).
+    + well_typed; eauto.
+    + error_struct f pc succ.
+  - assert (He: is_edge f pc succ) by go.
+    (exploit WTE; eauto); (intros Hwte; inv Hwte; allinv).
+    + well_typed; eauto.
+    + error_struct f pc succ.
+  - assert (He: is_edge f pc succ) by go.
+    (exploit WTE; eauto); (intros Hwte; inv Hwte; allinv).
+    + well_typed; eauto. eelim H6; eauto.
+    + error_struct f pc succ.
+Qed.
+
+Lemma def_phicode_valid_reg: forall x pc,
+    assigned_phi_spec (fn_phicode f) pc x ->
+    Bij.valid_reg_ssa size x = true.
+Proof.
+  inv fn_wt. intros ? ? PHID. inv PHID.
+  destruct H0 as [args Hin].
+  exploit fn_phicode_code ; eauto. intros [ins Hins].
+  exploit fn_phicode_inv1 ; eauto. intros Hjp.
+  inv Hjp. 
+  assert (Hpred : exists d k,
+             index_pred (make_predecessors (fn_code f) successors_instr) d pc = Some k).
+  { assert (exists d, In d l).
+    destruct l; simpl in *.
+    apply False_ind; omega.
+    eauto.
+    destruct H0 as [pc' H1].
+    exists pc'.
+    assert (In pc' ((make_predecessors (fn_code f) successors_instr)!!!pc)).
+    { unfold successors_list; rewrite Hpreds; auto. }
+    exploit @make_predecessors_some ; eauto. intros (ipc & Hpc).
+    exploit @make_predecessors_correct2; eauto. intros Hind.
+    eapply index_pred_instr_some ; eauto.
+  }
+  destruct Hpred as [pred [k Hidxp]].  
+    exploit pred_is_edge ; eauto. intros Hedge.
+    (exploit WTE ; eauto ; intros Hwte). 
+    inv Hwte; allinv. 
+    inv WTPHID.
+    eapply VALIDR; eauto. go. 
+Qed.
+
+Lemma def_valid_reg : forall x pc,
+    def f x pc ->
+    Bij.valid_reg_ssa size x = true.
+Proof.
+  intros ? ? DEF.
+  inv DEF.
+  - inv H.
+    + inv fn_wfi.
+      exploit H; eauto. intuition.
+    + destruct H0 as [pc Huse]; inv Huse.
+      * eapply use_code_valid_reg; eauto.
+      * eapply use_phicode_valid_reg; eauto.
+  - eapply def_code_valid_reg; eauto. 
+  - eapply def_phicode_valid_reg; eauto.
+Qed.
 
 (** * Properties required for [wf_ssa_function]  *)
 
@@ -472,7 +608,7 @@ Lemma use_code_gamma : forall u x
   G u (ui x) = (gi x).
 Proof.
   intros.
-  destruct x as (x,idx); simpl in *.
+  destruct (Bij.rmap size x) as (rx,ridx) eqn:EQ; simpl in *.
   inv USE;
   match goal with 
     | [Hins : (fn_code f) ! u = Some (Icall _ _ _ _ _) |- _ ] => inv H0
@@ -485,7 +621,7 @@ Proof.
       ((assert (Ho : is_out_node f u) by ( solve [econstructor 2 ; eauto | econstructor 1 ; eauto])) ;
         (exploit (WTO u) ; eauto ; intro Hwto) ;
         (inv Hwto; allinv; try error_struct f u s);
-        ( well_typed ; eauto))) in 
+        ( well_typed ; eauto using rmap_uigi))) in 
   (match goal with 
     | [Hins : (fn_code f) ! u = Some (Ireturn _) |- _ ] => tac
     | [Hins : (fn_code f) ! u = Some (Itailcall _ _ _) |- _]  => tac            
@@ -494,16 +630,16 @@ Proof.
       ((assert (He : is_edge f u s) by (econstructor ; eauto ; simpl ; auto)) ;
           (exploit (WTE u s) ; eauto ; intro Hwte);
           (inv Hwte; allinv; try error_struct f u s);
-          ( well_typed ; eauto)))
+          ( well_typed ; eauto using rmap_uigi)))
   end).  
 
   ((inv fn_wt);
-    ((assert (Ho : is_out_node f u) by ( solve [econstructor 3 ; eauto | econstructor 1 ; eauto])) ;
-      (exploit (WTO u) ; eauto ; intro Hwto) ;
-      (inv Hwto; allinv; try error_struct f u s);
-      ( well_typed ;  eauto))). 
+   ((assert (Ho : is_out_node f u) by ( solve [econstructor 3 ; eauto | econstructor 1 ; eauto])) ;
+    (exploit (WTO u) ; eauto ; intro Hwto) ;
+    (inv Hwto; allinv; try error_struct f u s);
+    ( well_typed ; eauto using rmap_uigi))). 
 Qed.
-
+    
 Lemma use_phicode_gamma : forall u x
   (USE : use_phicode f x u),
   G u (ui x) = (gi x).
@@ -516,14 +652,16 @@ Proof.
   exploit WTE ; eauto ; intro Hwte.
   inv Hwte ; allinv.
   inv WTPHID0.
-  case_eq x ; intros rx ix Hx.
+  destruct (Bij.rmap size x) as (rx, ix) eqn:Hx.
   unfold erase_reg, get_index ; inv Hx ; simpl.
-  destruct dst.
+  destruct (Bij.rmap size dst) as (rdst, idst) eqn:Hdst.
   exploit USES ; eauto. intro Hphiu. 
   exploit index_pred_some_nth ; eauto. intros Hnth.
   exploit (@list_map_nth_some node (Registers.reg -> positive) G) ; eauto. intros Hnth'.
-  exploit phiu_nth ; eauto. intros [i [Hbij' HG]]. 
-  congruence.
+  exploit phiu_nth ; eauto. intros [HVALIDR [i [Hbij' [HG HVALIDI]]]].
+  
+  assert (EQ: (rx, ix) = (rdst,i)) by congruence; inv EQ.
+  rewrite Hbij'; auto.
 Qed.
   
 Lemma use_gamma : forall x u, 
@@ -563,27 +701,33 @@ Proof.
       (assert (Hedge : is_edge f d succ) by (econstructor; eauto; simpl; auto)) ;
       (exploit WTE ; eauto ; intros Hwte;
        (inv Hwte; allinv; [
-          inv EIDX ; simpl in *; try (intuition; fail)
+          inv EIDX ;
+          unfold ui, gi in *;
+          try match goal with
+          | id: Bij.rmap size ?x = _ |- _ => rewrite id in *
+          end;
+          simpl in *; congruence; fail
         | error_struct f d succ])).
-    eelim H2; eauto.
   - (* defined in phicode *)
     inv H1. destruct H2 as [args Hin].
     exploit fn_phicode_code ; eauto. intros [ins Hins].
     exploit fn_phicode_inv1 ; eauto. intros Hjp.
     inv Hjp. 
-    assert (Hpred : exists pc, exists k, index_pred (make_predecessors (fn_code f) successors_instr) pc d = Some k).
-    assert (exists pc, In pc l).
-    destruct l; simpl in *.
-    apply False_ind; omega.
-    eauto.
-    destruct H1 as [pc H1].
-    exists pc.
-    assert (In pc ((make_predecessors (fn_code f) successors_instr)!!!d)).
-    { unfold successors_list; rewrite Hpreds; auto. }
-    
-    exploit @make_predecessors_some ; eauto. intros (ipc & Hpc).
-    exploit @make_predecessors_correct2; eauto. intros Hind.
-    eapply index_pred_instr_some ; eauto.
+    assert (Hpred : exists pc k,
+               index_pred (make_predecessors (fn_code f) successors_instr) pc d = Some k).
+    { assert (exists pc, In pc l).
+      destruct l; simpl in *.
+      apply False_ind; omega.
+      eauto.
+      destruct H1 as [pc H1].
+      exists pc.
+      assert (In pc ((make_predecessors (fn_code f) successors_instr)!!!d)).
+      { unfold successors_list; rewrite Hpreds; auto. }
+      
+      exploit @make_predecessors_some ; eauto. intros (ipc & Hpc).
+      exploit @make_predecessors_correct2; eauto. intros Hind.
+      eapply index_pred_instr_some ; eauto.
+    }
     destruct Hpred as [pred [k Hidxp]].  
     exploit pred_is_edge ; eauto. intros Hedge.
     (exploit WTE ; eauto ; intros Hwte). 
@@ -591,348 +735,435 @@ Proof.
     inv PEIDX. exploit (H1 x) ; eauto. econstructor ; eauto.
     eapply rmap_uigi. intuition.
 Qed.
-
+    
 Lemma gamma_path_def : forall p s,
   DomCompute.path f p s ->
   match s with 
     | PStop => True
     | PState pc =>
-      forall x d i, 
-        def f (x,i) d ->
+      forall xi x d i,
+        Bij.rmap size xi = (x,i) ->
+        def f xi d ->
         G pc x = i ->
         Regset.In x (Lin f_rtl pc (Lout live)) -> 
         (In d p
           \/ (d = pc /\ 
-            ~ ( use_code f (x,i) pc /\ 
-              assigned_code_spec (fn_code f) pc (x,i))))
+            ~ ( use_code f xi pc /\ 
+              assigned_code_spec (fn_code f) pc xi)))
   end.
 Proof.
   induction 1 ; intros ; auto. 
 
-  (* nil : defined in params *)
-  right.
-  exploit gamma_entry_param ; eauto. 
-  unfold erase_reg,  get_index. simpl; auto.
-  intro Heq; subst ; split ; auto. 
-  intros [_ Hcont2].  destruct fn_entry  as [se Hentry].
-  inv Hcont2 ; allinv.
+  - (* nil : defined in params *)
+    right.
+    exploit gamma_entry_param ; eauto. 
+    + unfold erase_reg,  get_index. rewrite H. simpl; auto.
+    + intro Heq; subst ; split ; auto. 
+      intros [_ Hcont2].  destruct fn_entry  as [se Hentry].
+      inv Hcont2 ; allinv.
   
-  (* pc::p *)
-  assert (is_edge f pc pc') by (econstructor ; eauto).
-  inv fn_wt.
-  
-  destruct (classic (Regset.In x (Lin f_rtl pc (Lout live)))).
-  
-  exploit WTE ; eauto. intros Hwte.
-  inv Hwte; allinv. destruct ins.
-  
-  (* nop *)
-  inv WTI. rewrite <- H7 in *. exploit IHpath ; eauto.
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21. left ; eauto.
-  
-  (* iop *)  
-  inv WTI. 
-  destruct (p2eq (x, G pc' x) (r0,i)).
-  (* x is def at pc *)
-  inv e. 
-  left. left. 
-  (destruct (peq d pc); auto) ;
-  (exploit (unique_def_spec_def (r0, G pc' r0) d pc) ; eauto).
-  intuition.  
-   
-  (* another x version is def at pc *)
-  exploit IHpath  ; eauto.
-  rewrite <- H10.
-  unfold update. destruct (peq x r0).
-  inv e. elim n0. rewrite <- H10.
-  unfold update ; unfold erase_reg. 
-  rewrite peq_true; auto.
-  auto.
-
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
-  
-  (* iload *)  
-  inv WTI. 
-  
-  destruct (p2eq (x, G pc' x) (r0, i)).
-  (* x is def at pc *)
-  inv e. 
-  left ; left.
-  (destruct (peq d pc); auto) ;
-  (exploit (unique_def_spec_def (r0, G pc' r0) d pc) ; eauto).
-  intuition.  
-   
-  (* another x version is def at pc *)
-  exploit IHpath ; eauto.
-  rewrite <- H11.
-  unfold update. destruct (peq x r0).
-  inv e. elim n0. rewrite <- H11.
-  unfold update, erase_reg. 
-  rewrite peq_true. 
-  auto.
-  auto.
-
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
-
-  
-  (* istore *)  
-  inv WTI ; rewrite <- H11 in * ; eauto.
-  exploit IHpath ; eauto. 
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
- 
-  (* icall *)  
-  inv WTI. 
-  
-  destruct (p2eq (x, G pc' x) (r0, i)).
-  (* x is def at pc *)
-  inv e. unfold erase_reg, get_index in * ; simpl in *. 
-  left ; left.
-  (destruct (peq d pc); auto) ;
-  (exploit (unique_def_spec_def (r0, G pc' r0) d pc) ; eauto).
-  intuition.  
-   
-  (* another x version is def at pc *)
-  exploit IHpath ; eauto.
-  rewrite <- H11.
-  unfold update. destruct (peq x r0).
-  inv e. elim n0. rewrite <- H11.
-  unfold update, erase_reg. 
-  rewrite peq_true. 
-  auto.
-  auto.
-
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
-
-  destruct (p2eq (x, G pc' x) (r0, i)).
-  (* x is def at pc *)
-  inv e. unfold erase_reg, get_index in * ; simpl in *. 
-  left ; left.
-  (destruct (peq d pc); auto) ;
-  (exploit (unique_def_spec_def (r0, G pc' r0) d pc) ; eauto).
-  intuition.  
-   
-  (* another x version is def at pc *)
-  exploit IHpath ; eauto.
-  rewrite <- H11.
-  unfold update. destruct (peq x r0).
-  inv e. elim n0. rewrite <- H11.
-  unfold update, erase_reg. 
-  rewrite peq_true. 
-  auto.
-  auto.
-
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.  
-  
-  (* itailcall *)  
-  inv WTI. rewrite <- H9 in * ; eauto.
-  exploit IHpath ; eauto.
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
-
-  rewrite <- H9 in * ; eauto.
-  exploit IHpath ; eauto.
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
-
-  
-  (* builtin *)
-  { inv WTI.     
+  - (* pc::p *)
+    assert (is_edge f pc pc') by (econstructor ; eauto).
+    generalize fn_wt; intros WELL_TYPED. inv WELL_TYPED.
     
-    - (* Builtin res assigned *)
-      destruct (p2eq (x, G pc' x) (r, i)).
-      + (* x is def at pc *)
-        inv e0. 
-        left ; left. 
-        (destruct (peq d pc); auto) ;
-          (exploit (unique_def_spec_def (r, G pc' r) d pc) ; eauto).
-        intuition.  
-      + (* another x version is def at pc *)
-        exploit IHpath ; eauto.
-        rewrite <- H10.
-        unfold update. destruct (peq x r).
+    destruct (classic (Regset.In x (Lin f_rtl pc (Lout live)))).
+    
+    + exploit WTE ; eauto. intros Hwte.
+      inv Hwte; allinv. destruct ins.
+      
+      * (* nop *)
+        inv WTI. rewrite <- H8 in *. exploit IHpath ; eauto.
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21. left ; eauto.
+    
+      * (* iop *)  
+        inv WTI. 
+        destruct (p2eq (x, G pc' x) (r0,i)).
+        -- (* x is def at pc *)
+          inv e. 
+          left. left.
+          destruct (peq d pc); auto.
+          exploit (unique_def_spec_def xi d pc) ; eauto.
+          assert (r = xi).
+          { eapply Bij.INJ; eauto; [| congruence].
+            eapply def_valid_reg; eauto.
+          }
+          subst. repeat econstructor; eauto.          
+          intuition.  
+   
+        -- (* another x version is def at pc *)
+          exploit (IHpath xi)  ; eauto.
+          ++ rewrite <- H10.
+             unfold update. destruct (peq x r0).
+             ** inv e. elim n0. rewrite <- H10.
+                unfold update ; unfold erase_reg. 
+                rewrite peq_true; auto.
+             ** auto.
+
+          ++ intros [HH1 | [HH21 HH22]]. 
+             left ; eauto.
+             inv HH21 ; eauto.
+             
+      * (* iload *)  
+        inv WTI. 
+        
+        destruct (p2eq (x, G pc' x) (r0, i)).
+        (* x is def at pc *)
+        inv e. 
+        left ; left.
+        destruct (peq d pc); auto.
+        assert (r = xi).
+        { eapply Bij.INJ; eauto; [| congruence].
+          eapply def_valid_reg; eauto.
+        }
         subst.
-        elim n0.
-        rewrite <- H10.
-        unfold update; rewrite peq_true ;auto.
+        exploit (unique_def_spec_def xi d pc) ; eauto.
+        intuition.  
+        
+        (* another x version is def at pc *)
+        exploit (IHpath xi) ; eauto.
+        rewrite <- H12.
+        unfold update. destruct (peq x r0).
+        inv e. elim n0. rewrite <- H12.
+        unfold update, erase_reg. 
+        rewrite peq_true. 
+        auto.
         auto.
 
         intros [HH1 | [HH21 HH22]]. 
         left ; eauto.
         inv HH21 ; eauto.
+
+      * (* istore *)  
+        inv WTI ; rewrite <- H12 in * ; eauto.
+        exploit IHpath ; eauto. 
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.
+ 
+      * (* icall *)  
+        inv WTI. 
         
-    - (* Builtin with no res assigned *)
-      exploit IHpath; eauto.
-      rewrite H10; auto.
-      intros [HH1 | [HH21 HH22]]. 
-      left ; eauto.
-      inv HH21 ; eauto.
-  }
-  
-  (* icond *)  
-  inv WTI. rewrite <- H10 in * ; eauto.
-  exploit IHpath ; eauto.
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
+        destruct (p2eq (x, G pc' x) (r0, i)).
+        (* x is def at pc *)
+        inv e. unfold erase_reg, get_index in * ; simpl in *. 
+        left ; left.
+        destruct (peq d pc); auto.
+        assert (r = xi).
+        { eapply Bij.INJ; eauto; [| congruence].
+          eapply def_valid_reg; eauto.
+        }
+        subst.
+        exploit (unique_def_spec_def xi d pc) ; eauto.
+        intuition.  
+        
+        (* another x version is def at pc *)
+        exploit (IHpath xi) ; eauto.
+        rewrite <- H12.
+        unfold update. destruct (peq x r0).
+        inv e. elim n0. rewrite <- H12.
+        unfold update, erase_reg. 
+        rewrite peq_true. 
+        auto.
+        auto.
 
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.
 
-  (* ijmptable *)  
-  inv WTI. rewrite <- H8 in * ; eauto.
-  exploit IHpath ; eauto.
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
-  
-  (* ireturn *)
-  inv WTI. rewrite <- H6 in * ; eauto.
-  exploit IHpath ; eauto.
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
-
-  rewrite <- H7 in * ; eauto.
-  exploit IHpath ; eauto.
-  intros [HH1 | [HH21 HH22]]. 
-  left ; eauto.
-  inv HH21 ; eauto.
-  
-  (* join point at pc' *)
-  inv WTPHID.
-  destruct (classic (assigned (x, G pc' x) block)).
+        destruct (p2eq (x, G pc' x) (r0, i)).
+        (* x is def at pc *)
+        inv e. unfold erase_reg, get_index in * ; simpl in *. 
+        left ; left.
+        
+        destruct (peq d pc); auto.
+        assert (r = xi).
+        { eapply Bij.INJ; eauto; [| congruence].
+          eapply def_valid_reg; eauto.
+        }
+        subst.
+        exploit (unique_def_spec_def xi d pc) ; eauto.
+        intuition.  
    
-  (*  assig in the block *)
-  right.
-  assert (d = pc').
-  (destruct (peq d pc'); auto) ;
-  (exploit (unique_def_spec_def (x, G pc' x) d pc') ; eauto).
-  intuition.  split ; auto. 
-  
-  intros [Hcont1 Hcont2].
-  inv H5. 
-  inv fn_ssa. 
-  destruct (H5 (x, G pc' x) pc' pc') as [_ [_ [Hcont _]]].
-  exploit Hcont ; eauto.  
-  
-  (* not assig in the block *) 
-  destruct (classic (erased_reg_assigned x block)).
-  inv H5. inv H6.
-  destruct x0; simpl in *. 
-  exploit (ASSIG (r, p0)); auto. 
-  right.
-  assert (d = pc'). destruct (peq d pc') ; auto. 
-  rewrite H6 in *. intuition. 
-  intuition. inv H7.  intuition.
-    
-  exploit (NASSIG x) ; eauto.
-  intros. intros Hcont.  elim H5. 
-  exists (x,i). split ; auto. subst; simpl; auto.
-  intros [HH1 | HH2].
-  
-  rewrite HH1 in * ; eauto.
-  exploit IHpath ; eauto.
-  intros [HH1' | [HH21' HH22']]. 
-  left ; eauto.
-  inv HH21' ; eauto.
-  
-  intuition.
-  
-  (* x not live at pc *)
-  exploit (wf_live_incl f_rtl (Lout live) fn_wfl pc pc')  ; eauto.
-  eapply cfg_rtl_cfg ; eauto. econstructor ; eauto.
-  intros [HH1 | HH2]; auto. 
-  intuition. 
+        (* another x version is def at pc *)
+        exploit (IHpath xi) ; eauto.
+        rewrite <- H12.
+        unfold update. destruct (peq x r0).
+        inv e. elim n0. rewrite <- H12.
+        unfold update, erase_reg. 
+        rewrite peq_true. 
+        auto.
+        auto.
 
-  exploit (erased_assigned_code_spec pc (x, G pc' x)) ; eauto.
-  intros [idx Hass]. 
-  inv Hass ; allinv.
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.  
   
-  (* iop *)
-  exploit WTE ; eauto.
-  intros Hwte. inv Hwte ; allinv ; try (error_struct f pc pc').
+      * (* itailcall *)  
+        inv WTI. rewrite <- H9 in * ; eauto.
+        exploit IHpath ; eauto.
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.
+
+        rewrite <- H9 in * ; eauto.
+        exploit IHpath ; eauto.
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.
+
+      * (* builtin *)
+        { inv WTI.     
+          
+          - (* Builtin res assigned *)
+            destruct (p2eq (x, G pc' x) (r, i)).
+            + (* x is def at pc *)
+              inv e0. 
+              left ; left. 
+              destruct (peq d pc); auto.
+              assert (x0 = xi).
+              { eapply Bij.INJ; eauto; [| congruence].
+                eapply def_valid_reg; eauto.
+              }
+              subst.
+              exploit (unique_def_spec_def xi d pc) ; eauto.
+              intuition.  
+            + (* another x version is def at pc *)
+              exploit (IHpath xi) ; eauto.
+              rewrite <- H10.
+              unfold update. destruct (peq x r).
+              subst.
+              elim n0.
+              rewrite <- H10.
+              unfold update; rewrite peq_true ;auto.
+              auto.
+
+              intros [HH1 | [HH21 HH22]]. 
+              left ; eauto.
+              inv HH21 ; eauto.
+              
+          - (* Builtin with no res assigned *)
+            exploit IHpath; eauto.
+            rewrite H10; auto.
+            intros [HH1 | [HH21 HH22]]. 
+            left ; eauto.
+            inv HH21 ; eauto.
+        }
   
-  inv WTI.
-  rewrite <- H11 in *. 
-  inv H11.
+      * (* icond *)  
+        inv WTI. rewrite <- H11 in * ; eauto.
+        exploit IHpath ; eauto.
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.
 
-  assert (d = pc).
-  unfold update in * ; rewrite peq_true in *.
-  (destruct (peq d pc); auto) ;
-  (exploit (unique_def_spec_def (x, idx) d pc) ; eauto).
-  intuition.  inv H4. eauto. 
-
-  (* load *)
-  exploit WTE ; eauto.
-  intros Hwte. inv Hwte ; allinv ; try (error_struct f pc pc').
+      * (* ijmptable *)  
+        inv WTI. rewrite <- H7 in * ; eauto.
+        exploit IHpath ; eauto.
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.
   
-  inv WTI.
-  rewrite <- H12 in *. 
-  inv H12.
+      * (* ireturn *)
+        inv WTI. rewrite <- H6 in * ; eauto.
+        exploit IHpath ; eauto.
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.
 
-  assert (d = pc).
-  unfold update in * ; rewrite peq_true in *.
-  (destruct (peq d pc); auto) ;
-  (exploit (unique_def_spec_def  (x, idx) d pc) ; eauto).
-  intuition.  inv H4. auto. 
+        rewrite <- H8 in * ; eauto.
+        exploit IHpath ; eauto.
+        intros [HH1 | [HH21 HH22]]. 
+        left ; eauto.
+        inv HH21 ; eauto.
+  
+      * (* join point at pc' *)
+        inv WTPHID.
+        destruct (classic (assigned xi block)).
+   
+        -- (*  assig in the block *)
+          right.
+          assert (d = pc').
+          destruct (peq d pc'); auto.
+          exploit (unique_def_spec_def xi d pc') ; eauto.
+          intuition.  split ; auto. 
+          
+          intros [Hcont1 Hcont2].
+          inv H5. 
+          inv fn_ssa. 
+          destruct (H5 xi pc' pc') as [_ [_ [Hcont _]]].
+          exploit Hcont ; eauto.  
+  
+        -- (* not assig in the block *) 
+          destruct (classic (erased_reg_assigned size x block)).
+          ++ inv H6. inv H7.
+             destruct (Bij.rmap size x0) as (r, p0) eqn:Hx0; simpl in *. 
+             exploit (ASSIG x0); eauto. 
+             right.
+             unfold ui in *.
+             rewrite Hx0 in *. simpl in *. rewrite H7 in *.
+             assert (x0 = xi).
+             { eapply Bij.INJ; eauto. 
+               eapply def_valid_reg; eauto.
+               congruence.
+             }
+             subst.
+             assert (d = pc').
+             { destruct (peq d pc') ; auto. 
+               intuition. 
+             }
+             intuition.
+
+          ++ exploit (NASSIG x) ; eauto.
+             intros. intros Hcont.  elim H6. 
+             exists ri. split ; auto.
+             unfold ui. rewrite H7 ; auto.
+             intros [HH1 | HH2].
+             
+             rewrite HH1 in * ; eauto.
+             exploit IHpath ; eauto.
+             intros [HH1' | [HH21' HH22']]. 
+             left ; eauto.
+             inv HH21' ; eauto.
+  
+             intuition.
+  
+    + (* x not live at pc *)
+      exploit (wf_live_incl f_rtl (Lout live) fn_wfl pc pc')  ; eauto.
+      eapply cfg_rtl_cfg ; eauto. econstructor ; eauto.
+      intros [HH1 | HH2]; auto. 
+      intuition. 
+
+      exploit (erased_assigned_code_spec pc xi) ; eauto.
+      unfold ui; rewrite H0; auto.
+      intros [rix [idx [Hrmap Hass]]]. 
+      inv Hass ; allinv.
+      
+      * (* iop *)
+        exploit WTE ; eauto.
+        intros Hwte. inv Hwte ; allinv ; try (error_struct f pc pc').
+        
+        inv WTI.
+        rewrite <- H10 in *. 
+        assert (HEQ: (r, i) = (ui xi, idx)) by congruence. inv HEQ.
+        unfold ui in *. rewrite H0 in *. simpl fst in *.
+        assert (HEQ: fst (Bij.rmap size xi) = x).
+        { rewrite H0; auto. }
+        rewrite HEQ in *.
+        unfold update in * ; rewrite peq_true in *.
+        
+        assert (d = pc).
+        destruct (peq d pc); auto.
+        assert (rix = xi).
+        { eapply Bij.INJ; eauto; [| congruence].
+          eapply def_valid_reg; eauto.
+        }
+        subst. 
+        exploit (unique_def_spec_def xi d pc) ; eauto.
+        intuition.  inv H5. eauto. 
+
+      * (* load *)
+        exploit WTE ; eauto.
+        intros Hwte. inv Hwte ; allinv ; try (error_struct f pc pc').
+        
+        inv WTI.
+        rewrite <- H12 in *. 
+        assert (HEQ: (r, i) = (ui xi, idx)) by congruence. inv HEQ.
+        unfold ui in *. rewrite H0 in *. simpl fst in *.
+        assert (HEQ: fst (Bij.rmap size xi) = x).
+        { rewrite H0; auto. }
+        rewrite HEQ in *.
+        unfold update in * ; rewrite peq_true in *.
+
+        assert (d = pc).
+        destruct (peq d pc); auto.
+        assert (rix = xi).
+        { eapply Bij.INJ; eauto; [| congruence].
+          eapply def_valid_reg; eauto.
+        }
+        subst. 
+        exploit (unique_def_spec_def xi d pc) ; eauto.
+        intuition. inv H5. auto. 
 
                       
-  (* icall *)
-  exploit WTE ; eauto.
-  intros Hwte. inv Hwte ; allinv ; try (error_struct f pc pc').
-  
-  inv WTI.
-  rewrite <- H12 in *. 
-  inv H12.
-  assert (d = pc).
-  unfold update in * ; rewrite peq_true in *.
-  (destruct (peq d pc); auto) ;
-  (exploit (unique_def_spec_def ((x, idx)) d pc) ; eauto).
-  intuition.  inv H4. auto. 
+      * (* icall *)
+        exploit WTE ; eauto.
+        intros Hwte. inv Hwte ; allinv ; try (error_struct f pc pc').
+        
+        inv WTI.
+        rewrite <- H12 in *.
+        assert (HEQ: (r, i) = (ui xi, idx)) by congruence. inv HEQ.
+        unfold ui in *. rewrite H0 in *. simpl fst in *.
+        assert (HEQ: fst (Bij.rmap size xi) = x).
+        { rewrite H0; auto. }
+        rewrite HEQ in *.
+        unfold update in * ; rewrite peq_true in *.
+        
+        assert (d = pc).
+        destruct (peq d pc); auto.
+        assert (rix = xi).
+        { eapply Bij.INJ; eauto; [| congruence].
+          eapply def_valid_reg; eauto.
+        }
+        subst. 
+        exploit (unique_def_spec_def xi d pc) ; eauto.
+        intuition.  inv H5. auto. 
 
-  rewrite <-H12 in *. inv H12.
-  assert (d = pc).
-  unfold update in * ; rewrite peq_true in *.
-  (destruct (peq d pc); auto) ;
-  (exploit (unique_def_spec_def ((x, idx)) d pc) ; eauto).
-  intuition.  inv H4. auto. 
+        rewrite <-H12 in *.
+        
+        assert (HEQ: (r, i) = (ui xi, idx)) by congruence. inv HEQ.
+        unfold ui in *. rewrite H0 in *. simpl fst in *.
+        assert (HEQ: fst (Bij.rmap size xi) = x).
+        { rewrite H0; auto. }
+        rewrite HEQ in *.
+        unfold update in * ; rewrite peq_true in *.
+        
+        assert (d = pc).
+        destruct (peq d pc); auto.
+        assert (rix = xi).
+        { eapply Bij.INJ; eauto; [| congruence].
+          eapply def_valid_reg; eauto.
+        }
+        subst. 
+        exploit (unique_def_spec_def xi d pc) ; eauto.
+        intuition.  inv H5. auto. 
   
-  (* builtin *)
-  exploit WTE ; eauto.
-  intros Hwte. inv Hwte ; allinv ; try (error_struct f pc pc').
-  
-  inv WTI.
-  - rewrite <- H11 in *. 
-    inv H11.
-    assert (d = pc).
-    unfold update in * ; rewrite peq_true in *.
-    (destruct (peq d pc); auto) ;
-      (exploit (unique_def_spec_def (x, idx) d pc) ; eauto).
-    intuition.  inv H4. auto.
-  - eelim H7; eauto. 
+      * (* builtin *)
+        exploit WTE ; eauto.
+        intros Hwte. inv Hwte ; allinv ; try (error_struct f pc pc').
+        
+        inv WTI.
+        -- rewrite <- H10 in *. 
+           assert (HEQ: (r, i) = (ui xi, idx)) by congruence. inv HEQ.
+           unfold ui in *. rewrite H0 in *. simpl fst in *.
+           assert (HEQ: fst (Bij.rmap size xi) = x).
+           { rewrite H0; auto. }
+           rewrite HEQ in *.
+           unfold update in * ; rewrite peq_true in *.
+           
+           assert (d = pc).
+           destruct (peq d pc); auto.
+           assert (rix = xi).
+           { eapply Bij.INJ; eauto; [| congruence].
+             eapply def_valid_reg; eauto.
+           }
+           subst. 
+           exploit (unique_def_spec_def xi d pc) ; eauto.
+           intuition. inv H5. auto.
+        -- eelim H11; eauto. 
 Qed.
 
-Lemma gamma_def_path : forall p pc x i d, 
-  def f (x,i) d ->
+Lemma gamma_def_path : forall p pc xi x i d,
+  Bij.rmap size xi = (x,i) ->
+  def f xi d ->
   G pc x = i ->
   DomCompute.path f p (PState pc) -> 
   Regset.In x (Lin f_rtl pc (Lout live)) -> In d (pc::p).
 Proof.
   intros.
   exploit gamma_path_def ; eauto.
-  simpl. intros. exploit H3 ; eauto.
+  simpl. intros. exploit H4 ; eauto.
   intros [HH1 | [HH21 HH22]].
   right ; auto. 
   inv HH21. left ; auto.
@@ -940,20 +1171,21 @@ Qed.
 
 Lemma gamma_path_sdef : forall p pc,
   DomCompute.path f p (PState pc) ->
-  forall x d i, 
-    def f (x,i) d ->
+  forall xi x d i,
+    Bij.rmap size xi = (x,i) ->
+    def f xi d ->
     G pc x = i ->
     Regset.In x (Lin f_rtl pc (Lout live)) -> 
     (In d p
       \/ (d = pc /\ 
-        ~ ( use_code f (x,i) pc /\ 
-          assigned_code_spec (fn_code f) pc (x,i)))).
+        ~ ( use_code f xi pc /\ 
+          assigned_code_spec (fn_code f) pc xi))).
 Proof.
   intros. exploit gamma_path_def ; eauto.
 Qed.
 
 Lemma phiu_same_length : forall r args gammas, 
-  phiu r args gammas ->
+  phiu size r args gammas ->
   length args = length gammas.
 Proof.
   induction 1 ; intros ; eauto.
@@ -964,21 +1196,21 @@ Lemma wt_phiu_args_dst : forall pc phib args dst k xi x i,
   (fn_phicode f) ! pc = Some phib ->
   In (Iphi args dst) phib ->
   nth_error args k = Some xi ->
-  xi = (x, i) ->
-  wt_phiu (make_predecessors (fn_code f) successors_instr) !!! pc phib G ->
-  exists idx, dst = (x, idx).
+  Bij.rmap size xi = (x, i) ->
+  wt_phiu size (make_predecessors (fn_code f) successors_instr) !!! pc phib G ->
+  exists idx, Bij.rmap size dst = (x, idx).
 Proof.
   intros.
   inv H3.
-  destruct dst. 
+  destruct (Bij.rmap size dst) as (rdst, idst) eqn: EQ. 
   exploit USES ; eauto. intros Hphiu. 
   set (gammas := (map G (make_predecessors (fn_code f) successors_instr) !!! pc)) in *.
   exploit phiu_same_length ; eauto. intros Hlength.
   exploit @nth_error_some_same_length ; eauto. intros [e Hnthgammas].
-  exploit phiu_nth ; eauto. intros [i0 [Hxi' Hi0]].
-  inv Hxi'; eauto.
+  exploit phiu_nth ; eauto. intros [HVALIDR [i0 [Hxi' [Hi0 HVALIDI]]]].
+  assert (HEQ: (x, i) = (rdst, i0)) by congruence; inv HEQ.
+  eauto.
 Qed. 
-
 
 Lemma wt_pdom : forall x u d
   (USE: use f x u)
@@ -996,44 +1228,48 @@ Proof.
   
   exploit use_gamma ; eauto. intro HGamma.
     
-  destruct x as [x i].
+  destruct (Bij.rmap size x) as [rx i] eqn: EQ.
+  unfold ui, gi in *. rewrite EQ in *; simpl in *.
 
   exploit DomCompute.SSA_path_this_path ; eauto. intros Hpath.
   exploit gamma_def_path ; eauto.
   
-  inv USE. 
-  (* use in code *)
-  eapply wf_live_use ; eauto. 
-  eapply use_code_spec in H ; eauto.
-  (* use in phicode *)
-  inv H. 
-  assert (Hedge : is_edge f u pc) by (eapply pred_is_edge ; eauto).
-  inv fn_wt. exploit WTE ; eauto. intros Hwte. inv Hwte ; allinv.
-  unfold gi in  * ; simpl in * ; inv HGamma. 
-  exploit (wt_phiu_args_dst pc block args dst k (x, G u x) x (G u x)); eauto. intros [idx Hidx].  
+  - invh use. 
+    + (* use in code *)
+      eapply wf_live_use ; eauto. 
+      eapply use_code_spec in H ; eauto.
+      unfold ui, gi in *. rewrite EQ in *; simpl in *.
+      auto.
+    + (* use in phicode *)
+      inv H. 
+      assert (Hedge : is_edge f u pc) by (eapply pred_is_edge ; eauto).
+      inv fn_wt. exploit WTE ; eauto. intros Hwte. inv Hwte ; allinv.
+      exploit (wt_phiu_args_dst pc block args dst k x rx (G u rx)); eauto. intros [idx Hidx].  
   
-  assert (Hlpc : Regset.In x (Lin f_rtl pc (Lout live))).
-  inv WTPHID. exploit (LIVE (x, idx)) ; eauto. econstructor ; eauto.
-    
-  exploit (wf_live_incl f_rtl (Lout live) fn_wfl u pc) ; eauto.
-  eapply cfg_rtl_cfg ; eauto. inv Hedge ; eauto. econstructor ; eauto.
-  intros [HH1 | HH2]; auto.
-  
-  exploit fn_phicode_code ; eauto. intros [ins0 Hins0].
-  exploit fn_phicode_inv1 ; eauto. intros Hjp. 
-  exploit (fn_code_inv2 pc u) ; eauto. 
-  inv Hedge. unfold successors_list, successors. rewrite PTree.gmap1.
-  unfold option_map. rewrite H0 ; auto. intros Hcode.
-  inv fn_erased. 
-  inv HH2; rewrite HCODE in H0;
-  (
-  (unfold erase_code in H0; rewrite PTree.gmap in H0);
-  (unfold option_map in H0; rewrite Hcode in H0);
-  (inv H0)).
+      assert (Hlpc : Regset.In rx (Lin f_rtl pc (Lout live))).
+      { inv WTPHID. exploit (LIVE dst rx idx) ; eauto. econstructor ; eauto. }
+      intros.
+      exploit (wf_live_incl f_rtl (Lout live) fn_wfl u pc) ; eauto.
+      { eapply cfg_rtl_cfg ; eauto. inv Hedge ; eauto.
+        econstructor ; eauto.
+      }
+      intros [HH1 | HH2]; auto.
+      exploit fn_phicode_code ; eauto. intros [ins0 Hins0].
+      exploit fn_phicode_inv1 ; eauto. intros Hjp. 
+      exploit (fn_code_inv2 pc u) ; eauto. 
+      { inv Hedge. unfold successors_list, successors. rewrite PTree.gmap1.
+        unfold option_map. rewrite H ; auto.
+      } intros Hcode.
+      inv fn_erased. 
+      inv HH2; rewrite HCODE in H;
+        (
+          (unfold erase_code in H; rewrite PTree.gmap in H);
+          (unfold option_map in H; rewrite Hcode in H);
+          (inv H)).
 
-  intros Hcont'.  inv Hcont'.
-  econstructor ; eauto. 
-  elim Hnotin. eapply in_rev ; eauto. 
+  - intros Hcont'.  inv Hcont'.
+    econstructor ; eauto. 
+    elim Hnotin. eapply in_rev ; eauto. 
 Qed.  
 
 Lemma wt_def_use_code_false : forall x pc
@@ -1042,7 +1278,7 @@ Lemma wt_def_use_code_false : forall x pc
   False.
 Proof.
   intros.
-  case_eq x ; intros r idx Hrmap.
+  destruct (Bij.rmap size x) as (r, idx) eqn: Hrmap.
   
   exploit use_code_gamma ; eauto; intros Hgamma.
   exploit use_code_spec ; eauto. intros Hrtl.  
@@ -1062,7 +1298,7 @@ Proof.
     econstructor ; eauto. eapply DomCompute.SSA_path_this_path ; eauto.
   }
   exploit gamma_path_def ; eauto. simpl.
-  intros. exploit (H0 r pc idx) ; eauto.
+  intros. exploit (H0 x r pc idx) ; eauto.
     
   intros [[HH11 | HH12] | [_ HH2]]. 
   

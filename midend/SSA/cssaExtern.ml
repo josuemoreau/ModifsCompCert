@@ -3,7 +3,6 @@ open Camlcoq
 open Maps
 open SSA
 open SSAutils
-open TrMaps2
 
 module PosSet = Set.Make(struct
   type t = SSA.node
@@ -22,8 +21,7 @@ let diag m =
   flush_all()
 
 let dump_reg r =
-  let (r,i) = r in
-  Printf.printf "x%ld_%ld" (P.to_int32 r) (P.to_int32 i)
+  Printf.printf "x%ld" (P.to_int32 r)
 
 let dump_node pc =
   Printf.printf "pc_%ld" (P.to_int32 pc)
@@ -98,7 +96,7 @@ let initialize_classes f =
       (fun acc pc phib ->
         List.fold_left
           (fun acc (Iphi(args,dst)) ->
-            P2Tree.set dst
+            PTree.set dst
               (List.fold_left
                 (fun cls r ->
                   Hashtbl.add repr_hash r dst;
@@ -109,11 +107,11 @@ let initialize_classes f =
           acc
           phib)
       f.CSSApar.fn_phicode
-      P2Tree.empty in
+      PTree.empty in
   (classes, repr_hash)
 
 let get_class repr classes =
-  match P2Tree.get repr classes with
+  match PTree.get repr classes with
   | Some cls -> cls
   | None -> []
 
@@ -124,7 +122,6 @@ let build_coalescing_classes_extern f ninterfere =
     try Hashtbl.find repr_hash r
     with Not_found -> r
   in
-  (* (* TODO: coalesce distinct phi-instructions? *) *)
   let classes = PTree.fold
     (fun acc pc parcb ->
       match PTree.get pc f.CSSApar.fn_phicode with
@@ -148,7 +145,7 @@ let build_coalescing_classes_extern f ninterfere =
                 List.iter
                   (fun r -> Hashtbl.add repr_hash r repr)
                   dst_class;
-                P2Tree.set repr (List.rev_append dst_class repr_class) acc
+                PTree.set repr (List.rev_append dst_class repr_class) acc
               end
               else acc)
             acc
@@ -182,7 +179,7 @@ let build_coalescing_classes_extern f ninterfere =
                 List.iter
                   (fun r -> Hashtbl.add repr_hash r repr)
                   src_class;
-                P2Tree.set repr (List.rev_append src_class dst_class) acc
+                PTree.set repr (List.rev_append src_class dst_class) acc
               end
               else acc)
             acc

@@ -1,8 +1,5 @@
-
-
 Require Import Coqlib.
 Require Import Maps.
-Require Import TrMaps2.
 Require Import AST.
 Require Import Op.
 Require Import Registers.
@@ -27,7 +24,7 @@ Require ValueDomain.
 
 (** * Def-Use Chains *)
 Definition ssainstruction := (node * (instruction + phiinstruction))%type.
-Definition du_chain := P2Map.t (list ssainstruction).
+Definition du_chain := PMap.t (list ssainstruction).
 
 (** ** Construction *)
 Definition regs_used_by (i : instruction) : list reg :=
@@ -49,7 +46,7 @@ Definition regs_used_by (i : instruction) : list reg :=
   end.
 
 Definition handle_reg_list (duc: du_chain) (ssai: ssainstruction) (rs: list reg) :=
-  List.fold_left (fun u r => P2Map.set r (ssai :: u #2 r) u) rs duc.
+  List.fold_left (fun u r => PMap.set r (ssai :: u # r) u) rs duc.
 
 Definition def_use_1 duc c :=
   PTree.fold (fun u pc i => handle_reg_list u (pc, inl _ i) (regs_used_by i)) c duc.
@@ -64,7 +61,7 @@ Definition def_use_2 duc phic :=
   PTree.fold (fun u pc pb => handle_phi_block u pc pb) phic duc.
 
 Definition make_du_chain f : du_chain :=
-  let u := def_use_1 (P2Map.init nil) (fn_code f) in
+  let u := def_use_1 (PMap.init nil) (fn_code f) in
   def_use_2 u (fn_phicode f).
 
 (** ** Correctness of construction *)
@@ -75,7 +72,7 @@ Definition ssai_in_function ssai f :=
   end.
 
 Definition maps_into_function f m := forall r ssai,
-  In ssai (m #2 r) -> ssai_in_function ssai f.
+  In ssai (m # r) -> ssai_in_function ssai f.
 
 Hint Unfold maps_into_function ssai_in_function: core.
 
@@ -90,11 +87,11 @@ Proof.
   intros.
   simpl in *. eapply IHrs; eauto.
   unfold maps_into_function in *. intros.
-  destruct (p2eq a r).
+  destruct (peq a r).
   + subst.
-    rewrite P2Map.gss in *.
+    rewrite PMap.gss in *.
     inv H1; eauto.
-  + rewrite P2Map.gso in *; auto. eauto.
+  + rewrite PMap.gso in *; auto. eauto.
 Qed.
 
 Remark duc_maps_into_function_code: forall f duc,
@@ -146,7 +143,7 @@ Proof.
   eapply duc_maps_into_function_phicode; eauto.
   eapply duc_maps_into_function_code; eauto.
   unfold maps_into_function. intros.
-  rewrite P2Map.gi in H.
+  rewrite PMap.gi in H.
   contradiction.
 Qed.
 
@@ -157,7 +154,7 @@ Module DataflowSolver.
 
   Section CDS.
 
-  Definition lattice_values := P2Map.t L.t.
+  Definition lattice_values := PMap.t L.t.
   Definition exec_state := P2Map.t bool.
 
   Definition instr_workset := (list reg * list reg)%type.
@@ -224,7 +221,7 @@ Module DataflowSolver.
   Fixpoint pick_instr_rec vl (iws_t: list reg) (iws_nt: list reg) : (option reg * instr_workset) :=
     match iws_t, iws_nt with
       | x::xs, ys => (Some x, (xs, ys))
-      | nil, y::ys => if L.beq L.top vl#2 y then pick_instr_rec vl nil ys else (Some y, (nil, ys))
+      | nil, y::ys => if L.beq L.top vl# y then pick_instr_rec vl nil ys else (Some y, (nil, ys))
       | nil, nil => (None, (nil, nil))
     end.
 
@@ -240,10 +237,10 @@ Module DataflowSolver.
     if L.beq v L.top then (r :: top, ntop) else (top, r :: ntop).
 
   Definition update_vals lv iws r nv :=
-    let ov := lv #2 r in
+    let ov := lv # r in
     if bge ov nv
     then (lv, iws)
-    else (lv #2 r <- (L.lub nv ov), add_instr_aux r (L.lub nv ov) iws).
+    else (lv # r <- (L.lub nv ov), add_instr_aux r (L.lub nv ov) iws).
 
 
   (** Static evaluation of a phi-block *)
@@ -251,7 +248,7 @@ Module DataflowSolver.
      if L.beq L.top x then Some L.top else
      match args, preds with
        | y::ys, pc::pcs =>
-         let a := if es #2 (pc, pc') then lv #2 y else L.bot in
+         let a := if es #2 (pc, pc') then lv # y else L.bot in
          visit_phi_rec lv es pc' ys pcs (L.lub x a)
        | nil, nil => Some x
        | _, _ => None
@@ -260,7 +257,7 @@ Module DataflowSolver.
    Definition visit_phi cs (st_in: state) pc' r_used pi : state :=
      match st_in with (cfgwl, iws, lv, es) =>
      match pi with Iphi args r =>
-       if L.beq L.top lv #2 r then (cfgwl, iws, lv, es) else
+       if L.beq L.top lv # r then (cfgwl, iws, lv, es) else
        match visit_phi_rec lv es pc' args (preds_of cs pc') r_used with
          | Some x => let (lv', iws') := update_vals lv iws r x in
                      (cfgwl, iws', lv', es)
@@ -281,13 +278,13 @@ Module DataflowSolver.
      match st_in with (cfgwl, iws, lv, es) =>
      match instr with
        | Icond cond args ifso ifnot =>
-         match eval_static_condition cond lv ##2 args with
+         match eval_static_condition cond lv ## args with
            | ValueDomain.Just true => ((pc, ifso)::cfgwl, iws, lv, es)
            | ValueDomain.Just false => ((pc, ifnot)::cfgwl, iws, lv, es)
            | _ => ((pc, ifso) :: (pc, ifnot) :: cfgwl, iws, lv, es)
          end
        | Ijumptable arg tbl =>
-         match lv #2 arg with
+         match lv # arg with
            | I k => match list_nth_z tbl (Int.unsigned k) with
                          | None => (map (fun x:node => (pc, x)) tbl ++ cfgwl, iws, lv, es)
                          | Some pc' => ((pc, pc')::cfgwl, iws, lv, es)
@@ -318,7 +315,7 @@ Module DataflowSolver.
          visit_phi cs st pc r_used pi
        | (pc, inl instr) =>
          match def_reg instr with
-           | Some r => if L.beq L.top lv #2 r (* Optim: nothing to do if at top *)
+           | Some r => if L.beq L.top lv # r (* Optim: nothing to do if at top *)
                        then st
                        else match node_is_executable cs st pc with
                               | false => st
@@ -360,8 +357,8 @@ Module DataflowSolver.
        | nil =>
          match pick_instr lv iws with
            | (Some r, iws') => (* Fold over all uses of [r] *)
-             inr _ (cs, (fold_left (fun st_in ssai => visit_ssainstr cs st_in lv #2 r ssai)
-                                   (cs_duc cs) #2 r
+             inr _ (cs, (fold_left (fun st_in ssai => visit_ssainstr cs st_in lv # r ssai)
+                                   (cs_duc cs) # r
                                    (cfgwl, iws', lv, es)))
            | _ => inl _ (Some (lv, es))
          end
@@ -393,7 +390,7 @@ Module DataflowSolver.
                                 | false => true
                                 | true => match absint i lv with
                                             | None => true
-                                            | Some (r, nv) => bge (lv #2 r) nv
+                                            | Some (r, nv) => bge (lv # r) nv
                                           end
                               end) cfg.
 
@@ -402,7 +399,7 @@ Module DataflowSolver.
       | nil, nil => true
       | x::xs, pc::pcs => match es #2 (pc, pc') with
                             | false => check_phiinstruction lv es r xs pcs pc'
-                            | true => bge (lv #2 r) (lv #2 x) &&
+                            | true => bge (lv # r) (lv # x) &&
                                           check_phiinstruction lv es r xs pcs pc'
                           end
       | _, _ => false
@@ -420,10 +417,10 @@ Module DataflowSolver.
     match cfg ! pc with
       | Some (Icond cond args ifso ifnot) =>
         match Pos.eq_dec pc' ifso with
-          | left _ => match eval_static_condition cond lv ##2 args with
+          | left _ => match eval_static_condition cond lv ## args with
                       | ValueDomain.Just false => match Pos.eq_dec pc' ifnot with
                                         | right _ => true
-                                        | left _ => match eval_static_condition cond lv ##2 args with
+                                        | left _ => match eval_static_condition cond lv ## args with
                                                       | ValueDomain.Just true => true
                                                       | _ => false
                                                     end
@@ -432,14 +429,14 @@ Module DataflowSolver.
                       end
           | right _ => match Pos.eq_dec pc' ifnot with
                        | right _ => false
-                       | left _ => match eval_static_condition cond lv ##2 args with
+                       | left _ => match eval_static_condition cond lv ## args with
                                    | ValueDomain.Just true => true
                                    | _ => false
                                    end
                        end
         end
       | Some (Ijumptable arg tbl) =>
-        match lv #2 arg with
+        match lv # arg with
           | I n => match list_nth_z tbl (Int.unsigned n) with
                         | Some p => if Pos.eq_dec p pc' then false else true
                         | None => true (* ???? *)
@@ -466,14 +463,14 @@ Module DataflowSolver.
 
    (** Fixpoint *)
    Definition fixpoint (f: SSA.function) :=
-     let failed := (P2Map.init L.top, P2Map.init true) in
+     let failed := (PMap.init L.top, P2Map.init true) in
      let preds :=  make_predecessors (fn_code f) successors_instr in
      let cs := mkConstantState (make_du_chain f) preds in
      match initial_state with
          | Some is =>
            match PrimIter.iterate _ _ step (cs, is) with
              | Some (Some (lv, es)) =>
-               let lv' := P2Map.map (fun v => if L.beq v L.bot then L.top else v) lv in
+               let lv' := PMap.map (fun v => if L.beq v L.bot then L.top else v) lv in
                if check lv' es preds then (lv', es) else failed
              | _ => failed
            end
@@ -515,7 +512,7 @@ Module DataflowSolver.
      (fn_code f) ! pc = Some i ->
      executable_node pc es ->
      absint i lv = Some (r, v) ->
-     L.ge lv #2 r v.
+     L.ge lv # r v.
 
    Lemma check_code_correct: forall lv es,
      check_code lv (make_predecessors (fn_code f) successors_instr) es = true ->
@@ -534,7 +531,7 @@ Module DataflowSolver.
     index_pred (make_predecessors (fn_code f) successors_instr) pc pc' = Some k ->
     es #2 (pc, pc') = true ->
     nth_error l k = Some xi ->
-    L.ge (lv #2 r) (lv #2 xi).
+    L.ge (lv # r) (lv # xi).
 
    Hint Resolve bge_correct: core.
 
@@ -561,7 +558,7 @@ Module DataflowSolver.
      SSA.get_index preds pc = Some k ->
      es #2 (pc, pc') = true ->
      nth_error l k = Some xi ->
-     L.ge (lv #2 r) (lv #2 xi).
+     L.ge (lv # r) (lv # xi).
    Proof.
      intros.
      generalize dependent l.
@@ -615,10 +612,10 @@ Module DataflowSolver.
        ~executable_node pc es \/
        match (fn_code f) ! pc with
          | Some (Icond cond args ifso ifnot) =>
-           (ifso  = pc' -> eval_static_condition cond lv ##2 args = ValueDomain.Just false) /\
-           (ifnot = pc' -> eval_static_condition cond lv ##2 args = ValueDomain.Just true)
+           (ifso  = pc' -> eval_static_condition cond lv ## args = ValueDomain.Just false) /\
+           (ifnot = pc' -> eval_static_condition cond lv ## args = ValueDomain.Just true)
          | Some (Ijumptable arg tbl) =>
-           exists n, (lv #2 arg = I n /\ list_nth_z tbl (Int.unsigned n) <> Some pc')
+           exists n, (lv # arg = I n /\ list_nth_z tbl (Int.unsigned n) <> Some pc')
          | _ => False
        end.
 
@@ -648,13 +645,13 @@ Module DataflowSolver.
    Qed.
 
    Lemma top_is_post_fixpoint:
-    code_post_fixpoint (P2Map.init L.top) (P2Map.init true)
-    /\ phicode_post_fixpoint (P2Map.init L.top) (P2Map.init true)
-    /\ exec_flags_sound (P2Map.init L.top) (P2Map.init true).
+    code_post_fixpoint (PMap.init L.top) (P2Map.init true)
+    /\ phicode_post_fixpoint (PMap.init L.top) (P2Map.init true)
+    /\ exec_flags_sound (PMap.init L.top) (P2Map.init true).
   Proof.
     unfold code_post_fixpoint. split. intros.
-    rewrite P2Map.gi. apply L.ge_top. split.
-    unfold phicode_post_fixpoint. intros. rewrite P2Map.gi. apply L.ge_top.
+    rewrite PMap.gi. apply L.ge_top. split.
+    unfold phicode_post_fixpoint. intros. rewrite PMap.gi. apply L.ge_top.
     unfold exec_flags_sound. intros. rewrite P2Map.gi in *. discriminate.
   Qed.
 
@@ -683,18 +680,18 @@ Module DataflowSolver.
   Remark defined_nowhere_stationary_aux_update_val:
     forall lv b r t lv',
       fst (update_vals lv b r t) = lv' ->
-      (forall r', r' <> r -> lv' #2 r' = lv #2 r').
+      (forall r', r' <> r -> lv' # r' = lv # r').
   Proof.
     intros.
     unfold update_vals in *.
     flatten H; simpl in *; try congruence.
-    subst. rewrite P2Map.gso; auto.
+    subst. rewrite PMap.gso; auto.
   Qed.
 
   Remark defined_nowhere_stationary_aux_visit_instr: forall st r pc i,
     not_defined r ->
     cfg ! pc = Some i ->
-    (get_lv (visit_instr st pc i)) #2 r = (get_lv st) #2 r.
+    (get_lv (visit_instr st pc i)) # r = (get_lv st) # r.
   Proof.
     intros.
     unfold not_defined in *.
@@ -703,7 +700,7 @@ Module DataflowSolver.
     flatten; simpl in *; try (reflexivity); subst;
       try match goal with
           [H: (absint _ _ = Some (?r0, _)),
-           H1: update_vals ?l ?i0 ?r1 ?t = (?t0, ?i1)  |- (_ = ?l !!2 r) ]=>
+           H1: update_vals ?l ?i0 ?r1 ?t = (?t0, ?i1)  |- (_ = ?l !! r) ]=>
            assert (r <> r0);
              [intro contra; subst; eapply Ha; eauto |
               eapply (defined_nowhere_stationary_aux_update_val l i0 r0 t) ; eauto];
@@ -714,7 +711,7 @@ Module DataflowSolver.
   Remark defined_nowhere_stationary_aux_visit_phi: forall st cs r pc r_used pi pb,
     not_defined r ->
     phicode ! pc = Some pb -> In pi pb ->
-    (get_lv (visit_phi cs st pc r_used pi)) #2 r = (get_lv st) #2 r.
+    (get_lv (visit_phi cs st pc r_used pi)) # r = (get_lv st) # r.
   Proof.
     intros.
     unfold visit_phi in *.
@@ -733,7 +730,7 @@ Module DataflowSolver.
                fold_left (fun acc pi => visit_phi cs acc pc r_used pi)
                          l
                          st = st' ->
-               (get_lv st') #2 r = (get_lv st) #2 r).
+               (get_lv st') # r = (get_lv st) # r).
   Proof.
     intros.
     generalize dependent st.
@@ -741,7 +738,7 @@ Module DataflowSolver.
     + intros. simpl in *. unfold get_lv. flatten.
     + intros.
       simpl in *.
-      assert ((get_lv st') !!2 r = (get_lv (visit_phi cs st pc r_used a)) !!2 r).
+      assert ((get_lv st') !! r = (get_lv (visit_phi cs st pc r_used a)) !! r).
       eapply IHl with (st := visit_phi cs st pc r_used a); eauto.
       invh ex.
       exists (x ++ a :: nil). {
@@ -749,7 +746,7 @@ Module DataflowSolver.
         simpl.
         apply eq_refl.
       }
-      assert ((get_lv (visit_phi cs st pc r_used a)) !!2 r = (get_lv st) !!2 r).
+      assert ((get_lv (visit_phi cs st pc r_used a)) !! r = (get_lv st) !! r).
       eapply defined_nowhere_stationary_aux_visit_phi; eauto.
       invh ex. {
         assert (In a (a::l)). apply in_eq.
@@ -762,7 +759,7 @@ Module DataflowSolver.
   Remark defined_nowhere_stationary_aux_visit_phibloc: forall st st' cs r pc r_used,
     not_defined r ->
     visit_phibloc cs st r_used pc = st' ->
-    (get_lv (visit_phibloc cs st r_used pc)) !!2 r = (get_lv st) !!2 r.
+    (get_lv (visit_phibloc cs st r_used pc)) !! r = (get_lv st) !! r.
   Proof.
     intros.
     unfold visit_phibloc in *.
@@ -775,12 +772,12 @@ Module DataflowSolver.
 
   Lemma defined_nowhere_stationary_aux_rec_helper: forall r m (x : ssainstruction) l',
     maps_into_function f m ->
-    (exists pref, pref ++ x :: l' = m #2 r) ->
+    (exists pref, pref ++ x :: l' = m # r) ->
     ssai_in_function x f.
   Proof.
     intros.
     destruct H0 as [prefs H0].
-    assert (In x m #2 r).
+    assert (In x m # r).
     rewrite <- H0.
     assert (In x (x::l')); auto.
     apply in_app. auto.
@@ -790,7 +787,7 @@ Module DataflowSolver.
   Remark defined_nowhere_stationary_aux: forall st st' r cs cs',
     not_defined r -> step (cs, st) = inr (cs', st') ->
     maps_into_function f (cs_duc cs) ->
-    (get_lv st) #2 r = (get_lv st') #2 r.
+    (get_lv st) # r = (get_lv st') # r.
   Proof.
     intros.
     remember st as St.
@@ -800,11 +797,11 @@ Module DataflowSolver.
     flatten H0; try (flatten H0; reflexivity); simpl;
     try (match goal with
         [ h: context[ visit_phibloc ?cs ?stin ?bot ?n0 ] |- _ ] =>
-        assert ((get_lv (visit_phibloc cs stin bot n0)) !!2 r = lv !!2 r);
+        assert ((get_lv (visit_phibloc cs stin bot n0)) !! r = lv !! r);
           [eapply defined_nowhere_stationary_aux_visit_phibloc; eauto |
            assert ( (get_lv (visit_instr
-                               (visit_phibloc cs stin bot n0) n0 i)) !!2 r =
-                    (get_lv (visit_phibloc cs stin bot n0)) !!2 r);
+                               (visit_phibloc cs stin bot n0) n0 i)) !! r =
+                    (get_lv (visit_phibloc cs stin bot n0)) !! r);
                   [eapply defined_nowhere_stationary_aux_visit_instr; eauto |
                     assert ((get_lv
                                (visit_instr
@@ -823,10 +820,10 @@ Module DataflowSolver.
     end.
     assert (forall l' acc,
               (exists pref, pref ++ l' = l) ->
-              (get_lv (fold_left fn l' acc)) !!2 r = (get_lv acc) !!2 r) as Hbi.
+              (get_lv (fold_left fn l' acc)) !! r = (get_lv acc) !! r) as Hbi.
     + induction l'; intros; simpl in *.
       - tauto.
-      - assert ((get_lv (fn acc a)) #2 r = (get_lv acc) #2 r) as Hsame.
+      - assert ((get_lv (fn acc a)) # r = (get_lv acc) # r) as Hsame.
         * unfold fn. unfold visit_ssainstr.
           flatten;
           try (unfold l in *; subst;
@@ -858,22 +855,22 @@ Module DataflowSolver.
     PrimIter.iterate
       _ _ step (mkConstantState (make_du_chain f)
                                 (make_predecessors (fn_code f) successors_instr), is) = Some (Some (lv, es)) ->
-     lv #2 r = initial_values #2 r.
+     lv # r = initial_values # r.
   Proof.
     intros.
     set (P (s:const_state*state) :=
            forall cs st, s = (cs, st) ->
-                         ((get_lv st) #2 r = initial_values #2 r)
+                         ((get_lv st) # r = initial_values # r)
                          /\ (maps_into_function f (cs_duc cs))).
     set (Q (o: option (lattice_values * exec_state)) :=
-           forall v es', o = Some (v, es') -> v #2 r = initial_values #2 r).
+           forall v es', o = Some (v, es') -> v # r = initial_values # r).
     assert (Q (Some (lv, es))).
     {
       eapply PrimIter.iterate_prop with (step := step) (P := P) ; unfold P, Q.
       + intro. destruct (step a) eqn:eq.
         unfold step in eq. intros. subst.
         flatten eq.
-        assert ((get_lv ((nil, i, v, es'):state)) #2 r =  v #2 r) by reflexivity.
+        assert ((get_lv ((nil, i, v, es'):state)) # r =  v # r) by reflexivity.
         destruct (H2 c (nil, i, v, es')) as [Hlv Hduc]; auto.
 
         intros. subst. destruct a as (cs0, st0).
@@ -893,24 +890,24 @@ Module DataflowSolver.
 
   
   Lemma defined_nowhere_becomes_top: forall r,
-    not_defined r -> initial_values #2 r = L.bot -> (fst (fixpoint f)) #2 r = L.top.
+    not_defined r -> initial_values # r = L.bot -> (fst (fixpoint f)) # r = L.top.
   Proof.
     intros.
     unfold fixpoint in *.
-    flatten; subst; simpl; try (rewrite P2Map.gi; eauto).
-    assert (l #2 r = initial_values #2 r)
+    flatten; subst; simpl; try (rewrite PMap.gi; eauto).
+    assert (l # r = initial_values # r)
     by (eapply defined_nowhere_stationary with (3:= Eq0); eauto).
-    rewrite P2Map.gmap.
+    rewrite PMap.gmap.
     rewrite H1. rewrite H0. auto.
   Qed.
 
   Lemma defined_nowhere_stays_top: forall r lv,
-    not_defined r -> initial_values #2 r = L.top -> lv = fst (fixpoint f) -> lv #2 r = L.top.
+    not_defined r -> initial_values # r = L.top -> lv = fst (fixpoint f) -> lv # r = L.top.
   Proof.
     intros; unfold fixpoint in *.
-    flatten H1 ; subst; try (simpl ; rewrite P2Map.gi;  eauto).
-    simpl. rewrite P2Map.gmap.
-    assert (l !!2 r = initial_values !!2 r)
+    flatten H1 ; subst; try (simpl ; rewrite PMap.gi;  eauto).
+    simpl. rewrite PMap.gmap.
+    assert (l !! r = initial_values !! r)
       by (eapply defined_nowhere_stationary; eauto).
     rewrite H0 in *.
     rewrite H1.
@@ -918,12 +915,12 @@ Module DataflowSolver.
   Qed.
 
   Lemma vals_never_bot: forall r,
-                          (fst (fixpoint f)) #2 r <> L.bot.
+                          (fst (fixpoint f)) # r <> L.bot.
   Proof.
     intros. unfold fixpoint in *.
     flatten; subst; simpl;
-    try (intro contra; rewrite P2Map.gi in contra; discriminate).
-    rewrite P2Map.gmap; flatten; intuition; try discriminate.
+    try (intro contra; rewrite PMap.gi in contra; discriminate).
+    rewrite PMap.gmap; flatten; intuition; try discriminate.
     rewrite H in Eq1. discriminate.
   Qed.
 
@@ -960,7 +957,7 @@ Section Opt.
  Definition handle_instr (i: instruction) res : option (reg * AVal.t) :=
    match i with
      | Iop op regs r _ =>
-       let vs := List.map (fun r => (P2Map.get r res)) regs in
+       let vs := List.map (fun r => (PMap.get r res)) regs in
        Some (r,  eval_static_operation op vs)
      | Iload _ _ _ r _ | Icall _ _ _ r _ | Ibuiltin _ _ (BR r) _ => Some (r, AVal.top)
      | _ => None
@@ -968,13 +965,13 @@ Section Opt.
 
  Definition initial f :=
    List.fold_left
-     (fun vals r => P2Map.set r AVal.top vals)
+     (fun vals r => PMap.set r AVal.top vals)
      (fn_params f)
-     (P2Map.init AVal.bot).
+     (PMap.init AVal.bot).
 
  Definition fixpoint f:=
    let fp := (DataflowSolver.fixpoint f handle_instr (initial f) f) in
-   ((fun r => P2Map.get r (fst fp)),snd fp).
+   ((fun r => PMap.get r (fst fp)),snd fp).
 
  Definition const_for_result (a: aval) : option operation :=
   match a with

@@ -42,7 +42,7 @@ Lemma handle_phi_block_spec_plt_arg_last :
   phicode2 ! pc = Some phib' ->
   In (Iphi args' dst') phib' ->
   In arg' args' ->
-  Plt (fst arg') fs_last.
+  Plt arg' fs_last.
 Proof.
   intros until parcode2.
   intro H; induction H; intros.
@@ -51,13 +51,13 @@ Proof.
     inv H1.
   + inv PBSPECnew_phi.
     rewrite PTree.gss in H1.
-    case_eq (list_eq_dec p2eq args' args'0); intros.
+    case_eq (list_eq_dec peq args' args'0); intros.
     - rewrite e in *.
       apply Plt_Ple_trans with fs_next; auto.
       eapply gen_new_regs_spec_max_in; eauto.
       eauto.
     - assert (RWphib': phib'
-        = Iphi args' dst' :: phib'0) by congruence.
+        = Iphi args' fs_init :: phib'0) by congruence.
       rewrite RWphib' in *.
       simpl in H2.
       destruct H2; try congruence.
@@ -74,7 +74,7 @@ Lemma handle_phi_block_spec_plt_dst_last :
   phicode1 ! pc = Some nil ->
   phicode2 ! pc = Some phib' ->
   In (Iphi args' dst') phib' ->
-  Plt (fst dst') fs_last.
+  Plt dst' fs_last.
 Proof.
   intros until parcode2.
   intro H; induction H; intros.
@@ -83,13 +83,13 @@ Proof.
     inv H1.
   + inv PBSPECnew_phi.
     rewrite PTree.gss in H1.
-    case_eq (p2eq dst' dst'0); intros.
+    case_eq (peq fs_init dst'0); intros.
     - rewrite e in *.
-      apply Plt_Ple_trans with (Pos.succ (fst dst'0)).
+      apply Plt_Ple_trans with (Pos.succ dst'0).
       apply Plt_succ.
       apply Ple_trans with fs_next; eauto.
     - assert (RWphib': phib'
-        = Iphi args' dst' :: phib'0) by congruence.
+        = Iphi args' fs_init :: phib'0) by congruence.
       rewrite RWphib' in *.
       simpl in H2.
       destruct H2; try congruence.
@@ -112,7 +112,7 @@ Inductive interval_freshness (phicode : phicode)
     (forall args dst arg,
       In (Iphi args dst) phib ->
       In arg (dst :: args) ->
-      Ple r1 (fst arg) /\ Ple (fst arg) r2) ->
+      Ple r1 arg /\ Ple arg r2) ->
     interval_freshness phicode pc r1 r2.
 
 Inductive disjoint_phis (phicode : phicode)
@@ -139,11 +139,11 @@ Proof.
   intros.
   inv H0. inv H1.
   econstructor; eauto; intros.
-  assert(Ple (fst arg) r2).
+  assert(Ple arg r2).
   exploit H4; go. tauto.
-  assert(Ple r3 (fst arg')).
+  assert(Ple r3 arg').
   exploit H6; go. tauto.
-  assert(Plt (fst arg) (fst arg')).
+  assert(Plt arg arg').
   apply Ple_Plt_trans with (q := r2). auto.
   apply Plt_Ple_trans with (q := r3). auto.
   auto.
@@ -334,7 +334,7 @@ Lemma mfold_copy_node_other_preserves_phicode :
   normalized_jp f ->
   ~ In pc l ->
   NoDup l ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s)) ->
+  Plt (get_maxreg f) (next_fresh_reg s) ->
   mfold_unit
     (copy_node (make_predecessors (fn_code f) successors_instr)
       (fn_code f) (fn_phicode f)) l s = OK u s' INCR ->
@@ -370,7 +370,7 @@ Proof.
     }
     eapply IHl; eauto.
     inv HNoDup; auto.
-    apply Plt_Ple_trans with (q := fst (next_fresh_reg s)).
+    apply Plt_Ple_trans with (q :=  (next_fresh_reg s)).
     auto.
     inversion INCR0; auto.
 Qed.
@@ -395,7 +395,7 @@ Lemma mfold_copy_node_nophib_preserves_phicode :
   wf_ssa_function f ->
   normalized_jp f ->
   NoDup l ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s)) ->
+  Plt (get_maxreg f) (next_fresh_reg s) ->
   mfold_unit
     (copy_node (make_predecessors (fn_code f) successors_instr)
       (fn_code f) (fn_phicode f)) l s = OK u s' INCR ->
@@ -413,7 +413,7 @@ Proof.
     eapply copy_node_nophib_preserves_phicode; eauto.
     inv HNoDup.
     eapply IHl; eauto.
-    apply Plt_Ple_trans with (q := fst (next_fresh_reg s)).
+    apply Plt_Ple_trans with (q :=  (next_fresh_reg s)).
     auto.
     inversion INCR0; auto.
   + replace ((st_phicode s') ! pc)
@@ -437,7 +437,7 @@ Proof.
       rewrite EQs. auto.
     - inv HNoDup.
       eapply IHl; eauto.
-      apply Plt_Ple_trans with (q := fst (next_fresh_reg s)).
+      apply Plt_Ple_trans with (q := (next_fresh_reg s)).
       auto.
       inversion INCR0; auto.
 Qed.
@@ -445,14 +445,14 @@ Qed.
 Lemma handle_phi_real_block_does_incr :
   forall l phi phib pc s x s' INCR,
   handle_phi_block l (phi :: phib) pc s = OK x s' INCR ->
-  Plt (fst (next_fresh_reg s)) (fst (next_fresh_reg s')).
+  Plt (next_fresh_reg s) (next_fresh_reg s').
 Proof.
   intros.
   simpl in *.
   flatten H.
   monadInv H.
   apply Plt_Ple_trans with
-    (q := fst (next_fresh_reg s0)).
+    (q := (next_fresh_reg s0)).
   unfold gen_newreg in EQ.
   flatten EQ. simpl. apply Plt_succ.
   inversion INCR1; auto.
@@ -468,10 +468,10 @@ Lemma mfold_copy_node_correct_more :
     (make_predecessors (fn_code f) successors_instr)
     (fn_code f) (fn_phicode f))
     l s = OK u s' incr ->
-  Plt (get_maxreg f) (fst (next_fresh_reg s)) ->
+  Plt (get_maxreg f) (next_fresh_reg s) ->
   NoDup l ->
   chained_intervals (filter (has_really_phiblock f) l) (st_phicode s')
-    (fst (next_fresh_reg s)) (fst (next_fresh_reg s')).
+    (next_fresh_reg s) (next_fresh_reg s').
 Proof.
   intros f WF Hnorm.
   induction l; intros.
@@ -488,14 +488,14 @@ Proof.
       unfold copy_node in EQ.
       flatten EQ; [ idtac | unfold error in EQ; congruence].
       monadInv EQ.
-      assert(Hnot1: fst (next_fresh_reg s0) <> 1%positive).
+      assert(Hnot1: (next_fresh_reg s0) <> 1%positive).
       {
         assert
-          (Plt (fst (next_fresh_reg s2)) (fst (next_fresh_reg s0))).
+          (Plt (next_fresh_reg s2) (next_fresh_reg s0)).
         eapply handle_phi_real_block_does_incr; eauto.
-        assert(Plt (get_maxreg f) (fst (next_fresh_reg s2))).
-        apply Plt_Ple_trans with (q := fst (next_fresh_reg s)); auto.
-        apply Ple_trans with (q := fst (next_fresh_reg s1)); auto.
+        assert(Plt (get_maxreg f) (next_fresh_reg s2)).
+        apply Plt_Ple_trans with (q := (next_fresh_reg s)); auto.
+        apply Ple_trans with (q := (next_fresh_reg s1)); auto.
         inversion INCR1; auto.
         inversion INCR3; auto.
         unfold not; intros Hun.
@@ -504,8 +504,8 @@ Proof.
       }
       constructor 2
         with (phicode1 := (st_phicode s0))
-        (init := fst (next_fresh_reg s0))
-        (next := Pos.pred (fst (next_fresh_reg s0))).
+        (init := (next_fresh_reg s0))
+        (next := Pos.pred (next_fresh_reg s0)).
       - (* Maintenant, faut sortir handle_phi_block *)
         exploit handle_phi_block_spec_from_handle_phi_block; eauto.
         intros Hblockspec.
@@ -519,8 +519,8 @@ Proof.
         destruct HEphib' as [phib' Hphib'].
         apply interval_freshness_intros with (phib := phib'); auto.
         {
-          apply Ple_trans with (q := fst (next_fresh_reg s2)).
-          apply Ple_trans with (q := fst (next_fresh_reg s1)).
+          apply Ple_trans with (q := (next_fresh_reg s2)).
+          apply Ple_trans with (q := (next_fresh_reg s1)).
           inversion INCR1; go.
           inversion INCR3; go.
           apply Plt_Ple_succ.
@@ -529,16 +529,16 @@ Proof.
         }
         intros.
         split.
-        apply Ple_trans with (q := fst (next_fresh_reg s2)).
-        apply Ple_trans with (q := fst (next_fresh_reg s1)).
+        apply Ple_trans with (q := (next_fresh_reg s2)).
+        apply Ple_trans with (q := (next_fresh_reg s1)).
         inversion INCR1; go.
         inversion INCR3; go.
-        case_eq(p2eq arg dst); intros.
+        case_eq(peq arg dst); intros.
         rewrite e.
         eapply handle_phi_block_spec_ple_init_dst; eauto.
         inv H2; go.
         eapply handle_phi_block_spec_ple_init_arg; eauto.
-        case_eq(p2eq arg dst); intros.
+        case_eq(peq arg dst); intros.
         rewrite e.
         apply Plt_Ple_succ.
         rewrite Pos.succ_pred.
@@ -548,14 +548,14 @@ Proof.
         eapply handle_phi_block_spec_plt_arg_last; eauto.
         inv H2; go. congruence.
       - eapply IHl; eauto.
-        apply Plt_Ple_trans with (q := fst (next_fresh_reg s)).
+        apply Plt_Ple_trans with (q := (next_fresh_reg s)).
         auto. inversion INCR; auto.
         inv H1; auto.
       - inv H1.
         unfold has_really_phiblock in Eq.
         flatten Eq.
         eapply mfold_copy_node_other_preserves_phicode; eauto.
-        apply Plt_Ple_trans with (q := fst (next_fresh_reg s)).
+        apply Plt_Ple_trans with (q := (next_fresh_reg s)).
         auto. inversion INCR; auto.
       - rewrite <- Pos.succ_pred.
         apply Plt_succ. 
@@ -563,14 +563,14 @@ Proof.
     }
     unfold has_really_phiblock in Eq.
     flatten Eq.
-    - assert(Ple (fst (next_fresh_reg s)) (fst (next_fresh_reg s0))).
+    - assert(Ple (next_fresh_reg s) (next_fresh_reg s0)).
       inversion INCR; auto.
       assert(
         chained_intervals (filter (has_really_phiblock f) l)
-          (st_phicode s') (fst (next_fresh_reg s0))
-          (fst (next_fresh_reg s'))).
+          (st_phicode s') (next_fresh_reg s0)
+          (next_fresh_reg s')).
       eapply IHl; auto. eauto.
-      apply Plt_Ple_trans with (q := fst (next_fresh_reg s)); auto.
+      apply Plt_Ple_trans with (q := next_fresh_reg s); auto.
       inv H1; auto.
       eapply chained_intervals_left_prolonged; eauto.
     - unfold copy_node in EQ.
@@ -657,14 +657,12 @@ Proof.
   induction l; intros; simpl in *.
   go.
   flatten H.
-  case_eq(p2eq a r); intros.
+  case_eq (peq a r); intros.
   + left; auto.
   + right.
     eapply IHl; eauto.
     unfold not; intros.
     exploit SSARegSet.add_3; eauto.
-    unfold not; intros.
-    destruct a; destruct r; simpl in *; destruct H4; go.
 Qed.
 
 Fixpoint check_nodup_in_phib phib visited :=
@@ -699,15 +697,14 @@ Proof.
   + exploit (IHl (reg_use a visited) (reg_use a visited'));
       eauto; intros.
     {
-      case_eq(p2eq a r); intros.
+      case_eq(peq a r); intros.
       - rewrite e in *.
         eapply SSARegSet.add_1; eauto.
       - eapply SSARegSet.add_2; eauto.
         assert(Hin: SSARegSet.In r visited).
         eapply SSARegSet.add_3; eauto.
         unfold not; intros; destruct a; destruct r; intuition go.
-        auto.
-    }
+        }
     case_eq(SSARegSet.mem a visited'); eauto.
 Qed.
 
@@ -721,7 +718,7 @@ Proof.
   flatten; flatten H0.
   + apply IHphib with (visited' := t0); eauto.
     intros.
-    case_eq(p2eq r0 r); intros.
+    case_eq(peq r0 r); intros.
     - rewrite e in *.
       eapply check_nodup_in_reglist_correct_2aux; eauto.
       eapply SSARegSet.add_1; eauto.
@@ -734,7 +731,6 @@ Proof.
       unfold not; intros.
       apply H4.
       eapply SSARegSet.add_3 in H5; eauto.
-      intro Hcont; destruct r, r0 ; intuition; go.
       eapply check_nodup_in_reglist_correct_2aux; eauto.
       eapply SSARegSet.add_2; eauto.
   + exfalso.
@@ -747,14 +743,13 @@ Proof.
     exploit (check_nodup_in_reglist_false l (reg_use r visited)
       (reg_use r visited')); eauto; intros. 
     {
-      case_eq(p2eq r0 r); intros.
+      case_eq(peq r0 r); intros.
       - rewrite e in *.
         eapply SSARegSet.add_1; eauto.
       - eapply SSARegSet.add_2; eauto.
         assert(SSARegSet.In r0 visited).
         eapply SSARegSet.add_3; eauto.
         unfold not; intros; destruct r; destruct r0; intuition go.
-        auto.
     }
     destruct H1; congruence.
 Qed.
@@ -780,7 +775,7 @@ Proof.
       with (visited' := t); eauto.
     intros.
     eapply check_nodup_in_reglist_correct_2aux; eauto.
-    case_eq(p2eq r0 r); intros.
+    case_eq(peq r0 r); intros.
     - rewrite e in *.
       eapply SSARegSet.add_1; eauto.
     - eapply SSARegSet.add_2; eauto.
@@ -809,7 +804,7 @@ Proof.
       with (visited' := t); eauto.
     intros.
     eapply check_nodup_in_reglist_correct_2aux; eauto.
-    case_eq(p2eq r0 r); intros.
+    case_eq(peq r0 r); intros.
     - rewrite e in *.
       eapply SSARegSet.add_1; eauto.
     - eapply SSARegSet.add_2; eauto.
@@ -1015,7 +1010,6 @@ Definition get_tf s f :=
      CSSApar.fn_code := fn_code f;
      CSSApar.fn_phicode := st_phicode s;
      fn_parcopycode := st_parcopycode s;
-     CSSApar.fn_max_indice := fn_max_indice f;
      CSSApar.fn_entrypoint := fn_entrypoint f |}.
 
 Lemma cfgeq_to_star :
@@ -1340,7 +1334,7 @@ Lemma use_code_plemaxreg:
   forall f r pc,
   use_code f r pc ->
   wf_ssa_function f ->
-  Ple (fst r) (get_maxreg f).
+  Ple r (get_maxreg f).
 Proof.
   intros.
   inv H;
@@ -1371,7 +1365,7 @@ Lemma assigned_code_plemaxreg:
   forall f r pc,
   assigned_code_spec (fn_code f) pc r ->
   wf_ssa_function f ->
-  Ple (fst r) (get_maxreg f).
+  Ple r (get_maxreg f).
 Proof.
   intros.
   inv H;
@@ -1407,7 +1401,7 @@ Lemma assigned_phi_pltmaxreg_r:
   normalized_jp f ->
   assigned_phi_spec (CSSApar.fn_phicode tf) pc r ->
   wf_ssa_function f ->
-  Plt (get_maxreg f) (fst r).
+  Plt (get_maxreg f) r.
 Proof.
   intros f tf r pc Htrans Hnorm Hphi WF.
   exploit transl_function_spec_ok; eauto.
@@ -1439,7 +1433,7 @@ Proof.
   destruct H0.
   assert(EQphibs: phiinstr = phib') by go.
   rewrite EQphibs in *.
-  assert(Plt (get_maxreg f) (fst r)).
+  assert(Plt (get_maxreg f) r).
   eapply equiv_phib_spec_plt_maxreg_phib'dst; eauto.
   auto.
 Qed.
@@ -1453,7 +1447,7 @@ Lemma assigned_parc_pltmaxreg_notjp:
   check_fn_parcbjp tf = true ->
   assigned_parcopy_spec (CSSApar.fn_parcopycode tf) pc r ->
   ~ join_point pc f ->
-  Plt (get_maxreg f) (fst r).
+  Plt (get_maxreg f) r.
 Proof.
   intros f tf r pc Htrans WF Hnorm Checkinop Checkjp Hassign Hnotjp.
   exploit transl_function_spec_ok; eauto.
@@ -1764,7 +1758,7 @@ Lemma phib_plemaxreg :
   transl_function f = Errors.OK tf ->
   wf_ssa_function f ->
   assigned_phi_spec (fn_phicode f) pc r ->
-  Ple (fst r) (get_maxreg f).
+  Ple r (get_maxreg f).
 Proof.
   intros until pc.
   intros Htrans WF Hassign.
@@ -1875,12 +1869,12 @@ Qed.
 
 Lemma Ple_maxreg_and_maxreg_Plt :
   forall (r : reg) maxreg,
-  Ple (fst r) maxreg ->
-  Plt maxreg (fst r) ->
+  Ple r maxreg ->
+  Plt maxreg r ->
   False.
 Proof.
   intros.
-  assert(Hpltsame: Plt (fst r) (fst r)).
+  assert(Hpltsame: Plt r r).
   apply Ple_Plt_trans with (q := maxreg).
   go. go.
   contradict Hpltsame.
@@ -1919,8 +1913,7 @@ Proof.
   unfold init_state in *.
 
   exploit mfold_copy_node_correct_more; eauto.
-  assert (RWinitreg: next_fresh_reg s =
-    (Pos.succ (get_maxreg f), 1%positive))
+  assert (RWinitreg: next_fresh_reg s = Pos.succ (get_maxreg f))
     by go.
   rewrite RWinitreg. simpl.
   apply Plt_succ.
@@ -1950,12 +1943,12 @@ Proof.
       apply fn_phicode_inv; auto.
       intros Hassign.
       exploit assigned_phi_pltmaxreg_r; eauto; intros.
-      assert(Ple (fst r) (get_maxreg f)).
+      assert(Ple  r (get_maxreg f)).
       eapply phib_plemaxreg; eauto.
       eapply Ple_maxreg_and_maxreg_Plt; eauto.
     - simpl in *.
       exploit assigned_phi_pltmaxreg_r; eauto; intros.
-      assert(Ple (fst r) (get_maxreg f)).
+      assert(Ple r (get_maxreg f)).
       exploit assigned_parcjp_assigned_phi; eauto.
       apply fn_phicode_inv; go.
       rewrite exists_phib_iff; go. simpl. go.
@@ -2000,7 +1993,7 @@ Proof.
     exploit equiv_phib_spec_correct; eauto; intros.
     eapply really_parcb_really_phib'; go.
     destruct Hin as [args' [dst' [Hnth Hin]]].
-    case_eq(p2eq dst' r); intros.
+    case_eq(peq dst' r); intros.
     + rewrite e in *.
       assert(EQargs: args = args').
       {
@@ -2178,9 +2171,7 @@ Proof.
   unfold init_state in *.
 
   exploit mfold_copy_node_correct_more; eauto.
-  assert (RWinitreg: next_fresh_reg s =
-    (Pos.succ (get_maxreg f), 1%positive))
-    by go.
+  assert (RWinitreg: next_fresh_reg s = Pos.succ (get_maxreg f)) by go.
   rewrite RWinitreg. simpl.
   apply Plt_succ.
   flatten Eq.
@@ -2235,7 +2226,7 @@ Proof.
       inv fn_ssa.
       specialize (H1 r pc pc').
       intuition.
-    - assert(Plt (get_maxreg f) (fst r)).
+    - assert(Plt (get_maxreg f) r).
       { apply assigned_parc_pltmaxreg_notjp
           with (tf := get_tf s' f) (pc := pc); eauto.
         unfold not; intros.
@@ -2249,11 +2240,11 @@ Proof.
       apply fn_phicode_inv; auto.
       rewrite exists_phib_iff; go. go.
       intros Hassign.
-      assert(Ple (fst r) (get_maxreg f)).
+      assert(Ple r (get_maxreg f)).
       eapply phib_plemaxreg; eauto.
       exfalso.
       eapply Ple_maxreg_and_maxreg_Plt; eauto.
-    - assert(Plt (get_maxreg f) (fst r)).
+    - assert(Plt (get_maxreg f) r).
       { apply assigned_parc_pltmaxreg_notjp
           with (tf := get_tf s' f) (pc := pc'); eauto.
         unfold not; intros.
@@ -2267,7 +2258,7 @@ Proof.
       eapply assigned_parcjp_assigned_phi; eauto.
       apply fn_phicode_inv; auto.
       rewrite exists_phib_iff; go. go.
-      assert(Ple (fst r) (get_maxreg f)).
+      assert(Ple r (get_maxreg f)).
       eapply phib_plemaxreg; eauto.
       exfalso.
       eapply Ple_maxreg_and_maxreg_Plt; eauto.
@@ -2379,11 +2370,11 @@ Proof.
   + intros. simpl in *.
     unfold not; intros.
     exploit assigned_phi_pltmaxreg_r; eauto; intros.
-    assert(Ple (fst r) (get_maxreg f)).
+    assert(Ple r (get_maxreg f)).
     eapply assigned_code_plemaxreg; eauto.
     eapply Ple_maxreg_and_maxreg_Plt; eauto.
   + intros; simpl in *.
-    assert(Ple (fst r) (get_maxreg f)).
+    assert(Ple r (get_maxreg f)).
     eapply assigned_code_plemaxreg; eauto; intros.
     assert(Hjpnotjp: join_point pc' f \/ ~ join_point pc' f).
     apply classic.
@@ -2392,13 +2383,13 @@ Proof.
     - exploit assigned_parcjp_assigned_phi; eauto; intros.
       induction WF. induction fn_ssa.
       specialize (H r pc' pc). intuition.
-    - assert(Plt (get_maxreg f) (fst r)).
+    - assert(Plt (get_maxreg f) r).
       eapply assigned_parc_pltmaxreg_notjp; eauto.
       eapply Ple_maxreg_and_maxreg_Plt; eauto.
   + intros; simpl in *.
     unfold not; intros.
     exploit assigned_phi_pltmaxreg_r; eauto; intros.
-    assert(Ple (fst r) (get_maxreg f)).
+    assert(Ple r (get_maxreg f)).
     eapply assigned_code_plemaxreg; eauto.
     eapply Ple_maxreg_and_maxreg_Plt; eauto.
   + intros; simpl in *.
@@ -2406,7 +2397,7 @@ Proof.
     eapply notassign_phi_and_parc; eauto.
   + intros; simpl in *.
     unfold not; intros Hnotcode.
-    assert(Ple (fst r) (get_maxreg f)).
+    assert(Ple r (get_maxreg f)).
     eapply assigned_code_plemaxreg; eauto; intros.
     assert(Hjpnotjp: join_point pc f \/ ~ join_point pc f).
     apply classic.
@@ -2414,7 +2405,7 @@ Proof.
     - exploit assigned_parcjp_assigned_phi; eauto; intros.
       induction WF. induction fn_ssa.
       specialize (H r pc pc'). intuition.
-    - assert(Plt (get_maxreg f) (fst r)).
+    - assert(Plt (get_maxreg f) r).
       eapply assigned_parc_pltmaxreg_notjp; eauto.
       eapply Ple_maxreg_and_maxreg_Plt; eauto.
   + intros; simpl in *.
@@ -2729,7 +2720,7 @@ Qed.
 Lemma param_ple_maxreg :
   forall x f,
   In x (fn_params f) ->
-  Ple (fst x) (get_maxreg f).
+  Ple x (get_maxreg f).
 Proof.
   intros.
   unfold get_maxreg.
@@ -2747,7 +2738,7 @@ Lemma use_phib_ple_maxreg :
   forall f r pc,
   wf_ssa_function f ->
   use_phicode f r pc ->
-  Ple (fst r) (get_maxreg f).
+  Ple r (get_maxreg f).
 Proof.
   intros.
   inv H0.
@@ -2766,7 +2757,7 @@ Lemma parcb_src_ple_maxreg :
   equiv_phib_spec maxreg k phib parcb phib' parcb' ->
   forall src dst,
   In (Iparcopy src dst) parcb ->
-  Ple (fst src) maxreg.
+  Ple src maxreg.
 Proof.
   intros until parcb'.
   intros H. induction H; intros.
@@ -2855,7 +2846,7 @@ Lemma ext_params_ple_maxreg:
   forall f r,
   wf_ssa_function f ->
   ext_params f r ->
-  Ple (fst r) (get_maxreg f).
+  Ple r (get_maxreg f).
 Proof.
   intros.
   inv H0.
@@ -3327,7 +3318,7 @@ Proof.
   - induction WF.
     specialize (fn_ssa_params x).
     intuition.
-  - assert(Hple: Ple (fst x) (get_maxreg f)).
+  - assert(Hple: Ple  x (get_maxreg f)).
     eapply param_ple_maxreg; eauto.
     intros. intro Hcont. 
     exploit assigned_phi_pltmaxreg_r; eauto; intros. eauto.
@@ -3348,7 +3339,7 @@ Proof.
       specialize (fn_ssa_params x).
       intuition eauto.
     }
-    { assert(Hple: Ple (fst x) (get_maxreg f)).
+    { assert(Hple: Ple  x (get_maxreg f)).
       eapply param_ple_maxreg; eauto.
       exploit assigned_parc_pltmaxreg_notjp; eauto.
       unfold not; intros.
@@ -3403,7 +3394,7 @@ Proof.
     eapply fn_strict; eauto.
     go.
   - exploit cssa_use_code_use_code; eauto; intros Huse.
-    assert(Ple (fst x) (get_maxreg f)).
+    assert(Ple x (get_maxreg f)).
     eapply use_code_plemaxreg; eauto.
     exploit assigned_phi_pltmaxreg_r; eauto; intros.
     exfalso.
@@ -3426,7 +3417,7 @@ Proof.
     }
     {
       exploit cssa_use_code_use_code; eauto; intros Huse.
-      assert(Ple (fst x) (get_maxreg f)).
+      assert(Ple x (get_maxreg f)).
       eapply use_code_plemaxreg; eauto.
       exploit assigned_parc_pltmaxreg_notjp; eauto.
       unfold not; intros.
@@ -3491,7 +3482,7 @@ Proof.
       eapply join_points_preserved; eauto.
       eapply fn_phicode_inv; eauto.
       intros Hassignphi.
-      assert(Hple: Ple (fst x) (get_maxreg f)).
+      assert(Hple: Ple x (get_maxreg f)).
       eapply ext_params_ple_maxreg; eauto.
       eapply cssa_ext_params_ext_params; eauto.
       exploit assigned_phi_pltmaxreg_r; eauto; intros.
@@ -3518,7 +3509,7 @@ Proof.
       eapply join_points_preserved; eauto.
       intros Hassign.
       exploit assigned_phi_pltmaxreg_r; eauto; intros.
-      assert(Ple (fst x) (get_maxreg f)).
+      assert(Ple x (get_maxreg f)).
       eapply assigned_code_plemaxreg; eauto.
       exfalso.
       eapply Ple_maxreg_and_maxreg_Plt; eauto. }
@@ -3560,7 +3551,7 @@ Proof.
       apply no_successive_jp
       with (f := f) (pc := u0) (pc' := pc'); eauto.
       intros use_phi.
-      assert(Hple: Ple (fst x) (get_maxreg f)).
+      assert(Hple: Ple x (get_maxreg f)).
       eapply use_phib_ple_maxreg; eauto.
       exploit assigned_phi_pltmaxreg_r; eauto; intros.
       exfalso.
@@ -3591,7 +3582,7 @@ Proof.
       apply no_successive_jp
       with (f := f) (pc := u0) (pc' := pc'); eauto.
       intros use_phi.
-      assert(Hple: Ple (fst x) (get_maxreg f)).
+      assert(Hple: Ple x (get_maxreg f)).
       eapply use_phib_ple_maxreg; eauto.
       exploit (check_parcborparcb'_correct f (get_tf s' f) d); eauto.
       inv H0; go.
@@ -3661,7 +3652,7 @@ Proof.
     apply fn_phicode_inv; auto.
     rewrite exists_phib_iff; eauto.
     intros Hassign.
-    assert(Ple (fst x) (get_maxreg f)).
+    assert(Ple  x (get_maxreg f)).
     eapply phib_plemaxreg; eauto.
     exploit wf_cssa_extrainv_1; eauto.
     eapply wf_fn_phicode_inv; eauto.
@@ -3701,7 +3692,7 @@ Proof.
     eapply index_preds_pc_inj; eauto.
     assert(EQ2: parcb0 = parcb) by go.
     rewrite EQ2 in *.
-    assert(Ple (fst x) (get_maxreg f)).
+    assert(Ple  x (get_maxreg f)).
     eapply parcb_src_ple_maxreg; eauto.
     eapply Ple_maxreg_and_maxreg_Plt; eauto.
 Qed.
@@ -3746,6 +3737,8 @@ Qed.
 
 End WF_CSSA.
 
+Require Import Errors.
+
 Lemma wf_cssa_tprog :
   forall prog tprog,
   wf_ssa_program prog ->
@@ -3762,7 +3755,7 @@ Proof.
   - inv H1.      
     + inv H. inv H2.
       { destruct f1 ; simpl in * ; try constructor; auto.
-        * Require Import Errors. monadInv H5. 
+        * monadInv H5. 
           constructor.
           eapply wf_cssa_tf; eauto.
           destruct a1, g.

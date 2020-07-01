@@ -14,6 +14,7 @@ Require Import Kildall.
 Require Import KildallComp.
 Require Import DLib.
 Require Import Classical.
+Require Import Registers.
 
 Section WF_CSSA.
 
@@ -335,7 +336,7 @@ Proof.
       inv H2; try congruence;
     contradict NEQ;
     eapply Dom.dom_entry; eauto; intros;
-    apply ident_eq. (* NOTE: faire Set Printing All pour y voir clair *)
+    apply ident_eq. 
   - destruct (fn_entrypoint_inv f) as [[i Hi] Hnj]; auto.
     invh assigned_phi_spec. invh ex.
     elim Hnj. 
@@ -483,7 +484,7 @@ Fixpoint In_dst_parcb (r : reg) (parcb : parcopyblock) : bool :=
   match parcb with
   | nil => false
   | Iparcopy src dst :: q =>
-      if p2eq dst r
+      if peq dst r
       then true
       else In_dst_parcb r q
   end.
@@ -522,7 +523,7 @@ Fixpoint In_dst_phib (r : reg) (phib : phiblock) : bool :=
   match phib with
   | nil => false
   | Iphi args dst :: q =>
-      if p2eq dst r
+      if peq dst r
       then true
       else In_dst_phib r q
   end.
@@ -560,7 +561,7 @@ Qed.
 Fixpoint In_reg r l :=
   match l with
   | nil => false
-  | h :: t => if p2eq r h then true else In_reg r t
+  | h :: t => if peq r h then true else In_reg r t
   end.
 
 Lemma In_reg_correct_true :
@@ -589,13 +590,13 @@ Lemma phi_store_other :
   forall k rs r phib,
   (forall args dst, In (Iphi args dst) phib ->
     r <> dst) ->
-  rs !!2 r = (phi_store k phib rs) !!2 r.
+  rs !! r = (phi_store k phib rs) !! r.
 Proof.
   intros k rs r phib.
   induction phib; go.
   intros. simpl. destruct a.
   destruct (nth_error l k); go.
-  rewrite P2Map.gso; go.
+  rewrite PMap.gso; go.
 Qed.
 
 Definition phi_dst phiinstr :=
@@ -677,19 +678,19 @@ Lemma phi_store_in_aux :
   NoDup (map phi_dst phib) ->
   In (Iphi args r) phib ->
   nth_error args k = Some arg ->
-  (phi_store k phib rs) !!2 r = rs !!2 arg.
+  (phi_store k phib rs) !! r = rs !! arg.
 Proof.
   induction phib; intros.
   inv H0.
   simpl in *. flatten; destruct H0; go.
   assert(EQ1: r0 = r) by congruence. rewrite EQ1 in *.
   assert(EQ2: l = args) by congruence. rewrite EQ2 in *.
-  rewrite P2Map.gss; auto. congruence.
+  rewrite PMap.gss; auto. congruence.
   simpl in H. inv H.
   assert(Hin: In r (map phi_dst phib)).
   eapply phi_dst_in; eauto.
   assert(r <> r0) by congruence.
-  rewrite P2Map.gso; auto.
+  rewrite PMap.gso; auto.
   go.
   inv H; go.
 Qed.
@@ -700,7 +701,7 @@ Lemma phi_store_in :
   (fn_phicode f) ! pc = Some phib ->
   In (Iphi args r) phib ->
   nth_error args k = Some arg ->
-  (phi_store k phib rs) !!2 r = rs !!2 arg.
+  (phi_store k phib rs) !! r = rs !! arg.
 Proof.
   intros.
   assert(HNoDup: NoDup (map phi_dst phib)).
@@ -785,7 +786,7 @@ Proof.
   { simpl in H. contradiction. }
   simpl.
   destruct a.
-  case_eq (p2eq r r1); intros.
+  case_eq (peq r r1); intros.
   + rewrite e in *.
     exists r0. auto.
   + simpl in H.
@@ -815,23 +816,23 @@ Lemma parcb_other :
   (forall src dst,
     In (Iparcopy src dst) parcb ->
     r <> dst) ->
-  (parcopy_store parcb rs) #2 r = rs #2 r.
+  (parcopy_store parcb rs) # r = rs # r.
 Proof.
   induction parcb; auto; intros.
   simpl in *.
   flatten.
-  case_eq (p2eq r r1); intros.
+  case_eq (peq r r1); intros.
   + rewrite e in *.
     assert (r1 <> r1) by eauto.
     congruence.
-  + rewrite P2Map.gso; eauto.
+  + rewrite PMap.gso; eauto.
 Qed.
 
 Lemma parcb_store_in :
   forall parcb rs r src,
   In (Iparcopy src r) parcb ->
   NoDup (map parc_dst parcb) ->
-  (parcopy_store parcb rs) #2 r = rs #2 src.
+  (parcopy_store parcb rs) # r = rs # src.
 Proof.
   induction parcb; intros.
   + inv H.
@@ -840,13 +841,13 @@ Proof.
     destruct H.
     - assert (EQ: r1 = r) by congruence.
       rewrite EQ.
-      rewrite P2Map.gss.
+      rewrite PMap.gss.
       congruence.
     - inv H0.
       assert (In r (map parc_dst parcb)) by
         (eapply parc_dst_in; eauto).
       assert (r <> r1) by congruence.
-      rewrite P2Map.gso; auto.
+      rewrite PMap.gso; auto.
 Qed.
 
 (* Lists *)
@@ -949,7 +950,7 @@ Lemma in_parcb_dst_simul :
   forall rs (r : reg) (parcb : parcopyblock) src,
   NoDup (map parc_dst parcb) ->
   In (Iparcopy src r) parcb ->
-  (parcopy_store parcb rs) !!2 r = rs !!2 src.
+  (parcopy_store parcb rs) !! r = rs !! src.
 Proof.
   induction parcb; intros.
   { simpl in H. contradiction. }
@@ -960,9 +961,9 @@ Proof.
     assert (EQ2: r1 = r) by congruence.
     rewrite EQ1 in *. rewrite EQ2 in *.
     inv H.
-    apply P2Map.gss.
+    apply PMap.gss.
   + inv H.
-    rewrite P2Map.gso; auto.
+    rewrite PMap.gso; auto.
     unfold not in *; intros. go.
 Qed.
 

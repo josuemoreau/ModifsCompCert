@@ -46,11 +46,11 @@ Section DSD_ANALYSIS.
     eapply vmatch_ge; eauto.
   Qed.
 
-  Lemma G_top : forall f r ge sp rs, is_at_Top (A_r f) r -> G ge sp rs (A_r f r) (rs#2 r).
+  Lemma G_top : forall f r ge sp rs, is_at_Top (A_r f) r -> G ge sp rs (A_r f r) (rs# r).
   Proof.
     intros. invh is_at_Top.
     unfold G. simpl. rewrite H1. unfold AVal.top.
-    destruct (rs !!2 r) ; eapply vmatch_top ; go.
+    destruct (rs !! r) ; eapply vmatch_top ; go.
   Qed.
 
  Lemma is_at_Top_eq_is_at_Top : forall f dst x,
@@ -87,35 +87,35 @@ Section DSD_ANALYSIS.
 
   Remark params_at_top_aux: forall f,
                             forall r inilv res,
-    fold_left (fun lv r => P2Map.set r AVal.top lv) (fn_params f)  inilv = res ->
-    ((In r (fn_params f) -> res #2 r = AVal.top)
-     /\ ((~In r (fn_params f)) -> res #2 r = inilv #2 r)).
+    fold_left (fun lv r => PMap.set r AVal.top lv) (fn_params f)  inilv = res ->
+    ((In r (fn_params f) -> res # r = AVal.top)
+     /\ ((~In r (fn_params f)) -> res # r = inilv # r)).
   Proof.
     intros. subst. generalize dependent inilv.
     unfold initial.
     induction (fn_params f).
     + intros. simpl in *. intuition.
-    + intros. simpl in *. specialize (IHl (inilv #2 a <- AVal.top)).
+    + intros. simpl in *. specialize (IHl (inilv # a <- AVal.top)).
       destruct IHl.
       split.
     - intros. inv H1. 
-      destruct (in_dec p2eq r l); intuition;
+      destruct (in_dec peq r l); intuition;
       match goal with
           H: ?t = ?t' |- _ => rewrite H
-      end; apply P2Map.gss; intuition. intuition.
+      end; apply PMap.gss; intuition. intuition.
     - intros H1. intuition.
       rewrite H1.
-      apply P2Map.gso; eauto.
+      apply PMap.gso; eauto.
   Qed.
 
   Lemma params_at_top: forall f,
                             forall r,
-                         In r (fn_params f) -> (initial f) #2 r = AVal.top.
+                         In r (fn_params f) -> (initial f) # r = AVal.top.
   Proof.
     intros.
     set (lv := initial f). unfold initial in *.
     set (HH := params_at_top_aux f).
-    specialize (HH r (P2Map.init AVal.bot) lv).
+    specialize (HH r (PMap.init AVal.bot) lv).
     intuition.
   Qed.
 
@@ -124,15 +124,15 @@ Section DSD_ANALYSIS.
            ext_params f r -> is_at_Top (A_r f) r.
   Proof.
     intros.
-    destruct (in_dec p2eq r (fn_params f)).
-    + assert ((initial f) #2 r = AVal.top) by (apply params_at_top; auto).
+    destruct (in_dec peq r (fn_params f)).
+    + assert ((initial f) # r = AVal.top) by (apply params_at_top; auto).
       exploit ext_params_not_defined; eauto. intros NDEF.
       eapply DS.defined_nowhere_stays_top; eauto.
     + set (ini := initial f). unfold initial in *.
       set (HH := params_at_top_aux f).
-      specialize (HH r (P2Map.init AVal.bot) ini).
-      rewrite P2Map.gi in *.
-      assert (ini #2 r = AVal.bot) by intuition.
+      specialize (HH r (PMap.init AVal.bot) ini).
+      rewrite PMap.gi in *.
+      assert (ini # r = AVal.bot) by intuition.
       exploit ext_params_not_defined; eauto.  intros NDEF.
       eapply DS.defined_nowhere_becomes_top; eauto.
   Qed.
@@ -311,7 +311,7 @@ Proof.
   generalize FIX; intros FIX'.
   eapply DS.post_fixpoint in FIX as [Hc [Hp _]].
   unfold DS.code_post_fixpoint in *.
-  assert (AVal.ge lv !!2 res AVal.top).
+  assert (AVal.ge lv !! res AVal.top).
   { inv H1; eapply Hc; eauto; try eapply exec_exec_helper; go;
     (unfold SCCP, A_e; simpl; try rewrite FIX';auto); try congruence.
   }
@@ -323,9 +323,9 @@ Qed.
 
 
 Lemma G_list_val_list_match_approx : forall f ge sp lv es args rs,
-  G_list SCCP ge sp rs (map (A_r SCCP f) args) rs ##2 args ->
+  G_list SCCP ge sp rs (map (A_r SCCP f) args) rs ## args ->
   DS.fixpoint f handle_instr (initial f) f = (lv, es) ->
-  list_forall2 vmatch rs ##2 args lv ##2 args.
+  list_forall2 vmatch rs ## args lv ## args.
 Proof.
   induction args ; intros; go.
   simpl in *. inv H.
@@ -342,19 +342,19 @@ Lemma Iop_correct : forall (f:function) pc sf op args res pc' v rs
                     forall (WFF: wf_ssa_function f)
                            (SINV: s_inv ge (State sf f sp pc rs m)),
     (fn_code f) ! pc = Some (Iop op args res pc') ->
-    eval_operation ge sp op (rs ##2 args) m = Some v ->
+    eval_operation ge sp op (rs ## args) m = Some v ->
     gamma SCCP f ge sp pc rs ->
     exec f pc ->
     dsd f x pc' ->
-    G ge sp (rs #2 res <- v) (A_r SCCP f x) (rs #2 res <- v) !!2 x.
+    G ge sp (rs # res <- v) (A_r SCCP f x) (rs # res <- v) !! x.
 Proof.
   intros until x; intros WFF SINV CODE EVAL GAMMA EXE DSD.
-  destruct (p2eq x res).
+  destruct (peq x res).
   - subst.
-    rewrite P2Map.gss.
+    rewrite PMap.gss.
     case_eq (DataflowSolver.fixpoint f handle_instr (initial f) f).
     intros lv es FIX.
-    assert (AVal.ge (lv !!2 res) (eval_static_operation op lv ##2 args)).
+    assert (AVal.ge (lv !! res) (eval_static_operation op lv ## args)).
     { generalize FIX ; intros FIX'.
       apply DS.post_fixpoint in FIX as [Hc _].
       unfold DS.code_post_fixpoint in Hc.
@@ -363,7 +363,7 @@ Proof.
       unfold exec in EXE; simpl in *.
       rewrite FIX' in EXE. simpl in *. auto.
     }
-    assert (vmatch v (eval_static_operation op lv ##2 args)).
+    assert (vmatch v (eval_static_operation op lv ## args)).
     { exploit (all_used_approx SCCP ge f pc sp rs args); eauto.
       induction args; go.
       intros HG_list.
@@ -385,7 +385,7 @@ Proof.
         intros HTOP.
         replace (A_r SCCP f x) with ((fst (fixpoint f)) x) in * by reflexivity.
         eapply G_top; eauto.
-      * rewrite P2Map.gso; eauto.
+      * rewrite PMap.gso; eauto.
         exploit GAMMA; eauto.
       * unfold fn_code in *.
         invh assigned_code_spec; try congruence.
@@ -434,7 +434,7 @@ Proof.
           unfold SCCP, A_e ; simpl ; rewrite FIX'; go.
         + flatten H12. destruct H3 as [Hso _].
           specialize (Hso (eq_refl _)).
-          exploit (eval_static_condition_sound cond (rs##2 args) m (lv##2 args)); eauto.
+          exploit (eval_static_condition_sound cond (rs## args) m (lv## args)); eauto.
           eapply G_list_val_list_match_approx; eauto.
           eapply all_used_approx; eauto.
           induction args; go.
@@ -457,7 +457,7 @@ Proof.
           unfold SCCP, A_e ; simpl ; rewrite FIX'; go.
         + flatten H12. destruct H3 as [_ Hifnot].
           specialize (Hifnot (eq_refl _)).
-          exploit (eval_static_condition_sound cond (rs##2 args) m (lv##2 args)); eauto.
+          exploit (eval_static_condition_sound cond (rs## args) m (lv## args)); eauto.
           eapply G_list_val_list_match_approx; eauto.
           eapply all_used_approx; eauto.
           induction args; go.
@@ -481,7 +481,7 @@ Proof.
         + flatten H12. destruct H3 as [n0 [Hlv Hlistnth]].
           assert (n0 = n).
           {
-            assert (vmatch rs !!2 arg  lv !!2 arg).
+            assert (vmatch rs !! arg  lv !! arg).
             exploit used_match_approx; eauto.
             econstructor 10; eauto. intros.
             unfold G, SCCP, A_r in * ; simpl in *; auto.

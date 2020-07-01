@@ -38,13 +38,6 @@ Require Import Dom.
 
 Definition node := positive.
 
-(** Registers in SSA are of the form x_i, where x is a classical
-    register, as defined in RTL, and i is a [positive] index.  SSA
-    registers x_i and x_j represents different versions of the same
-    initial RTL register x.    
-*)
-Definition reg := (reg * positive)%type.
-
 Inductive instruction: Type :=
   | Inop: node -> instruction
       (** No operation -- just branch to the successor. *)
@@ -97,7 +90,6 @@ Inductive phiinstruction: Type :=
 (** Phi blocks are lists of phi-instructions *)
 Definition phiblock:= list phiinstruction.
 
-
 (** A function description comprises a control-flow graph (CFG)
     [fn_code] (a partial finite mapping from nodes to instructions)
     and a phi-block graph [fn_phicode] (a partial finite mapping from
@@ -112,7 +104,7 @@ Definition phiblock:= list phiinstruction.
     bound to the values of arguments at call time.  [fn_entrypoint] is
     the node of the first instruction of the function in the CFG.
     
-    [fn_max_indice] is a meta information (i.e. it doesn't influence
+    XXX [fn_max_indice] is a meta information (i.e. it doesn't influence
     the semantics of the program), representing the maximum index used
     for temporary variables. This information is used when destructing
     the SSA form back to RTL.
@@ -136,7 +128,6 @@ Record function: Type := mkfunction {
   fn_code: code;
   fn_phicode: phicode;
 
-  fn_max_indice: nat; (* XXX: try to get rid of it *)
   fn_entrypoint: node;
 
   fn_ext_params : list reg;
@@ -502,7 +493,7 @@ a function call in progress.
 [rs] is the state of registers in the calling function.
 *)
 
-Definition regset := P2Map.t val.
+Definition regset := Regmap.t val.
 
 Inductive stackframe : Type :=
   | Stackframe:
@@ -541,7 +532,7 @@ Variable ge: genv.
 Definition find_function 
       (ros: reg + ident) (rs: regset) : option fundef :=
       match ros with
-        | inl r => Genv.find_funct ge (rs #2 r)
+        | inl r => Genv.find_funct ge (rs # r)
         | inr symb =>
           match Genv.find_symbol ge symb with
             | None => None
@@ -558,7 +549,7 @@ Fixpoint phi_store k phib (rs:regset) :=
     | (Iphi args dst)::phib =>
       match nth_error args k with
         | None => (phi_store k phib rs)
-        | Some arg => (phi_store k phib rs)#2 dst <- (rs #2 arg)
+        | Some arg => (phi_store k phib rs)# dst <- (rs # arg)
       end
   end.
 
@@ -570,8 +561,8 @@ Fixpoint phi_store k phib (rs:regset) :=
 
 Fixpoint init_regs (vl: list val) (rl: list reg) {struct rl} : regset :=
   match rl, vl with
-  | r1 :: rs, v1 :: vs => P2Map.set r1 v1 (init_regs vs rs)
-  | _, _ => P2Map.init Vundef
+  | r1 :: rs, v1 :: vs => PMap.set r1 v1 (init_regs vs rs)
+  | _, _ => PMap.init Vundef
   end.
 
 Inductive step: state -> trace -> state -> Prop :=
@@ -592,21 +583,21 @@ Inductive step: state -> trace -> state -> Prop :=
 | exec_Iop:
   forall s f sp pc rs m op args res pc' v,
     (fn_code f)!pc = Some(Iop op args res pc') ->
-    eval_operation ge sp op rs##2 args m = Some v ->
+    eval_operation ge sp op rs## args m = Some v ->
     step (State s f sp pc rs m)
-    E0 (State s f sp pc' (rs#2 res <- v) m)
+    E0 (State s f sp pc' (rs#res <- v) m)
 | exec_Iload:
   forall s f sp pc rs m chunk addr args dst pc' a v,
     (fn_code f)!pc = Some(Iload chunk addr args dst pc') ->
-    eval_addressing ge sp addr rs##2 args = Some a ->
+    eval_addressing ge sp addr rs## args = Some a ->
     Mem.loadv chunk m a = Some v ->
     step (State s f sp pc rs m)
-    E0 (State s f sp pc' (rs#2 dst <- v) m)
+    E0 (State s f sp pc' (rs# dst <- v) m)
 | exec_Istore:
   forall s f sp pc rs m chunk addr args src pc' a m',
     (fn_code f)!pc = Some(Istore chunk addr args src pc') ->
-    eval_addressing ge sp addr rs##2 args = Some a ->
-    Mem.storev chunk m a rs#2 src = Some m' ->
+    eval_addressing ge sp addr rs## args = Some a ->
+    Mem.storev chunk m a rs# src = Some m' ->
     step (State s f sp pc rs m)
     E0 (State s f sp pc' rs m')
 | exec_Icall:
@@ -615,7 +606,7 @@ Inductive step: state -> trace -> state -> Prop :=
     find_function ros rs = Some fd ->
     funsig fd = sig ->
     step (State s f sp pc rs m)
-    E0 (Callstate (Stackframe res f sp pc' rs :: s) fd rs##2 args m)
+    E0 (Callstate (Stackframe res f sp pc' rs :: s) fd rs## args m)
 | exec_Itailcall:
   forall s f stk pc rs m sig ros args fd m',
     (fn_code f)!pc = Some(Itailcall sig ros args) ->
@@ -623,30 +614,30 @@ Inductive step: state -> trace -> state -> Prop :=
     funsig fd = sig ->
     Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
     step (State s f (Vptr stk (Ptrofs.zero)) pc rs m)
-    E0 (Callstate s fd rs##2 args m')
+    E0 (Callstate s fd rs## args m')
 | exec_Ibuiltin:
   forall s f sp pc rs m ef args vargs res vres pc' t m',
     (fn_code f)!pc = Some(Ibuiltin ef args res pc') ->
-    eval_builtin_args ge (fun r => rs#2 r) sp m args vargs ->
+    eval_builtin_args ge (fun r => rs# r) sp m args vargs ->
     external_call ef ge vargs m t vres m' ->
     step (State s f sp pc rs m)
-    t (State s f sp pc' (regmap2_setres _ res vres rs) m')
+    t (State s f sp pc' (regmap_setres res vres rs) m')
 | exec_Icond_true:
   forall s f sp pc rs m cond args ifso ifnot,
     (fn_code f)!pc = Some(Icond cond args ifso ifnot) ->
-    eval_condition cond rs##2 args m = Some true ->
+    eval_condition cond rs## args m = Some true ->
     step (State s f sp pc rs m)
     E0 (State s f sp ifso rs m)
 | exec_Icond_false:
   forall s f sp pc rs m cond args ifso ifnot,
     (fn_code f)!pc = Some(Icond cond args ifso ifnot) ->
-    eval_condition cond rs##2 args m = Some false ->
+    eval_condition cond rs## args m = Some false ->
     step (State s f sp pc rs m)
     E0 (State s f sp ifnot rs m)
 | exec_Ijumptable:
   forall s f sp pc rs m arg tbl n pc',
     (fn_code f)!pc = Some(Ijumptable arg tbl) ->
-    rs#2 arg = Vint n ->
+    rs# arg = Vint n ->
     list_nth_z tbl (Int.unsigned n) = Some pc' ->
     step (State s f sp pc rs m)
     E0 (State s f sp pc' rs m)
@@ -655,7 +646,7 @@ Inductive step: state -> trace -> state -> Prop :=
     (fn_code f)!pc = Some(Ireturn or) ->
     Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
     step (State s f (Vptr stk Ptrofs.zero) pc rs m)
-    E0 (Returnstate s (regmap2_optget or Vundef rs) m')
+    E0 (Returnstate s (regmap_optget or Vundef rs) m')
 | exec_function_internal:
   forall s f args m m' stk,
     Mem.alloc m 0 f.(fn_stacksize) = (m', stk) ->
@@ -674,7 +665,7 @@ Inductive step: state -> trace -> state -> Prop :=
 | exec_return:
   forall res f sp pc rs s vres m,
     step (Returnstate (Stackframe res f sp pc rs :: s) vres m)
-    E0 (State s f sp pc (rs#2 res <- vres) m).
+    E0 (State s f sp pc (rs# res <- vres) m).
 
 Hint Constructors step: core. 
 

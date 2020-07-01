@@ -40,7 +40,7 @@ Section DsdAnalysis.
 
   Inductive G : genv -> val -> regset -> approx -> val -> Prop :=
   | G_intro : forall ge sp rs r v, 
-              forall (EQ: v = rs#2 r),
+              forall (EQ: v = rs# r),
                 G ge sp rs r v.
 
   Inductive is_at_Top : result -> reg -> Prop :=
@@ -53,7 +53,7 @@ Section DsdAnalysis.
                      P2Map.init true).
 
   Let A_r f := fst (A f).
- 
+
   Lemma list_top_at_Top : 
     forall (f:function) r, 
       In r (dst_at_top (fn_ext_params f) (fn_code f)) -> is_at_Top (A_r f) r.
@@ -66,8 +66,7 @@ Section DsdAnalysis.
       rewrite forallb_forall in E3.
       set (ep:=(dst_at_top (fn_ext_params f) (fn_code f))) in *.
       assert (HH: (fst (make_repr f (extern_gvn f) ep r)) = r).
-      + apply p2eqb_true.
-        apply E3; auto.
+      + eapply proj_sumbool_true; eauto.
       + constructor; auto.
         intros r' H'.
         symmetry.
@@ -86,7 +85,7 @@ Section DsdAnalysis.
    apply fn_ext_params_complete; auto.
  Qed.
  
- Lemma G_top : forall f r ge sp rs, is_at_Top (A_r f) r -> G ge sp rs (A_r f r) (rs#2 r).
+ Lemma G_top : forall f r ge sp rs, is_at_Top (A_r f) r -> G ge sp rs (A_r f r) (rs# r).
  Proof.
    intros. invh is_at_Top.
    econstructor; eauto.
@@ -222,19 +221,20 @@ Section DsdAnalysis.
  Hint Resolve repr_spec_phicode_id: core.
 
 (* Move this *)
-Lemma p2eqb_true_iff : forall x y, 
-  p2eqb x y = true <-> x = y.
+Lemma peq_true_iff : forall x y, 
+  proj_sumbool (peq x y) = true <-> x = y.
 Proof.
-  unfold p2eqb; intros; destruct p2eq; intuition congruence.
+  unfold proj_sumbool.
+  intros; destruct peq; intuition congruence.
 Qed.
 
-(* Move this *)
+(* Move this *) 
 Ltac boolInv :=
   match goal with
   | [ H: context[op_eq _ _ = true] |- _ ] => 
       rewrite op_eq_true_iff in H; boolInv
-  | [ H: context[p2eqb _ _ = true] |- _ ] => 
-      rewrite p2eqb_true_iff in H; boolInv
+  | [ H: context[proj_sumbool (peq _ _) = true] |- _ ] => 
+      rewrite peq_true_iff in H; boolInv
   | [ H: context[_ || _ = true] |- _ ] => 
       rewrite orb_true_iff in H; boolInv
   | [ H: context[_ && _ = true] |- _ ] => 
@@ -242,15 +242,15 @@ Ltac boolInv :=
   | _ =>
       idtac
   end.
-
+  
 Lemma forall_list2_same_repr :
   forall R l args,
-    forall_list2 (fun x y : reg => p2eqb (R x) (R y)) l args = true ->
+    forall_list2 (fun x y : reg => peq (R x) (R y)) l args = true ->
     same_repr R l args.
 Proof.
   induction l; destruct args; simpl; go.
-  intros; boolInv.
-  destruct H; go.
+  intros; boolInv. 
+  destruct H; go. 
 Qed.
 
 Lemma repr_idempotent : 
@@ -320,7 +320,7 @@ Proof.
     flatten.
     + flatten Eq3.
       boolInv.
-      destruct (p2eq (fst (R r)) r); auto.
+      destruct (peq (fst (R r)) r); auto.
       destruct H3; [elim n1; auto|right].
       repeat invh and; subst.
       do 3 econstructor; split; [eauto|idtac].
@@ -366,11 +366,10 @@ Proof.
     flatten H.
     * boolInv.
       repeat invh and.
-      destruct peq; inv H1.
       assert (p0=p) by congruence; subst.
-      { econstructor; split.
-        - eapply nth_error_in; eauto.
-        - eapply forall_list2_same_repr; eauto. }
+      econstructor; split.
+      -- eapply nth_error_in; eauto.
+      -- eapply forall_list2_same_repr; eauto. 
     * destruct peq; inv H.
     * destruct peq; inv H.
   - intros r.
@@ -394,7 +393,7 @@ Proof.
   intros; constructor 2.
   unfold check_def in H.
   case_eq ((fn_code f)!pc); intros; rewrite H0 in *; try congruence.
-  destruct i; try destruct b ; try congruence; try destruct p2eq; go.
+  destruct i; try destruct b ; try congruence; try destruct peq; go.
 Qed.
 
 Lemma new_code_same_or_Iop : forall (f:function) (WF:wf_ssa_function f) pc ins,
@@ -429,7 +428,7 @@ Proof.
         simpl in H.
         assert (x=r) by (rewrite Eq0 in H; simpl in H; congruence).
         subst x.
-        destruct (p2eq r r); go.
+        destruct (peq r r); go.
       * destruct H as (pc0 & pc' & args' & T1 & T2 & T3 & T4 & T5).
         assert (fst (A f) r = x).
           unfold A; simpl; rewrite Eq0; auto.
@@ -693,19 +692,19 @@ Qed.
 Lemma Iop_correct : forall f (WF: wf_ssa_function f) pc sf op args res pc' v rs ge sp m x,
                     forall (SINV: s_inv ge (State sf f sp pc rs m)),
                       (fn_code f) ! pc = Some (Iop op args res pc') ->
-                      eval_operation ge sp op rs ##2 args m = Some v ->
+                      eval_operation ge sp op rs ## args m = Some v ->
                       gamma GVN f ge sp pc rs ->
                       exec  f pc ->
                       dsd f x pc' ->
-                      G ge sp rs #2 res <- v (A_r f x) (rs #2 res <- v) !!2 x.
+                      G ge sp rs # res <- v (A_r f x) (rs # res <- v) !! x.
 Proof.
   intros. 
-  destruct (p2eq x res).
+  destruct (peq x res).
   - subst. 
-    rewrite P2Map.gss; eauto.
-    destruct (p2eq res (A_r f res)).
+    rewrite PMap.gss; eauto.
+    destruct (peq res (A_r f res)).
     * rewrite <- e. econstructor; eauto.
-      rewrite P2Map.gss; eauto.
+      rewrite PMap.gss; eauto.
     * destruct (GVN_spec_True f WF) as [Hcode _]. 
       specialize Hcode with pc.
       unfold repr_spec_code in Hcode.
@@ -714,15 +713,15 @@ Proof.
         - inv Htop; congruence.
         - repeat invh ex ; repeat invh and.
           econstructor; eauto.
-          rewrite P2Map.gso; auto.
+          rewrite PMap.gso; auto.
           
           assert (HE:[f,ge,sp,rs]|=(A_r f res)==(Iop op x1 (A_r f res) x0))
             by (inv SINV; eapply SINV0 ; eauto). 
           inv HE. invh SSAinv.eval.
           rewrite op_depends_on_memory_correct with (m2:= m) in EVAL; auto.
           
-          assert (Heval : eval_operation ge sp op rs ##2 args m = 
-                          eval_operation ge sp op rs ##2 x1 m).
+          assert (Heval : eval_operation ge sp op rs ## args m = 
+                          eval_operation ge sp op rs ## x1 m).
           { eapply G_list_eval_op; eauto.
             eapply gamma_v_args; eauto.
             assert (gamma GVN f ge sp x rs) by (eapply  gamma_sdom_gamma; eauto).
@@ -772,55 +771,55 @@ Proof.
           * eelim assigned_code_and_phi; eauto.
         } 
         econstructor; eauto.
-        repeat rewrite P2Map.gso; auto. inv HGx; auto.
+        repeat rewrite PMap.gso; auto. inv HGx; auto.
       * unfold fn_code in *.
         invh assigned_code_spec; try congruence.
 Qed.    
 
 Lemma G_upd_diff_help : forall f ge sp rs dst x v,
                           x <> dst ->
-                          (G ge sp rs (A_r f x) rs !!2 x) ->
-                          G ge sp rs #2 dst <- v (A_r f x) rs !!2 x \/
+                          (G ge sp rs (A_r f x) rs !! x) ->
+                          G ge sp rs # dst <- v (A_r f x) rs !! x \/
                           ~ is_at_Top (A_r f) x.
 Proof.
   intros.
-  destruct (p2eq (A_r f x) dst).
+  destruct (peq (A_r f x) dst).
   - subst. right. intro Hcont. inv Hcont. congruence.
   - left. econstructor; eauto. 
-    rewrite P2Map.gso; auto.
+    rewrite PMap.gso; auto.
     invh G; auto.
 Qed.
         
 Lemma G_upd_diff : forall f (WF: wf_ssa_function f) ge sp rs dst x v,
                      x <> dst ->
                      A_r f x <> A_r f dst ->
-                     (G ge sp rs (A_r f x) rs !!2 x) ->
-                     G ge sp rs #2 dst <- v (A_r f x) rs !!2 x.
+                     (G ge sp rs (A_r f x) rs !! x) ->
+                     G ge sp rs # dst <- v (A_r f x) rs !! x.
 Proof.                     
   intros.
   edestruct G_upd_diff_help with (1:= H); eauto.
-  destruct (p2eq (A_r f x) dst).
+  destruct (peq (A_r f x) dst).
   - subst. generalize (GVN_spec_idempotence f (GVN_spec_True f WF)); go.
   - econstructor; eauto. 
-    rewrite P2Map.gso; auto.
+    rewrite PMap.gso; auto.
     invh G; auto.
 Qed.
 
 Lemma approx_Iop_correct : forall f (WF: wf_ssa_function f) pc sf op args res pc' v rs ge sp m x, 
    s_inv ge (State sf f sp pc rs m) ->
    (fn_code f) ! pc = Some (Iop op args res pc') ->
-   eval_operation ge sp op rs ##2 args m = Some v ->
+   eval_operation ge sp op rs ## args m = Some v ->
    gamma GVN f ge sp pc rs ->
    exec f pc ->
    dsd f x pc' ->
-   G ge sp rs #2 res <- v (A_r f x) (rs #2 res <- v) !!2 x.
+   G ge sp rs # res <- v (A_r f x) (rs # res <- v) !! x.
 Proof.
   intros until x. intros SINV CODE EVAL GAMMA EXE DSD.
-  destruct (p2eq x res).
-  - subst. rewrite P2Map.gss.
-    destruct (p2eq res (A_r f res)).
+  destruct (peq x res).
+  - subst. rewrite PMap.gss.
+    destruct (peq res (A_r f res)).
     * rewrite <- e. econstructor; eauto.
-      rewrite P2Map.gss; eauto.
+      rewrite PMap.gss; eauto.
     * destruct (GVN_spec_True f WF) as [Hcode _]. 
       specialize Hcode with pc.
       unfold repr_spec_code in Hcode.
@@ -829,14 +828,14 @@ Proof.
         - inv Htop. congruence.
         - repeat invh ex ; repeat invh and.
           econstructor; eauto.
-          rewrite P2Map.gso; auto.
+          rewrite PMap.gso; auto.
           assert (HE:[f,ge,sp,rs]|=(A_r f res)==(Iop op x1 (A_r f res) x0))
             by (inv SINV; eapply SINV0 ; eauto). 
           inv HE. invh SSAinv.eval.
           rewrite op_depends_on_memory_correct with (m2:= m) in EVAL0; auto.
           
-          assert (Heval : eval_operation ge sp op rs ##2 args m = 
-                          eval_operation ge sp op rs ##2 x1 m).
+          assert (Heval : eval_operation ge sp op rs ## args m = 
+                          eval_operation ge sp op rs ## x1 m).
           { eapply G_list_eval_op; eauto.
             eapply gamma_v_args; eauto.
             assert (gamma GVN f ge sp x rs) by (eapply  gamma_sdom_gamma; eauto).
@@ -885,7 +884,7 @@ Proof.
           * eelim assigned_code_and_phi; eauto.
         } 
         econstructor; eauto.
-        repeat rewrite P2Map.gso; auto. inv HGx; auto.
+        repeat rewrite PMap.gso; auto. inv HGx; auto.
       * unfold fn_code in *.
         invh assigned_code_spec; try congruence.
 Qed.  

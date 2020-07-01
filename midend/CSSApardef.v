@@ -13,7 +13,7 @@ Require Import CSSApar.
 Require Import DLib.
 Require Import RTLpargen.
 Require Import CSSAutils.
-Require Import TrMaps2.
+Require Import Registers.
 
 Lemma def_code_correct_aux :
   forall elems r r0 ins defs (pc : node),
@@ -28,14 +28,14 @@ Lemma def_code_correct_aux :
   (fold_right
     (fun p a =>
       match defined_var (snd p) with
-      | Some r0 => P2Tree.set r0 (fst p) a
+      | Some r0 => PTree.set r0 (fst p) a
       | None => a
-      end) defs elems) !2 r = Some pc.
+      end) defs elems) ! r = Some pc.
 Proof.
   induction elems; intros.
   go.
   simpl. flatten.
-  + rewrite P2Tree.gsspec. flatten.
+  + rewrite PTree.gsspec. flatten.
     - destruct a. simpl in *.
       case_eq(peq n pc); intros; auto.
       destruct H; go.
@@ -57,7 +57,7 @@ Lemma def_code_correct :
   forall f r defs pc,
   wf_cssa_function f ->
   assigned_code_spec (fn_code f) pc r ->
-  (compute_code_def f defs) !2 r = Some pc.
+  (compute_code_def f defs) ! r = Some pc.
 Proof.
   intros f r defs pc WF Hassign.
   unfold compute_code_def.
@@ -103,13 +103,13 @@ Lemma nodef_code_correct_aux :
   (fold_right
     (fun p a =>
       match defined_var (snd p) with
-      | Some r0 => P2Tree.set r0 (fst p) a
+      | Some r0 => PTree.set r0 (fst p) a
       | None => a
-      end) defs elems) !2 r = defs !2 r.
+      end) defs elems) ! r = defs ! r.
 Proof.
   induction elems; intros.
   go. simpl. flatten.
-  + rewrite P2Tree.gso.
+  + rewrite PTree.gso.
     - apply IHelems. inv H; auto.
       go.
     - unfold not; intros.
@@ -124,7 +124,7 @@ Lemma nodef_code_correct :
   forall f r defs,
   wf_cssa_function f ->
   (forall pc, ~ assigned_code_spec (fn_code f) pc r) ->
-  (compute_code_def f defs) !2 r = defs !2 r.
+  (compute_code_def f defs) ! r = defs ! r.
 Proof.
   intros f r defs WF Hnotassign.
   unfold compute_code_def.
@@ -153,13 +153,13 @@ Lemma def_notin_parcb_correct:
   (fold_right
     (fun p a =>
       match p with
-      | Iparcopy src dst => P2Tree.set dst pc a
+      | Iparcopy src dst => PTree.set dst pc a
       end)
-    a parcb) !2 r = a !2 r.
+    a parcb) ! r = a ! r.
 Proof.
   induction parcb; intros; simpl; auto.
   flatten.
-  rewrite P2Tree.gsspec. flatten.
+  rewrite PTree.gsspec. flatten.
   + rewrite <- e in *.
     specialize (H r0).
     exfalso. apply H. constructor; auto.
@@ -173,14 +173,14 @@ Lemma def_in_parcb_correct:
   (fold_right
     (fun p a =>
       match p with
-      | Iparcopy src dst => P2Tree.set dst pc a
+      | Iparcopy src dst => PTree.set dst pc a
       end)
-    a parcb) !2 r = Some pc.
+    a parcb) ! r = Some pc.
 Proof.
   induction parcb; intros; simpl.
   + destruct H. contradiction.
   + flatten.
-    rewrite P2Tree.gsspec. flatten.
+    rewrite PTree.gsspec. flatten.
     apply IHparcb. destruct H.
     inv H; try congruence. eauto.
 Qed.
@@ -195,10 +195,10 @@ Lemma nodef_parc_correct_aux :
       fold_left
         (fun a p =>
           match p with
-          | Iparcopy src dst => P2Tree.set dst (fst pcparcb) a
+          | Iparcopy src dst => PTree.set dst (fst pcparcb) a
           end)
         (snd pcparcb) a)
-    defs elems) !2 r = defs !2 r.
+    defs elems) ! r = defs ! r.
 Proof.
   induction elems; intros. go.
   simpl.
@@ -223,10 +223,10 @@ Lemma def_parc_correct_aux :
       fold_left
         (fun a p =>
           match p with
-          | Iparcopy src dst => P2Tree.set dst (fst pcparcb) a
+          | Iparcopy src dst => PTree.set dst (fst pcparcb) a
           end)
         (snd pcparcb) a)
-    defs elems) !2 r = Some pc.
+    defs elems) ! r = Some pc.
 Proof.
   induction elems; intros.
   go.
@@ -274,7 +274,7 @@ Lemma def_parcode_correct :
   forall f r defs pc,
   wf_cssa_function f ->
   assigned_parcopy_spec (fn_parcopycode f) pc r ->
-  (compute_parc_def f defs) !2 r = Some pc.
+  (compute_parc_def f defs) ! r = Some pc.
 Proof.
   intros f r defs pc WF Hnotassign.
   unfold compute_parc_def.
@@ -308,7 +308,7 @@ Lemma nodef_parcode_correct :
   forall f r defs,
   wf_cssa_function f ->
   (forall pc, ~ assigned_parcopy_spec (fn_parcopycode f) pc r) ->
-  (compute_parc_def f defs) !2 r = defs !2 r.
+  (compute_parc_def f defs) ! r = defs ! r.
 Proof.
   intros f r defs WF Hnotassign.
   unfold compute_parc_def.
@@ -332,13 +332,13 @@ Lemma def_notin_phib_correct:
   (fold_right
     (fun p a =>
       match p with
-      | Iphi args dst => P2Tree.set dst pc a
+      | Iphi args dst => PTree.set dst pc a
       end)
-    a phib) !2 r = a !2 r.
+    a phib) ! r = a ! r.
 Proof.
   induction phib; intros; simpl; auto.
   flatten.
-  rewrite P2Tree.gsspec. flatten.
+  rewrite PTree.gsspec. flatten.
   + rewrite <- e in *.
     specialize (H l).
     exfalso. apply H. constructor; auto.
@@ -352,14 +352,14 @@ Lemma def_in_phib_correct:
   (fold_right
     (fun p a =>
       match p with
-      | Iphi args dst => P2Tree.set dst pc a
+      | Iphi args dst => PTree.set dst pc a
       end)
-    a phib) !2 r = Some pc.
+    a phib) ! r = Some pc.
 Proof.
   induction phib; intros; simpl.
   + destruct H. contradiction.
   + flatten.
-    rewrite P2Tree.gsspec. flatten.
+    rewrite PTree.gsspec. flatten.
     apply IHphib. destruct H.
     inv H; try congruence. eauto.
 Qed.
@@ -374,10 +374,10 @@ Lemma nodef_phib_correct_aux :
       fold_left
         (fun a p =>
           match p with
-          | Iphi args dst => P2Tree.set dst (fst pcphib) a
+          | Iphi args dst => PTree.set dst (fst pcphib) a
           end)
         (snd pcphib) a)
-    defs elems) !2 r = defs !2 r.
+    defs elems) ! r = defs ! r.
 Proof.
   induction elems; intros. go.
   simpl.
@@ -402,10 +402,10 @@ Lemma def_phi_correct_aux :
       fold_left
         (fun a p =>
           match p with
-          | Iphi args dst => P2Tree.set dst (fst pcphib) a
+          | Iphi args dst => PTree.set dst (fst pcphib) a
           end)
         (snd pcphib) a)
-    defs elems) !2 r = Some pc.
+    defs elems) ! r = Some pc.
 Proof.
   induction elems; intros.
   go.
@@ -453,7 +453,7 @@ Lemma def_phicode_correct :
   forall f r defs pc,
   wf_cssa_function f ->
   assigned_phi_spec (fn_phicode f) pc r ->
-  (compute_phi_def f defs) !2 r = Some pc.
+  (compute_phi_def f defs) ! r = Some pc.
 Proof.
   intros f r defs pc WF Hnotassign.
   unfold compute_phi_def.
@@ -487,7 +487,7 @@ Lemma nodef_phicode_correct :
   forall f r defs,
   wf_cssa_function f ->
   (forall pc, ~ assigned_phi_spec (fn_phicode f) pc r) ->
-  (compute_phi_def f defs) !2 r = defs !2 r.
+  (compute_phi_def f defs) ! r = defs ! r.
 Proof.
   intros f r defs WF Hnotassign.
   unfold compute_phi_def.
@@ -525,7 +525,7 @@ Proof.
     try (rewrite nodef_parcode_correct in Eq; intuition auto);
     try (rewrite nodef_phicode_correct in Eq; intuition auto);
     try (rewrite nodef_code_correct in Eq; intuition auto);
-    try (rewrite P2Tree.gempty in Eq);
+    try (rewrite PTree.gempty in Eq);
     try congruence.
   + rewrite nodef_parcode_correct; auto.
     rewrite nodef_phicode_correct; auto.
@@ -547,7 +547,7 @@ Lemma nodef_none :
   (forall pc, ~ assigned_phi_spec (fn_phicode f) pc r) ->
   (forall pc, ~ assigned_parcopy_spec (fn_parcopycode f) pc r) ->
   (forall pc, ~ assigned_code_spec (fn_code f) pc r) ->
-  (get_all_def f) !2 r = None.
+  (get_all_def f) ! r = None.
 Proof.
   intros f r WF Hnotphi Hnotparc Hnotcode.
   unfold compute_def.
@@ -555,14 +555,14 @@ Proof.
   rewrite nodef_parcode_correct; auto.
   rewrite nodef_phicode_correct; auto.
   rewrite nodef_code_correct; auto.
-  rewrite P2Tree.gempty; auto.
+  rewrite PTree.gempty; auto.
 Qed.
 
 Lemma code_def_not_none :
   forall f r pc,
   wf_cssa_function f ->
   assigned_code_spec (fn_code f) pc r ->
-  (get_all_def f) !2 r <> None.
+  (get_all_def f) ! r <> None.
 Proof.
   intros f r pc WF Hdefcode.
   unfold get_all_def.
@@ -582,7 +582,7 @@ Lemma phi_def_not_none :
   forall f r pc,
   wf_cssa_function f ->
   assigned_phi_spec (fn_phicode f) pc r ->
-  (get_all_def f) !2 r <> None.
+  (get_all_def f) ! r <> None.
 Proof.
   intros f r pc WF Hdefcode.
   unfold get_all_def.
@@ -598,7 +598,7 @@ Lemma parc_def_not_none :
   forall f r pc,
   wf_cssa_function f ->
   assigned_parcopy_spec (fn_parcopycode f) pc r ->
-  (get_all_def f) !2 r <> None.
+  (get_all_def f) ! r <> None.
 Proof.
   intros f r pc WF Hdefcode.
   unfold get_all_def.
@@ -629,27 +629,27 @@ Proof.
 Qed.
 
 Lemma not_none_in :
-  forall (rtree : P2Tree.t positive) r,
-  rtree !2 r <> None ->
-  In r (map fst (P2Tree.elements rtree)).
+  forall (rtree : PTree.t positive) r,
+  rtree ! r <> None ->
+  In r (map fst (PTree.elements rtree)).
 Proof.
   intros.
-  case_eq (rtree !2 r); try congruence; intros.
-  exploit P2Tree.elements_correct; eauto; intros.
+  case_eq (rtree ! r); try congruence; intros.
+  exploit PTree.elements_correct; eauto; intros.
   eapply Infst_rtreenode; eauto.
 Qed.
 
 Lemma none_not_in :
-  forall (rtree : P2Tree.t positive) r,
-  rtree !2 r = None ->
-  ~ In r (map fst (P2Tree.elements rtree)).
+  forall (rtree : PTree.t positive) r,
+  rtree ! r = None ->
+  ~ In r (map fst (PTree.elements rtree)).
 Proof.
   intros.
-  case_eq (rtree !2 r); try congruence; intros.
+  case_eq (rtree ! r); try congruence; intros.
   unfold not; intros.
   exploit Infst_rtreenode_exists; eauto; intros Hin.
   destruct Hin.
-  exploit P2Tree.elements_complete; eauto; intros.
+  exploit PTree.elements_complete; eauto; intros.
   congruence.
 Qed.
 
@@ -657,7 +657,7 @@ Lemma compute_def_in_correct :
   forall f r d,
   wf_cssa_function f ->
   CSSApar.def f r d ->
-  In r (map fst (P2Tree.elements (get_all_def f)))
+  In r (map fst (PTree.elements (get_all_def f)))
   \/ SSARegSet.In r (get_ext_params f (get_all_def f)).
 Proof.
   intros.

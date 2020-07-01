@@ -110,7 +110,7 @@ Proof.
   intros. flatten; subst; auto;
   try solve [ 
     match goal with 
-      | |- forall r, _  => intros rr Hin _  ; destruct rr as [rr rri]
+      | |- forall r, _  => intros rr Hin _  
       | |- _ => intros _
     end;
     intro Hcont ; first [ inv Hcont|  subst];
@@ -121,8 +121,6 @@ Proof.
       (exploit Pos.le_lt_trans; eauto; intros Hlt;
       eapply Pos.lt_nle  in Hlt;
       elim Hlt;
-      replace (Pos.succ (get_maxreg f)) with 
-      (fst ((Pos.succ (get_maxreg f)),1)%positive) by go;
       eapply max_reg_in_list_correct; eauto)
       ].
 Qed.    
@@ -219,7 +217,7 @@ Qed.
 Lemma get_max_reg_in_parcb_correct_src_aux :
   forall l (r : reg) m d,
   In (r,d) (parcb_to_moves l) ->
-  Ple (fst r)
+  Ple r
     (List.fold_left (fun m parc => Pos.max m (get_max_reg_in_parc parc)) l m).
 Proof.
   induction l; intros.
@@ -242,7 +240,7 @@ Qed.
 Lemma get_max_reg_in_parcb_dst_correct_aux :
   forall l (r : reg) m d,
   In (r,d) (parcb_to_moves l) ->
-  Ple (fst d)
+  Ple d
     (List.fold_left (fun m parc => Pos.max m (get_max_reg_in_parc parc)) l m).
 Proof.
   induction l; intros.
@@ -261,7 +259,7 @@ Qed.
 Lemma get_max_reg_in_parcb_src_correct :
   forall l r d,
   In (r,d) (parcb_to_moves l) ->
-  Ple (fst r) (get_max_reg_in_parcb l).
+  Ple r (get_max_reg_in_parcb l).
 Proof.
   unfold get_max_reg_in_parcb. 
   intros.
@@ -271,7 +269,7 @@ Qed.
 Lemma get_max_reg_in_parcb_dst_correct :
   forall l r d,
   In (r,d) (parcb_to_moves l) ->
-  Ple (fst d) (get_max_reg_in_parcb l).
+  Ple d (get_max_reg_in_parcb l).
 Proof.
   unfold get_max_reg_in_parcb. 
   intros.
@@ -285,8 +283,7 @@ Lemma get_maxreg_is_not_temp_parcopies :
 Proof.
   unfold fresh_init, Parmov.move_no_temp, Parmov.is_not_temp.
   intros f pc parcb Hsome ; (intros s d Hin; split; intros _);
-  (destruct s as [sr si];
-   intro Hcont ; first [ inv Hcont | subst ] ;
+  (intro Hcont ; first [ inv Hcont | subst ] ;
    assert (Hple:= max_reg_correct_parccode f);
    rewrite <- Pos.lt_succ_r in Hple;
    eapply max_reg_in_parcode in Hsome; eauto; simpl in *; try invh or; 
@@ -514,10 +511,10 @@ Qed.
 
 Hint Resolve copy_ins_at: dessa.
 
-Lemma reach_moves_incr : forall size lnew s1 s2 succ' lastnew block ,
-  reach_moves size (st_code s1) succ' lastnew block lnew ->
+Lemma reach_moves_incr : forall lnew s1 s2 succ' lastnew block ,
+  reach_moves (st_code s1) succ' lastnew block lnew ->
   state_incr s1 s2 ->
-  reach_moves size (st_code s2) succ' lastnew block lnew.
+  reach_moves (st_code s2) succ' lastnew block lnew.
 Proof.
   induction 1 ; intros.
   - econstructor ; eauto.
@@ -537,8 +534,6 @@ Proof.
   flatten H; auto.
 Qed.
 
-Hint Constructors is_valid: core.
-
 Lemma forallb_forall_1 : forall (A : Type) (f : A -> bool) (l : list A),
    forallb f l = true -> (forall x : A, In x l -> f x = true).
 Proof.
@@ -546,62 +541,10 @@ Proof.
   eapply forallb_forall ; eauto.
 Qed.  
 
-Lemma ros_pamr_true : forall size s r, 
-  ros_pamr size (inl ident s) = Errors.OK r ->
-  Bij.valid_index size (snd s) = true.
-Proof.
-  intros.
-  simpl in *. 
-  destruct Bij.valid_index; auto.
-  inv H.
-Qed.
-
-Lemma opt_pamr_true : forall size s r, 
-  opt_pamr size (Some s) = Errors.OK r ->
-  Bij.valid_index size (snd s) = true.
-Proof.
-  intros.
-  simpl in *. 
-  destruct Bij.valid_index; auto.
-  inv H.
-Qed.
-
-Notation valid_idx := (fun f r => Bij.valid_index (fn_max_indice f) (snd r)).
-
-Lemma valid_mvs_valid_parmove_src : forall f mvs
-  (VALIDSRC: forall s, In s (Parmov.srcs _ mvs) -> valid_idx f s = true)
-  (VALIDTMP: valid_idx f (fresh_init f) = true),
-  forall s, In s (Parmov.srcs _ (seq_parmoves (fresh_init f) mvs)) -> 
-            valid_idx f s = true.
-Proof.
-  induction mvs; intros; go.
-  - unfold seq_parmoves in *.
-    eelim Parmov.parmove_srcs_initial_reg_or_temp ; eauto;
-    (simpl; intuition; repeat invh Parmov.is_temp; auto).
-  - destruct a as [src dst]. unfold seq_parmoves in *.
-    eelim Parmov.parmove_srcs_initial_reg_or_temp ; eauto using in_map.
-    intros. invh Parmov.is_temp; auto.
-Qed.        
-
-Lemma valid_mvs_valid_parmove_dst : forall f mvs
-  (VALIDDST: forall d, In d (Parmov.dests _ mvs) -> valid_idx f d = true)
-  (VALIDTMP: valid_idx f (fresh_init f) = true),
-  forall d, In d (Parmov.dests _ (seq_parmoves (fresh_init f) mvs)) -> 
-            valid_idx f d = true.
-Proof.
-  induction mvs; intros; go.
-  - unfold seq_parmoves in *.
-    eelim Parmov.parmove_dests_initial_reg_or_temp ; eauto;
-    (simpl; intuition; repeat invh Parmov.is_temp; auto).
-  - destruct a as [src dst]. unfold seq_parmoves in *.
-    eelim Parmov.parmove_dests_initial_reg_or_temp ; eauto using in_map.
-    intros. invh Parmov.is_temp; auto.
-Qed.        
-
-Lemma add_reach_moves : forall size opc pc parcb s1 s2 incr,
-  add_moves size opc pc parcb s1 = OK tt s2 incr ->
+Lemma add_reach_moves : forall opc pc parcb s1 s2 incr,
+  add_moves opc pc parcb s1 = OK tt s2 incr ->
   exists lnew, 
-    reach_moves size (st_code s2) (st_nextnode_fs s1) pc parcb lnew.
+    reach_moves (st_code s2) (st_nextnode_fs s1) pc parcb lnew.
 Proof.
   unfold add_moves.
   induction parcb ; intros.
@@ -621,8 +564,8 @@ Proof.
     eelim (H2 (st_nextnode_fs s1)); eauto; rewrite PTree.gss; congruence.
 Qed.
 
-Lemma add_moves_renum : forall size opc pc parcb s1 s2 incr,
-  add_moves size opc pc parcb s1 = OK tt s2 incr ->
+Lemma add_moves_renum : forall opc pc parcb s1 s2 incr,
+  add_moves opc pc parcb s1 = OK tt s2 incr ->
   (match opc with 
      | Some opc => (forall pc', pc' <> opc -> (st_renum s2) ! pc' = (st_renum s1) ! pc')
                    /\ (st_code s2) ! (map_pc (st_renum s2) opc) = Some (RTL.Inop pc)
@@ -645,12 +588,12 @@ Proof.
     flatten EQ ; unfold error in * ; simpl in *; try congruence.
 Qed.
 
-Lemma add_moves_renum_last : forall size opc parcb pc s1 s2 incr,
+Lemma add_moves_renum_last : forall opc parcb pc s1 s2 incr,
                                pc <> opc ->
-  add_moves size (Some opc) pc parcb s1 = OK tt s2 incr ->
+  add_moves (Some opc) pc parcb s1 = OK tt s2 incr ->
   (parcb = nil /\ map_pc (st_renum s2) pc = (map_pc (st_renum s1) pc))
   \/  exists lnew, 
-        reach_moves size (st_code s2) (st_nextnode_fs s1) pc parcb lnew /\
+        reach_moves (st_code s2) (st_nextnode_fs s1) pc parcb lnew /\
         exists rpc (lnew' : list node),
           rev lnew = rpc :: lnew' /\ 
           (map_pc (st_renum s2) opc) = rpc.
@@ -699,13 +642,6 @@ Proof.
         }
 Qed.
 
-Ltac kick_aux :=
-  match goal with 
-    | [h0: Bij.valid_index ?size (snd _) = true |- _] => solve [auto]
-    | [h1 : valid_ind ?size ?rr = true |- _ ] => solve [inv h1 ; eauto]
-    | [h2 : forallb _ _ = true |- _ ] => solve [eapply forallb_forall in h2 ; eauto]
-  end.
-
 Ltac kick := 
   match goal with 
     | [ H: (RTLpar.fn_code ?f) ! _ = Some (Itailcall _ (inl ident _) _) |- _] =>
@@ -715,14 +651,14 @@ Ltac kick :=
     | _ =>      
       (econstructor ; eauto)
   end ; 
-  (intros rr Hrr; try inv Hrr); kick_aux.
+  (intros rr Hrr; try inv Hrr).
 
 (** ** Correctness of [copy_wwo_add] *)
-Lemma copy_wwo_add_dssa_spec: forall f (WF: wf_function f) fresh size pc max s1 s2 incr ins, 
+Lemma copy_wwo_add_dssa_spec: forall f (WF: wf_function f) fresh pc max s1 s2 incr ins, 
   (fn_code f) ! pc = Some ins ->
-  copy_wwo_add fresh size (make_predecessors (fn_code f) SSA.successors_instr) 
+  copy_wwo_add fresh (make_predecessors (fn_code f) SSA.successors_instr) 
                (fn_code f) (fn_parcopycode f) max pc s1 = OK tt s2 incr ->
-  rtldpar_spec size fresh (fn_code f) (fn_parcopycode f) (st_code s2) (map_pc (st_renum s2))
+  rtldpar_spec fresh (fn_code f) (fn_parcopycode f) (st_code s2) (map_pc (st_renum s2))
                pc.
 Proof.
   intros.
@@ -789,14 +725,6 @@ Proof.
         repeat invh ex ; invh and. inv H12.
         
         { econstructor 3 with (lnew:= nil) ; eauto ; go.
-          - intros. 
-            eapply forallb_forall in Eq2; eauto. 
-            flatten Eq2.
-            eapply forallb_forall in Eq2; eauto. 
-          - intros. 
-            eapply forallb_forall in Eq2; eauto. 
-            flatten Eq2.
-            eapply forallb_forall in Eq2; eauto. 
           - rewrite H8 in *. simpl.
             simpl in EQ1; monadInv EQ1; unfold map_pc; simpl. 
             rewrite PTree.gss; auto.            
@@ -807,14 +735,6 @@ Proof.
           { rewrite <- H8; rewrite rev_involutive; eauto. }
           subst. simpl in H9.
           econstructor 3 ; go.
-          - intros. 
-            eapply forallb_forall in Eq2; eauto. 
-            flatten Eq2.
-            eapply forallb_forall in Eq2; eauto. 
-          - intros. 
-            eapply forallb_forall in Eq2; eauto. 
-            flatten Eq2.
-            eapply forallb_forall in Eq2; eauto. 
           - exploit add_moves_renum ; eauto. intros [Hmapoth Hmapn]. auto.
         }      
     + econstructor 1; eauto.
@@ -837,38 +757,10 @@ Proof.
       * intro Hcont. invh is_jp. 
         eelim (fn_normalized_jp f WF pc n); eauto; go. 
         unfold successors_list in *; flatten Eq ; go.
-      * intros. 
-        eapply forallb_forall in Eq2; eauto. 
-        flatten Eq2.
-        eapply forallb_forall in Eq2; eauto. 
-      * intros. 
-        eapply forallb_forall in Eq2; eauto. 
-        flatten Eq2.
-        eapply forallb_forall in Eq2; eauto. 
       * exploit add_moves_renum; eauto. simpl. 
         intros.
         unfold map_pc. erewrite H7; eauto.
         exploit copy_ins_at_renum; eauto; intros ; invh and; auto.
-            
-  - (* Icall *)
-    econstructor 4 ; eauto; go.
-    + econstructor ; eauto.
-      intros. inv H4 ; try kick_aux. inv H5 ; kick_aux.
-    + exploit copy_ins_at ; eauto ; (intros ; intuition ; (inv H2 ; eauto)). 
-    + exploit copy_ins_at_renum; eauto; intros ; invh and; auto.
-  
-  - (* Ireturn *)
-    case_eq (opt_pamr size o) ; intros ros' Hros ; rewrite Hros in *;
-    [(destruct o ; [ (exploit opt_pamr_true ; eauto) ; intros Hvalid |])|].
-    + econstructor 4 ; eauto. 
-      * congruence. 
-      * (exploit copy_ins_at ; eauto ; (intros ; intuition ; (inv H2 ; eauto) )). 
-      * exploit copy_ins_at_renum; eauto; intros ; invh and; auto.
-    + econstructor 4 ; eauto. 
-      * congruence. 
-      * (exploit copy_ins_at ; eauto ; (intros ; intuition ; (inv H2 ; eauto) )). 
-      * exploit copy_ins_at_renum; eauto; intros ; invh and; auto.
-    + inv H2.
 Qed.
 
 Lemma copy_ins_unch_renum : forall  pc max ins code s1 s2 INCR,
@@ -881,8 +773,8 @@ Proof.
   rewrite PTree.gso; auto.
 Qed.
 
-Lemma copy_wwo_unch_renum : forall preds code pcode fresh size max s1 s2 incr pc, 
-  (copy_wwo_add fresh size preds code pcode max) pc s1 = OK tt s2 incr ->
+Lemma copy_wwo_unch_renum : forall preds code pcode fresh max s1 s2 incr pc, 
+  (copy_wwo_add fresh preds code pcode max) pc s1 = OK tt s2 incr ->
   forall pc', pc <> pc' -> (map_pc (st_renum s2)) pc' = (map_pc (st_renum s1) pc'). 
 Proof.
   intros.
@@ -911,8 +803,8 @@ Proof.
     unfold map_pc. rewrite H; eauto. 
 Qed.
 
-Lemma mfold_copy_wwo_unch_renum : forall preds code pcode fresh size l max s1 s2 incr, 
-  mfold_unit (copy_wwo_add fresh size preds code pcode max) l s1 = OK tt s2 incr ->
+Lemma mfold_copy_wwo_unch_renum : forall preds code pcode fresh l max s1 s2 incr, 
+  mfold_unit (copy_wwo_add fresh preds code pcode max) l s1 = OK tt s2 incr ->
   forall pc, ~ In pc l -> (map_pc (st_renum s2)) pc = (map_pc (st_renum s1) pc). 
 Proof.
   induction l ; intros.
@@ -925,16 +817,16 @@ Proof.
     eapply copy_wwo_unch_renum; go.
 Qed.
     
-Lemma mfold_dssa_spec : forall f (WF: wf_function f) fresh size l max s1 s2 incr, 
+Lemma mfold_dssa_spec : forall f (WF: wf_function f) fresh l max s1 s2 incr, 
   mfold_unit 
-    (copy_wwo_add fresh size 
+    (copy_wwo_add fresh 
                   (make_predecessors (fn_code f) successors_instr)
                   (fn_code f) (RTLpar.fn_parcopycode f) max)
     l s1 = OK tt s2 incr ->
   (list_norepet l) ->
   forall pc ins, 
     In pc l -> (fn_code f) ! pc = Some ins ->
-    rtldpar_spec size fresh (fn_code f) (fn_parcopycode f) 
+    rtldpar_spec fresh (fn_code f) (fn_parcopycode f) 
                  (st_code s2) (map_pc (st_renum s2)) pc. 
 Proof.
   induction l ; intros; go.
@@ -1016,37 +908,33 @@ Definition mapping (f: function) : (PTree.t node) :=
   let '(init,max,lp) := init_state f in 
   let fresh := fresh_init f in
   let preds := make_predecessors (fn_code f) SSA.successors_instr in
-  match mfold_unit (copy_wwo_add fresh (fn_max_indice f) 
+  match mfold_unit (copy_wwo_add fresh  
                                  preds (fn_code f) (fn_parcopycode f) max)
                    (sort_pp lp) init with
     | Error m => PTree.empty node
-    | OK u s'' H => 
-      if (forallb (valid_ind (fn_max_indice f)) (fn_params f)) then
-        (st_renum s'')
-      else PTree.empty node
+    | OK u s'' H => (st_renum s'')
   end.
   
 (** ** Specification compliancy of the implementation *)
 Lemma transl_function_spec_ok : forall f (WF: wf_function f) tf, 
-  transl_function f = Errors.OK tf -> 
-  transl_function_spec f tf (map_pc (mapping f)).
+    transl_function f = Errors.OK tf -> 
+    transl_function_spec f tf (map_pc (mapping f)).
 Proof.
   unfold transl_function, mapping.
   intros ; flatten H ; boolInv.
-  destruct u. rewrite H0.
+  destruct u. 
   econstructor; eauto.
-  - intros ; eapply forallb_forall in H0 ; eauto.
-  - simpl. 
-    unfold sort_pp in *.
-    generalize (PosSort.Permuted_sort l)  ; intros.
-    assert (l = snd (get_max (fn_code f)))
-      by (unfold init_state in *; congruence); subst.
-    exploit mfold_dssa_spec ; eauto.
-    + eapply NoDup_list_norepet ; auto.
-      eapply Permutation_NoDup ; eauto.
-      apply get_max_nodup.
-    + exploit get_max_in ; eauto.
-      eapply Permutation_in ; eauto.
+  simpl. 
+  unfold sort_pp in *.
+  generalize (PosSort.Permuted_sort l)  ; intros.
+  assert (l = snd (get_max (fn_code f)))
+    by (unfold init_state in *; congruence); subst.
+  exploit mfold_dssa_spec ; eauto.
+  + eapply NoDup_list_norepet ; auto.
+    eapply Permutation_NoDup ; eauto.
+    apply get_max_nodup.
+  + exploit get_max_in ; eauto.
+    eapply Permutation_in ; eauto.
 Qed.
 
 (** * Semantic preservation *)
@@ -1112,14 +1000,14 @@ Section PRESERVATION.
       - inv H. auto.
     Qed.
 
-    Lemma find_function_preserved_same : forall size r rs rs' (f:fundef) (f':RTL.fundef), 
+    Lemma find_function_preserved_same : forall r rs rs' (f:fundef) (f':RTL.fundef), 
         find_function ge (inl ident r) rs = Some f ->
-        RTL.find_function tge (inl ident (Bij.pamr size r)) rs' = Some f' ->
-        rs#2 r = rs'#(Bij.pamr size r) ->
+        RTL.find_function tge (inl ident r) rs' = Some f' ->
+        rs# r = rs'# r ->
         funsig f = RTL.funsig f'.
     Proof.
       intros. simpl in *. 
-      exploit (functions_translated rs#2 r) ; eauto.
+      exploit (functions_translated rs# r) ; eauto.
       intros.
       destruct H2 as [tf [Htf Oktf]].
       symmetry.
@@ -1137,11 +1025,11 @@ Section PRESERVATION.
     Qed. 
 
     Lemma spec_ros_r_find_function:
-      forall size rs rs' f r,
+      forall  rs rs' f r,
         find_function ge (inl _ r) rs = Some f ->
-        rs#2 r = rs'#(Bij.pamr size r) ->
+        rs# r = rs'#r ->
         exists tf,
-          RTL.find_function tge (inl _ (Bij.pamr size r)) rs' = Some tf
+          RTL.find_function tge (inl _ r) rs' = Some tf
           /\ RTLdpar.transl_fundef f = Errors.OK tf.
     Proof.
       intros.
@@ -1189,16 +1077,16 @@ Hint Resolve senv_preserved : valagree.
 Hint Resolve stacksize_preserved: valagree.
 
 
-Definition parcopy_store_e (size: nat) (parcb: list (reg * reg) ) (rs: regset) : regset :=
+Definition parcopy_store_e (parcb: list (reg * reg) ) (rs: regset) : regset :=
   fold_left (fun rs parc => 
                match parc with 
-                 | (src,dst) => rs#(Bij.pamr size dst) <- (rs#(Bij.pamr size src))
+                 | (src,dst) => rs# dst <- (rs# src)
                end) parcb rs.
     
-Lemma reach_moves_star :  forall size mvs fresh ts sp rs  m tf  succ lnew ,
-  reach_moves size (RTL.fn_code tf) fresh succ mvs lnew ->
+Lemma reach_moves_star :  forall mvs fresh ts sp rs  m tf  succ lnew ,
+  reach_moves (RTL.fn_code tf) fresh succ mvs lnew ->
   star RTL.step tge (RTL.State ts tf sp fresh rs m) E0 
-                    (RTL.State ts tf sp succ (parcopy_store_e size mvs rs) m).
+                    (RTL.State ts tf sp succ (parcopy_store_e mvs rs) m).
 Proof.
   induction mvs; intros.
   - simpl in *.  
@@ -1207,8 +1095,8 @@ Proof.
   - invh reach_moves. 
     eapply star_step 
     with  (s2 := (RTL.State ts tf sp succ0 
-                            rs # (Bij.pamr size dst) <- 
-                            (rs# (Bij.pamr size src))) m) (t2:= E0) (t1:= E0); auto.
+                            rs # dst <- 
+                            (rs# src)) m) (t2:= E0) (t1:= E0); auto.
     + eapply RTL.exec_Iop ; eauto. 
     + exploit IHmvs; eauto.
 Qed.
@@ -1222,12 +1110,12 @@ Proof.
  congruence.
 Qed.
 
-Lemma reach_moves_star_last :  forall size mvs l fresh tf succ,
-  reach_moves size (RTL.fn_code tf) fresh succ mvs l ->
+Lemma reach_moves_star_last :  forall mvs l fresh tf succ,
+  reach_moves (RTL.fn_code tf) fresh succ mvs l ->
   forall a lnew, rev l = (a::lnew) ->
   forall  ts sp rs  m,               
   star RTL.step tge (RTL.State ts tf sp fresh rs m) E0 
-                    (RTL.State ts tf sp a (parcopy_store_e size mvs rs) m).
+                    (RTL.State ts tf sp a (parcopy_store_e mvs rs) m).
 Proof.
   induction 1 ; intros. 
   - simpl in *. inv H0.
@@ -1242,53 +1130,26 @@ Proof.
     + auto.
 Qed.
 
-Notation pamr := (fun f => Bij.pamr (fn_max_indice f)).
-
 (** ** Simulation relation *)
 Inductive match_regset (f: function) : SSA.regset -> RTL.regset -> Prop := 
 | mrg_intro : forall rs rs', 
   (forall r, 
     no_fresh f r ->
-    valid_idx f r = true ->  
-    rs#2 r = rs'#(pamr f r)) ->
+    rs# r = rs'# r) ->
     match_regset f rs rs'.
 
 Lemma match_regset_args : forall f args rs rs' , 
   match_regset f rs rs' ->
-  (forall arg, In arg args -> valid_idx f arg = true) ->
   (forall arg, In arg args -> no_fresh f arg) ->
-  rs##2 args = rs'## (map (pamr f) args).
+  rs## args = rs'##  args.
 Proof.
   induction args ; intros.
-  simpl ; auto.
-  simpl.
-  exploit IHargs ; eauto. intros. rewrite H2.
-  inv H. rewrite (H3 a). auto.
-  exploit H0 ; eauto.
-  exploit H0 ; eauto.
+  - simpl ; auto.
+  - simpl.
+    erewrite IHargs; eauto. 
+    inv H. erewrite H1; eauto.
 Qed.
 Hint Resolve match_regset_args : valagree.  
-
-Lemma init_reg_match_regset : forall f params args,
-  (forall p, In p params -> valid_idx f p = true) ->
-  (forall p, In p params -> no_fresh f p) ->
-  forall r,    
-   (valid_idx f r = true) ->
-   (init_regs args params) !!2 r =
-   (RTL.init_regs args (map (pamr f) params)) # (pamr f r).
-Proof.
-  induction params ; intros ; eauto; simpl. 
-  - rewrite Regmap.gi; rewrite P2Map.gi ; auto.
-  - flatten.
-    + rewrite Regmap.gi; rewrite P2Map.gi ; auto.
-    + destruct (p2eq a r).
-      * inv e. rewrite P2Map.gss; rewrite PMap.gss ; auto.
-      * rewrite P2Map.gso ; auto.
-        rewrite PMap.gso ; auto.
-        intro Hcont. destruct r ; destruct a. 
-        eapply Bij.INJ' in Hcont; eauto.
-        exploit  H ; eauto. 
-Qed.  
 
 Inductive match_stackframes : list stackframe -> list RTL.stackframe -> Prop :=
 | match_stackframes_nil: match_stackframes nil nil
@@ -1298,11 +1159,10 @@ Inductive match_stackframes : list stackframe -> list RTL.stackframe -> Prop :=
     (SPEC: transl_function f = Errors.OK tf)
     (WF: wf_function f)
     (MILL: mill_function f)
-    (MREG: match_regset f rs rs')
-    (VALID: Bij.valid_index (fn_max_indice f) (snd res) = true),
+    (MREG: match_regset f rs rs'),
     match_stackframes
     ((Stackframe res f sp pc rs) :: s)
-    ((RTL.Stackframe (pamr f res) tf sp (map_pc (mapping f) pc) rs') :: ts).
+    ((RTL.Stackframe res tf sp (map_pc (mapping f) pc) rs') :: ts).
 Hint Constructors match_stackframes: core.
 
 Set Implicit Arguments.
@@ -1357,20 +1217,10 @@ Proof.
   invh match_stackframes; go.
 Qed.
 
-Ltac kick_valid := 
-  match goal with 
-    | [H : is_valid _ _ |- _ ] => inv H ; eauto
-  end;
-  try match goal with 
-        | [H: forall r0 : Registers.reg * Bij.index,
-          In r0 ((?r, ?p0) :: _) ->
-          Bij.valid_index _ (snd _) = true |- _ ] => eapply (H (r,p0)) ; eauto
-      end.
-
 Ltac normalized pc :=
   match goal with
     | [NORM : forall (pc: positive) (ins: SSA.instruction), _ -> 
-          rtldpar_spec ?size ?tmp ?code1 ?pcode1 ?code2 ?R pc |- _] =>
+          rtldpar_spec ?tmp ?code1 ?pcode1 ?code2 ?R pc |- _] =>
       let Hpc := fresh "Hpc" in
         let Hnorm := fresh "Hnorm" in
         assert (Hpc := NORM pc); 
@@ -1397,12 +1247,9 @@ Ltac allinv_par :=
       | _ => idtac
     end.
 
-Lemma exec_seq_parcopy_store_e : forall size p rs r
-        (VALIDSRC: forall s, In s (Parmov.srcs _ p) -> Bij.valid_index size (snd s) = true)
-        (VALIDDST: forall d, In d (Parmov.dests _ p) -> Bij.valid_index size (snd d) = true)
-        (VALIDR: Bij.valid_index size (snd r) = true),
-        (Parmov.exec_seq reg p2eq val (rev p) (fun r => rs !! (Bij.pamr size r)) r =
-        (parcopy_store_e size (rev p) rs) # (Bij.pamr size r)).
+Lemma exec_seq_parcopy_store_e : forall p rs r,
+        (Parmov.exec_seq reg peq val (rev p) (fun r => rs !! r) r =
+        (parcopy_store_e (rev p) rs) # r).
 Proof.
   clear.
   intros. rewrite <- Parmov.exec_seq_exec_seq_rev.
@@ -1411,7 +1258,7 @@ Proof.
   erewrite <- fold_left_rev_right.
   rewrite rev_involutive.
   simpl Parmov.exec_seq_rev. flatten; subst. 
-  destruct (p2eq r p1).
+  destruct (peq r r1).
   - subst. 
     rewrite Parmov.update_s; auto.
     simpl.
@@ -1425,107 +1272,69 @@ Proof.
     simpl.
     replace p with (rev (rev p)) by eauto using rev_involutive.
     rewrite rev_involutive at 1.
-    rewrite PMap.gso.
+    rewrite PMap.gso; auto.
     erewrite IHp; eauto.
     erewrite fold_left_rev_right.
-    unfold parcopy_store_e; eauto. 
-    intros; eapply VALIDSRC; eauto; go. 
-    intros; eapply VALIDDST; eauto; go. 
-    simpl in *.
-    intro.
-    destruct r, p1.
-    elim n. 
-    eapply Bij.INJ' ; eauto. 
-    exploit VALIDDST; eauto ; go.
+    unfold parcopy_store_e; eauto.    
 Qed.
 
 Lemma exec_par_parcopy_store : forall f p rs rs' r,
                                  match_regset f rs rs' ->
   forall 
-    (VALIDSRC: forall s, In s (Parmov.srcs _ (parcb_to_moves p)) -> valid_idx f s = true)
-    (VALIDDST: forall d, In d (Parmov.dests _ (parcb_to_moves p)) -> valid_idx f d = true)
     (FRESH : Parmov.move_no_temp reg (fun _ : reg => (fresh_init f))
                                       (parcb_to_moves p))
-    (VALID: valid_idx f r = true)
     (NOFRESH: no_fresh f r),
-    (parcopy_store p rs) !!2 r =
-    Parmov.exec_par reg p2eq val (parcb_to_moves p)
-                    (fun r => rs' # (Bij.pamr (fn_max_indice f) r)) r.
+    (parcopy_store p rs) !! r =
+    Parmov.exec_par reg peq val (parcb_to_moves p)
+                    (fun r => rs' # r) r.
 Proof.
   induction p ; intros; go.
   - simpl. 
     invh match_regset; eauto.
   - destruct a as [src dst].
     simpl. 
-    destruct (p2eq r dst).
+    destruct (peq r dst).
     + subst.
       rewrite Parmov.update_s; auto.
-      rewrite P2Map.gss.
+      rewrite PMap.gss.
       invh match_regset.
       eapply H0; eauto; go.
       simpl in *. unfold Parmov.move_no_temp in *.
       exploit FRESH; eauto; go; intuition.
-    + rewrite P2Map.gso; auto.
+    + rewrite PMap.gso; auto.
       rewrite Parmov.update_o; eauto.
       eapply IHp; eauto.
-      * simpl in *. unfold Parmov.move_no_temp in *; go.
-      * simpl in *. intros; eapply VALIDDST; eauto; go. 
-      * simpl in *. unfold Parmov.move_no_temp in *; go.
+      simpl in *. unfold Parmov.move_no_temp in *; go.      
 Qed.
   
 Lemma match_regset_parmoves: 
   forall f rs rs' p,
   forall (FRESH : Parmov.move_no_temp reg (fun _ : reg => (fresh_init f)) (parcb_to_moves p))
-         (MILL: Parmov.is_mill reg (parcb_to_moves p))
-         (VALIDFRESH: Bij.valid_index (fn_max_indice f) (snd (fresh_init f)) = true)
-         (VALIDSRC: forall s, In s (Parmov.srcs _ (parcb_to_moves p)) -> valid_idx f s = true)
-         (VALIDDST: forall d, In d (Parmov.dests _ (parcb_to_moves p)) -> valid_idx f d = true),
+         (MILL: Parmov.is_mill reg (parcb_to_moves p)),
     match_regset f rs rs' ->
     match_regset f (parcopy_store p rs)
-                 (parcopy_store_e (fn_max_indice f) 
-                                  (seq_parmoves (fresh_init f) (parcb_to_moves p)) rs').
+                 (parcopy_store_e (seq_parmoves (fresh_init f) (parcb_to_moves p)) rs').
 Proof.
   clear. intros.
   assert (Hcor: forall e,
       Parmov.env_equiv reg (fun _ => fresh_init f) val
-                       (Parmov.exec_seq reg p2eq val (Parmov.parmove reg p2eq (fun _ => fresh_init f)
+                       (Parmov.exec_seq reg peq val (Parmov.parmove reg peq (fun _ => fresh_init f)
                                                                      (parcb_to_moves p)) e) 
-                       (Parmov.exec_par reg p2eq val (parcb_to_moves p) e))
+                       (Parmov.exec_par reg peq val (parcb_to_moves p) e))
     by (eapply Parmov.parmove_correctness ; eauto). 
-  specialize (Hcor (fun r => rs' # (Bij.pamr (fn_max_indice f) r))).
+  specialize (Hcor (fun r => rs' # r)).
   econstructor; eauto. intros.  
   specialize (Hcor r H0).
-  replace (Parmov.parmove reg p2eq (fun _ : reg => fresh_init f)
-        (parcb_to_moves p)) with (rev (rev (Parmov.parmove reg p2eq (fun _ : reg => fresh_init f)
+  replace (Parmov.parmove reg peq (fun _ : reg => fresh_init f)
+        (parcb_to_moves p)) with (rev (rev (Parmov.parmove reg peq (fun _ : reg => fresh_init f)
         (parcb_to_moves p)))) in * by eauto using rev_involutive.
   
   erewrite exec_seq_parcopy_store_e in Hcor ; eauto. 
   rewrite rev_involutive in Hcor.  
   unfold seq_parmoves. rewrite Hcor.
   eapply exec_par_parcopy_store; eauto.
-  - intros. eapply valid_mvs_valid_parmove_src; eauto.
-    unfold Parmov.srcs in *.
-    rewrite map_rev in *. unfold seq_parmoves. 
-    eapply in_rev; auto.
-  - intros. eapply valid_mvs_valid_parmove_dst; eauto.
-    unfold Parmov.dests in *.
-    rewrite map_rev in *. unfold seq_parmoves. 
-    eapply in_rev; auto.
 Qed.
-
   
-(* Record R_prop (f: RTLpar.function) (tf: RTL.function) (R: node -> node) := {
-   njp : forall pc, ~ RTLpar.join_point pc f -> R pc = pc
-
-;  inops: forall pc s, (RTLpar.fn_code f) ! pc = Some (Inop s) ->
-                        (RTL.fn_code tf) ! (R pc) = Some (RTL.Inop s)
- 
-(* no Inop => R is id on succ *). 
-
-}.
-*)
-(* TODO : lemma RTLpar.wf_function + transl_function -> R_prop *)
-
 Lemma wf_njp_id : forall f (WF: wf_function f) tf R pc,
   (transl_function_spec f tf R) ->
   forall ins, (fn_code f) ! pc = Some ins ->
@@ -1594,7 +1403,7 @@ Proof.
         rewrite HRsucc at 2. 
         econstructor ; eauto.
         
-    + clear H11 ; subst. elim H3. 
+    + subst. elim H3. 
       exploit fn_parcb_jp; eauto. intro Hcont.
       invh join_point; go. 
 
@@ -1612,27 +1421,25 @@ Proof.
 
   - (* inop with par blocks *)
     normalized pc; allinv_par.
-    + rewrite H13 in *. clear H13. subst.
+    + rewrite H11 in *. clear H11. subst.
       assert (Hinssucc: exists s, (fn_code f) ! succ = Some (Inop s))
           by (eapply fn_parcb_inop; eauto; go). 
       destruct Hinssucc as [succ' Hinssucc].
       specialize (DPARSPEC succ); eauto. 
       exploit DPARSPEC; eauto. intros.
       invh rtldpar_spec; repeat invh or ; try congruence; allinv_par.
-      * clear H19; subst. elim H9; eauto. 
+      * elim H9; eauto. 
         invh join_point; go.
       * exists
         (RTL.State ts tf sp (map_pc (st_renum s0) succ)
-                   (parcopy_store_e (fn_max_indice f)
-                                    (seq_parmoves (fresh_init f) (parcb_to_moves parcb))
-                   (parcopy_store_e (fn_max_indice f)
-                                    (seq_parmoves (fresh_init f) (parcb_to_moves parcb0))
+                   (parcopy_store_e (seq_parmoves (fresh_init f) (parcb_to_moves parcb))
+                   (parcopy_store_e (seq_parmoves (fresh_init f) (parcb_to_moves parcb0))
                                     rs')) m). 
         { split.
           - eapply plus_left; eauto. 
             + econstructor; eauto.
             + eapply star_trans; eauto.
-              * eapply reach_moves_star in H12; eauto.
+              * eapply reach_moves_star in H10; eauto.
               * eapply star_trans; eauto. 
                 eapply star_step; eauto; go.
                 eapply reach_moves_star_last ; eauto using rev_involutive.
@@ -1640,24 +1447,8 @@ Proof.
           - rewrite H7. econstructor; eauto. 
             eapply match_regset_parmoves; eauto.
             + eapply get_maxreg_is_not_temp_parcopies ; eauto. 
-            + unfold Parmov.srcs. intros src Hin. 
-              rewrite in_map_iff in Hin. 
-              destruct Hin as [[src0 dst0] [Hfst Hin]]; subst. 
-              eapply H16 in Hin; eauto. 
-            + unfold Parmov.dests. intros src Hin. 
-              rewrite in_map_iff in Hin. 
-              destruct Hin as [[src0 dst0] [Hfst Hin]]; subst. 
-              eapply H17 in Hin; eauto. 
             + eapply match_regset_parmoves; eauto.  
-              * eapply get_maxreg_is_not_temp_parcopies ; eauto.
-              * unfold Parmov.srcs. intros src Hin. 
-                rewrite in_map_iff in Hin. 
-                destruct Hin as [[src0 dst0] [Hfst Hin]]; subst. 
-                eapply H10 in Hin; eauto. 
-              * unfold Parmov.dests. intros src Hin. 
-                rewrite in_map_iff in Hin. 
-                destruct Hin as [[src0 dst0] [Hfst Hin]]; subst. 
-                eapply H11 in Hin; eauto. 
+              eapply get_maxreg_is_not_temp_parcopies ; eauto.
         }
 
     + eelim fn_normalized_jp with (pc':= succ) (pc:= pc); eauto; go.
@@ -1665,60 +1456,53 @@ Proof.
 
   - (* iop *) 
     normalized pc; allinv_par.
-    rewrite H8 in *. clear H8. subst. 
-    inv H6; flatten H5; boolInv.
-    exists  (RTL.State ts tf sp pc' (rs' # (Bij.pamr (fn_max_indice f) res) <- v) m). 
+    rewrite H6 in *. clear H6. subst. 
+    exists  (RTL.State ts tf sp pc' (rs' # res <- v) m). 
     split.
     + eapply plus_one ; eauto. 
       simpl in *. econstructor 2 ; eauto.
       rewrite <- H0 ; eauto.
+      symmetry.
       erewrite match_regset_args ; eauto with valagree.   
-      kick_valid.
       assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
     + assert (HRpc': map_pc (mapping f) pc' = pc') 
         by (eapply wf_ninop_id_succ; eauto using transl_function_spec_ok; go).
       rewrite <- HRpc' at 2. clear HRpc'.
       econstructor 1 ; auto.  
       constructor; intros. 
-      destruct (p2eq res r).
-      inv e. rewrite P2Map.gss. rewrite PMap.gss; auto.
-      rewrite P2Map.gso; auto. rewrite PMap.gso ; auto. inv MREG ; auto.
-      intro Hcont. destruct r ; destruct res.
-      eapply Bij.INJ' in Hcont ; eauto. 
+      destruct (peq res r).
+      inv e. rewrite PMap.gss. rewrite PMap.gss; auto.
+      rewrite PMap.gso; auto. rewrite PMap.gso ; auto. inv MREG ; auto.
+      
       
   - (* iload *)
     normalized pc; allinv_par.
-    rewrite H9 in * ; clear H9. subst.
-    inv H7; flatten H5; boolInv.
-    exists  (RTL.State ts tf sp pc' (rs'#(Bij.pamr (fn_max_indice f) dst) <- v) m). split.
+    rewrite H7 in * ; clear H7. subst.
+    exists  (RTL.State ts tf sp pc' (rs'#dst <- v) m).
+    split.
     + eapply plus_one ; eauto. 
-      econstructor 3 ; eauto.
+      simpl in *. econstructor 3 ; eauto.
       rewrite <- H0 ; eauto.
-      erewrite match_regset_args ; eauto with valagree. 
-      kick_valid. 
+      symmetry. erewrite match_regset_args ; eauto with valagree. 
       assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
     + assert (HRpc': map_pc (mapping f) pc' = pc') 
         by (eapply wf_ninop_id_succ; eauto using transl_function_spec_ok; go).
       rewrite <- HRpc' at 2. clear HRpc'.
       econstructor 1 ; auto.
-      constructor. intros. destruct (p2eq dst r).
-      inv e. rewrite P2Map.gss. rewrite PMap.gss; auto.
-      rewrite P2Map.gso; auto. rewrite PMap.gso; auto. inv MREG ; auto.
-      intro Hcont. destruct r ; destruct dst.
-      eapply Bij.INJ' in Hcont ; eauto. 
+      constructor. intros. destruct (peq dst r).
+      inv e. rewrite PMap.gss. rewrite PMap.gss; auto.
+      rewrite PMap.gso; auto. rewrite PMap.gso; auto. inv MREG ; auto.
       
   - (* istore *)
     normalized pc ; allinv_par.
-    rewrite H9 in * ; clear H9 ; subst.
-    inv H7; flatten H5; boolInv.
+    rewrite H7 in * ; clear H7 ; subst.
     exists  (RTL.State ts tf sp pc' rs' m'). split.
     + eapply plus_one ; eauto. 
       econstructor 4 with (a:= a) ; eauto. 
       * rewrite <- H0 ; eauto with valagree.
-        erewrite match_regset_args ; eauto with valagree.
-        kick_valid. 
+        symmetry. erewrite match_regset_args ; eauto with valagree.
         assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
-      * inv MREG. erewrite <- H9 ; eauto.
+      * inv MREG. erewrite <- H3 ; eauto.
         assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
     + assert (HRpc': map_pc (mapping f) pc' = pc')
         by (eapply wf_ninop_id_succ; eauto using transl_function_spec_ok; go).
@@ -1727,24 +1511,19 @@ Proof.
 
   - (* icall *)
     normalized pc; allinv_par. 
-    rewrite H8 in * ; clear H8 ; subst.
-    inv H6; flatten H8 ; boolInv.
+    rewrite H6 in * ; clear H6 ; subst.
     destruct ros.
-    + inv Eq0; flatten H9. 
-      exploit (spec_ros_r_find_function (fn_max_indice f) rs rs') ; eauto.
-      * inv MREG ; auto. eapply H8 ; eauto.
+    + exploit (spec_ros_r_find_function rs rs') ; eauto.
+      * inv MREG ; auto. eapply H2 ; eauto.
         assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
       * ((intros [tf' [Hfind OKtf']]);
-         (exists (RTL.Callstate (RTL.Stackframe (Bij.pamr (fn_max_indice f) 
-                                                          res) 
-                                                tf sp pc' rs' :: ts) 
-                                tf' rs' ## (map (Bij.pamr (fn_max_indice f)) args)
+         (exists (RTL.Callstate (RTL.Stackframe res tf sp pc' rs' :: ts) 
+                                tf' rs' ## args
                                 m) ; split;
              [(eapply plus_one ; eauto);
                (eapply RTL.exec_Icall  ; eauto); 
                (eauto with valagree)
              | ])).
-        inv H3.
         assert (HRpc': map_pc (mapping f) pc' = pc')
         by (eapply wf_ninop_id_succ; eauto using transl_function_spec_ok; go).
         rewrite <- HRpc' at 2. clear HRpc'.      
@@ -1755,15 +1534,13 @@ Proof.
           - assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
         }
 
-    + inv Eq0 ; flatten H9.
-      exploit (spec_ros_id_find_function  rs rs') ; eauto.
+    + exploit (spec_ros_id_find_function  rs rs') ; eauto.
       ((intros [tf' [Hfind OKtf']]);
-       (exists (RTL.Callstate (RTL.Stackframe (Bij.pamr (fn_max_indice f) res) tf sp pc' rs' :: ts) tf' rs' ## (map (Bij.pamr (fn_max_indice f)) args) m) ; split;
+       (exists (RTL.Callstate (RTL.Stackframe res tf sp pc' rs' :: ts) tf' rs' ## args m) ; split;
                [(eapply plus_one ; eauto);
                  (eapply RTL.exec_Icall  ; eauto); 
                  (eauto with valagree)
                | ])).
-      inv H3.
       assert (HRpc': map_pc (mapping f) pc' = pc')
         by (eapply wf_ninop_id_succ; eauto using transl_function_spec_ok; go).
         rewrite <- HRpc' at 2. clear HRpc'.      
@@ -1780,40 +1557,35 @@ Proof.
 
   - (* itailcall *)
     normalized pc; allinv_par.
-    rewrite H9 in * ; clear H9 ; subst.
+    rewrite H7 in * ; clear H7 ; subst.
     destruct ros.
-    + inv H7; flatten H9.
-      exploit (spec_ros_r_find_function (fn_max_indice f) rs rs') ; eauto.
+    + exploit (spec_ros_r_find_function rs rs') ; eauto.
       * inv MREG ; eauto. eapply H3 ; eauto. 
         assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
       * (intros [tf' [Hfind OKtf']]);
         (exploit (sig_function_translated f tf) ; eauto ; intros);
-        ((exists (RTL.Callstate ts tf' rs'##(map (Bij.pamr (fn_max_indice f)) args) m');  split);
+        ((exists (RTL.Callstate ts tf' rs'##args m');  split);
          [  (eapply plus_one ; eauto); 
            (eapply RTL.exec_Itailcall ; eauto with valagree);
            (replace (RTL.fn_stacksize tf) with (fn_stacksize f); eauto with valagree)
           | ]).
-        { replace (rs' ## (map (Bij.pamr (fn_max_indice f)) args)) 
-          with (rs##2 args).
+        { replace (rs' ## args) with (rs## args).
           - econstructor ; eauto.
             simpl in H0.
             eapply Genv.find_funct_prop ; eauto.
             eapply Genv.find_funct_prop ; eauto.
           - eapply match_regset_args ; eauto. 
-            kick_valid. 
             assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
         }     
-    + inv H7; flatten H9.
-      exploit (spec_ros_id_find_function  rs rs') ; eauto.    
+    + exploit (spec_ros_id_find_function  rs rs') ; eauto.    
       (intros [tf' [Hfind OKtf']]);
         (exploit (sig_function_translated f tf) ; eauto ; intros);
-        ((exists (RTL.Callstate ts tf' rs'##(map (Bij.pamr (fn_max_indice f)) args) m');  split);
+        ((exists (RTL.Callstate ts tf' rs'##args m');  split);
          [  (eapply plus_one ; eauto); 
            (eapply RTL.exec_Itailcall ; eauto with valagree);
            (replace (RTL.fn_stacksize tf) with (fn_stacksize f); eauto with valagree)
           | ]).
-      { replace (rs' ## (map (Bij.pamr (fn_max_indice f)) args)) 
-        with (rs##2 args).
+      { replace (rs' ## args) with (rs## args).
         econstructor ; eauto.
         - simpl in H0.    
           destruct Genv.find_symbol in H0; try congruence.
@@ -1822,17 +1594,13 @@ Proof.
           destruct Genv.find_symbol in H0; try congruence.
           eapply Genv.find_funct_ptr_prop ; eauto.
         - eapply match_regset_args ; eauto.
-          kick_valid.
           assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
       }
 
   - (* ibuiltin *)
     normalized pc; allinv_par.
-    rewrite H9 in * ; clear H9 ; subst. 
-    exists  (RTL.State ts tf sp pc'
-                       (regmap_setres (map_builtin_res (Bij.pamr (fn_max_indice f)) res) vres rs')
-                       m'). 
-    inv H7; flatten H8.
+    rewrite H7 in * ; clear H7 ; subst. 
+    exists  (RTL.State ts tf sp pc' (regmap_setres res vres rs') m'). 
     split.
     + eapply plus_one ; eauto. 
       eapply RTL.exec_Ibuiltin with (vargs := vargs) ; eauto.
@@ -1840,83 +1608,51 @@ Proof.
       { eapply eval_builtin_args_preserved with (ge1 := ge); eauto.
         apply senv_preserved.
         inv MREG. 
-        revert H0 HH H4 H. clear.
+        revert H0 HH H. clear.
         induction 1 ; intros; go.
         simpl. constructor.
-        - inv H4. revert H HH H3 H1. clear. induction 1 ; intros; go.
+        - revert H HH H1. clear. induction 1 ; intros; go.
           + simpl. rewrite H1; go.
           + simpl. 
             constructor.
             * eapply IHeval_builtin_arg1; eauto.
-              { simpl. intros. eapply HH; eauto. simpl.
-                eapply in_app_or in H2. 
-                eapply in_or_app.  intuition.
-                right. eapply in_or_app.
-                eapply in_app_or in H4. 
-                intuition.
-              }              
-              { simpl. intros. eapply H3; eauto. simpl.
-                eapply in_app_or in H2. 
-                eapply in_or_app.  intuition.
-                right. eapply in_or_app.
-                eapply in_app_or in H4. 
-                intuition.
-              }
+              simpl. intros. eapply HH; eauto. simpl.
+              eapply in_app_or in H2. 
+              eapply in_or_app.  intuition.
+              right. eapply in_or_app.
+              eapply in_app_or in H3. 
+              intuition.
             * eapply IHeval_builtin_arg2; eauto.
-              { simpl. intros. eapply HH; eauto. simpl.
-                eapply in_app_or in H2. 
-                eapply in_or_app.  intuition.
-                right. eapply in_or_app.
-                eapply in_app_or in H4. 
-                intuition.
-              }              
-              { simpl. intros. eapply H3; eauto. simpl.
-                eapply in_app_or in H2. 
-                eapply in_or_app.  intuition.
-                right. eapply in_or_app.
-                eapply in_app_or in H4. 
-                intuition.
-              }
+              simpl. intros. eapply HH; eauto. simpl.
+              eapply in_app_or in H2. 
+              eapply in_or_app.  intuition.
+              right. eapply in_or_app.
+              eapply in_app_or in H3. 
+              intuition.
+              
           + simpl. 
             constructor.
             * eapply IHeval_builtin_arg1; eauto.
-              { simpl. intros. eapply HH; eauto. simpl.
-                eapply in_app_or in H2. 
-                eapply in_or_app.  intuition.
-                right. eapply in_or_app.
-                eapply in_app_or in H4. 
-                intuition.
-              }              
-              { simpl. intros. eapply H3; eauto. simpl.
-                eapply in_app_or in H2. 
-                eapply in_or_app.  intuition.
-                right. eapply in_or_app.
-                eapply in_app_or in H4. 
-                intuition.
-              }
+              simpl. intros. eapply HH; eauto. simpl.
+              eapply in_app_or in H2. 
+              eapply in_or_app.  intuition.
+              right. eapply in_or_app.
+              eapply in_app_or in H3. 
+              intuition.
+              
             * eapply IHeval_builtin_arg2; eauto.
-              { simpl. intros. eapply HH; eauto. simpl.
-                eapply in_app_or in H2. 
-                eapply in_or_app.  intuition.
-                right. eapply in_or_app.
-                eapply in_app_or in H4. 
-                intuition.
-              }              
-              { simpl. intros. eapply H3; eauto. simpl.
-                eapply in_app_or in H2. 
-                eapply in_or_app.  intuition.
-                right. eapply in_or_app.
-                eapply in_app_or in H4. 
-                intuition.
-              }
+              simpl. intros. eapply HH; eauto. simpl.
+              eapply in_app_or in H2. 
+              eapply in_or_app.  intuition.
+              right. eapply in_or_app.
+              eapply in_app_or in H3. 
+              intuition.
+              
         - eapply IHlist_forall2; eauto.
-          + intros. eapply HH; eauto. simpl.
-            eapply in_app_or in H2.
-            intuition.
-          + inv H4. constructor. intros.
-            eapply H3; eauto. simpl.
-            eapply in_app_or in H2.
-            intuition.
+          intros. eapply HH; eauto. simpl.
+          eapply in_app_or in H2.
+          intuition.
+          
       } 
       eapply external_call_symbols_preserved; eauto with valagree.
     + assert (HRpc': map_pc (mapping f) pc' = pc')
@@ -1925,28 +1661,21 @@ Proof.
       econstructor 1 ; eauto. 
       constructor. intros.
       destruct res ; simpl; go.
-      * { destruct (p2eq x r). 
-          - inv e. rewrite P2Map.gss. rewrite PMap.gss; auto.
-          - rewrite P2Map.gso; auto. rewrite PMap.gso; auto.
+      * { destruct (peq x r). 
+          - inv e. rewrite PMap.gss. rewrite PMap.gss; auto.
+          - rewrite PMap.gso; auto. rewrite PMap.gso; auto.
             inv MREG ; auto.
-            intro Hcont. destruct r ; destruct x.
-            eapply Bij.INJ' in Hcont ; eauto.
-            inv H4. exploit H10; eauto.
-            apply in_or_app. left. simpl. left. reflexivity.
-            go.
         }
       * inv MREG ; auto.
       * inv MREG ; auto.
       
   - (* ifso *)
     normalized pc; allinv_par.
-    rewrite H8 in * ; clear H8 ; subst.
-    inv H6; flatten H8.
+    rewrite H6 in * ; clear H6 ; subst.
     exists (RTL.State ts tf sp ifso rs' m); split ; eauto. 
     eapply plus_one ; eauto.  
     eapply RTL.exec_Icond ; eauto. 
     erewrite <- match_regset_args ; eauto with valagree.
-    kick_valid. 
     assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
     reflexivity.
     assert (HRpc': map_pc (mapping f) ifso = ifso)
@@ -1956,13 +1685,11 @@ Proof.
       
   - (* ifnot *)
     normalized pc; allinv_par.
-    rewrite H8 in * ; clear H8 ; subst.
-    inv H6; flatten H8.
+    rewrite H6 in * ; clear H6 ; subst.
     exists (RTL.State ts tf sp ifnot rs' m); split ; eauto. 
     eapply plus_one ; eauto.  
     eapply RTL.exec_Icond ; eauto. 
     erewrite <- match_regset_args ; eauto with valagree.
-    kick_valid. 
     assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
     reflexivity.
     assert (HRpc': map_pc (mapping f) ifnot = ifnot)
@@ -1972,8 +1699,7 @@ Proof.
 
   - (* ijump *)
     normalized pc; allinv_par.
-    rewrite H9 in * ; clear H9 ; subst.
-    inv H7 ; flatten H9.
+    rewrite H7 in * ; clear H7 ; subst.
     exists (RTL.State ts tf sp pc' rs' m); split ; eauto. 
     + eapply plus_one ; eauto.
       eapply RTL.exec_Ijumptable ; eauto.
@@ -1989,19 +1715,17 @@ Proof.
   - (* ireturn *)
     (exploit transl_function_spec_ok ; eauto; intros).
     normalized pc ; allinv_par.
-    rewrite H9 in * ; clear H9 ; subst.
-    inv H7. flatten H9.
-    exists (RTL.Returnstate ts (regmap_optget o Vundef rs') m'); split ; eauto. 
+    rewrite H7 in * ; clear H7 ; subst.
+    exists (RTL.Returnstate ts (regmap_optget or Vundef rs') m'); split ; eauto. 
     + eapply plus_one ; eauto.
       eapply RTL.exec_Ireturn ; eauto.
       rewrite <- H0 ; eauto with valagree.
       rewrite stacksize_preserved with f tf ; eauto.
-    + unfold opt_pamr in *. 
-      flatten Eq.
-      * simpl. 
-        inv MREG. rewrite H3 ; eauto. 
-        assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
-      * simpl. go.
+    + replace (regmap_optget or Vundef rs') with (regmap_optget or Vundef rs).
+      go. unfold regmap_optget.
+      destruct or; try reflexivity. 
+      inv MREG. rewrite H3 ; eauto. 
+      assert (HH:= get_maxreg_is_not_temp_code f pc); flatten HH; eauto.
 
   - (* internal *)
     simpl in SPEC. Errors.monadInv SPEC. 
@@ -2043,9 +1767,8 @@ Proof.
       econstructor; eauto.       
       constructor. 
       intros. inv SPEC. 
-      replace (RTL.fn_params x) with (map (pamr f) (fn_params f)).
-      eapply init_reg_match_regset; eauto.
-      eapply max_reg_correct_params ; eauto.
+      replace (RTL.fn_params x) with (fn_params f).
+      auto. 
       unfold transl_function in * ; flatten EQ ; auto.
   
   - (* external *)
@@ -2058,19 +1781,16 @@ Proof.
   
   - (* return state *)
     inv STACK. 
-    exists (RTL.State ts0 tf sp (map_pc (mapping f) pc)
-                      (rs'# (Bij.pamr (fn_max_indice f) res) <- vres) m).
+    exists (RTL.State ts0 tf sp (map_pc (mapping f) pc) (rs'# res <- vres) m).
     split. 
     + eapply plus_one ; eauto.
       econstructor.
     + econstructor; eauto. 
       constructor. intros. 
-      destruct (p2eq res r).
-      * inv e. rewrite P2Map.gss. rewrite PMap.gss; auto.
-      * rewrite P2Map.gso; auto. rewrite PMap.gso; auto. 
+      destruct (peq res r).
+      * inv e. rewrite PMap.gss. rewrite PMap.gss; auto.
+      * rewrite PMap.gso; auto. rewrite PMap.gso; auto. 
         inv MREG ; auto.
-        intro Hcont. destruct r ; destruct res.
-        eapply Bij.INJ' in Hcont; eauto. 
 Qed.
 
 

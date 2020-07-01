@@ -34,14 +34,14 @@ Hint Constructors rhs: core.
 
 Inductive eval : genv -> val -> regset -> instruction -> val -> Prop := 
 | eval_Iop : forall ge sp rs m op args res pc' v
-  (EVAL: eval_operation ge sp op rs##2 args m = Some v)
+  (EVAL: eval_operation ge sp op rs## args m = Some v)
   (MIND: op_depends_on_memory op = false),  
   eval ge sp rs (Iop op args res pc') v.
 Hint Constructors eval: core.
 
 Inductive models : function -> genv -> val -> regset -> reg -> instruction -> Prop := 
 | models_state : forall f ge x x' i sp rs v, 
-  rs #2 x = v ->
+  rs # x = v ->
   rhs f x' i ->
   eval ge sp rs i v ->
   models f ge sp rs x i.
@@ -128,14 +128,14 @@ Ltac simpl_ext_params :=
             end]
   end.
 
-Lemma map_gso : forall (rs: P2Map.t val) args x v,
+Lemma map_gso : forall (rs: PMap.t val) args x v,
   (forall arg, In arg args -> arg <> x) ->
-  (rs #2 x <- v)##2 args = rs ##2 args.
+  (rs # x <- v)## args = rs ## args.
 Proof.
   induction args ; intros.
   simpl ; auto.
   simpl.
-  rewrite P2Map.gso ; eauto.
+  rewrite PMap.gso ; eauto.
   rewrite IHargs; eauto.
 Qed.
 
@@ -231,7 +231,7 @@ Proof.
       inv H0.  assert (pc = d) by (def_def f x d pc).
       inv H0. unfold fn_code in *; allinv.
       eapply eval_Iop with (m:= m) ; eauto.
-      rewrite P2Map.gss. 
+      rewrite PMap.gss. 
       rewrite map_gso ; eauto.
       intros.   intro Hcont. inv Hcont.  
       assert (use_code f x d). econstructor ; eauto.
@@ -242,7 +242,7 @@ Proof.
       intros. inv H3. inv H6. 
       eapply eval_Iop with (m:= m0); auto. 
       assert (x <> res) by (intro Hcont; inv Hcont;  def_def f res pc d; (intros Heq; inv Heq ; inv H2 ; auto)).  
-      rewrite P2Map.gso ; eauto.
+      rewrite PMap.gso ; eauto.
       rewrite map_gso ; eauto.
       intros.   intro Hcont. inv Hcont.  
       assert (use f res d). 
@@ -268,7 +268,7 @@ Proof.
   intros. inv H2. inv H5. econstructor ; eauto. 
   eapply eval_Iop with (m:= m0); auto. 
   assert (x <> dst). (intro Hcont; inv Hcont;  def_def f dst pc d). 
-  rewrite P2Map.gso ; eauto.
+  rewrite PMap.gso ; eauto.
   rewrite map_gso ; eauto.
   intros.   intro Hcont. inv Hcont.  
   assert (use f dst d).
@@ -319,9 +319,9 @@ Proof.
     intros. inv H2. inv H5.  econstructor ; eauto. 
     eapply eval_Iop with (m:= m0); auto. 
     assert (BR x <> res) by (intro Hcont; inv Hcont; def_def f x pc d).
-    unfold regmap2_setres. destruct res ; auto.
+    unfold regmap_setres. destruct res ; auto.
     
-    rewrite P2Map.gso ; eauto; try congruence.
+    rewrite PMap.gso ; eauto; try congruence.
     rewrite map_gso ; eauto.
     intros.   intro Hcont. inv Hcont.
     assert (use f x0 d).
@@ -385,7 +385,7 @@ Proof.
     intro Hcont. inv Hcont. 
     inv H0. 
     def_def f res0 pred pc0. congruence. 
-    rewrite P2Map.gso ; eauto.
+    rewrite PMap.gso ; eauto.
   
     rewrite map_gso; auto.
     intros. intro Hcont. inv Hcont. 
@@ -443,7 +443,7 @@ Lemma equation_lemma :
       op_depends_on_memory op = false ->
       sdom f d pc -> 
       reachable prog (State s f sp pc rs m) -> 
-      eval_operation ge_prog sp op (rs##2 args) m = Some (rs #2 x).
+      eval_operation ge_prog sp op (rs## args) m = Some (rs # x).
 Proof.
   intros.
   unfold reachable in H2.
@@ -464,7 +464,7 @@ Lemma equation_corolary :
       op_depends_on_memory op = false ->
       use f x pc ->
       reachable prog (State s f sp pc rs m) -> 
-      eval_operation (Genv.globalenv prog) sp op (rs##2 args) m = Some (rs #2 x).
+      eval_operation (Genv.globalenv prog) sp op (rs## args) m = Some (rs # x).
 Proof.
   intros.
   unfold reachable in H3.

@@ -1,6 +1,5 @@
 Require Import Coqlib.
 Require Import Maps.
-Require Import TrMaps2.
 Require Import AST.
 Require Import Op.
 Require Import Registers.
@@ -42,7 +41,6 @@ Definition transf_function (f : function) : SSA.function :=
      (fn_stacksize f)
      (PTree.map (transf_instr res) (fn_code f))
      f.(fn_phicode)
-     f.(fn_max_indice)
      f.(fn_entrypoint)
      f.(fn_ext_params)
      f.(fn_dom_test)
@@ -226,7 +224,7 @@ Proof.
   auto. 
 Qed.
 
-(* Outdated : no more extensional equality on ptrees *) 
+(* XXX Outdated : no more extensional equality on ptrees *) 
 (* Lemma same_successors : forall (f:function) (Hwf:wf_ssa_function f), *)
 (*   successors (transf_function f) = successors f. *)
 (* Proof. *)
@@ -277,7 +275,6 @@ Proof.
   rewrite successors_transf_function; auto.
 Qed.
 
-
 Lemma use_phicode_transf_function: forall f:function,
   wf_ssa_function f -> forall x u,
   use_phicode (transf_function f) x u -> 
@@ -292,7 +289,6 @@ Proof.
   - unfold transf_function in *  ; destruct analysis ; go.
   - rewrite make_predecessors_transf_function; auto.
 Qed.
-
 
 Lemma use_transf_function: forall (f:function) x u, 
   wf_ssa_function f ->

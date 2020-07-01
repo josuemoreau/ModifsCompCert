@@ -17,6 +17,7 @@ Require Import Classical.
 Require Import Kildall.
 Require Import KildallComp.
 Require Import CSSApardef.
+Require Import Registers.
 
 Definition cssaval_ins_spec (get_cssaval : reg -> reg) (ins : instruction) :=
   match ins with
@@ -67,15 +68,15 @@ Definition check_cssaval_ins_r
       if negb acc then false
       else match snd pcins with
       | Iop Omove (src :: nil) dst _ =>
-          p2eq (get_cssaval src) (get_cssaval dst)
+          peq (get_cssaval src) (get_cssaval dst)
       | Iop _ _ dst _ =>
-          p2eq (get_cssaval dst) dst
+          peq (get_cssaval dst) dst
       | Iload _ _ _ dst _ =>
-          p2eq (get_cssaval dst) dst
+          peq (get_cssaval dst) dst
       | Icall _ _ _ dst _ =>
-          p2eq (get_cssaval dst) dst
+          peq (get_cssaval dst) dst
       | Ibuiltin _ _ (BR dst) _ =>
-          p2eq (get_cssaval dst) dst
+          peq (get_cssaval dst) dst
       | _ => true
       end)
     true elems.
@@ -90,7 +91,7 @@ Definition check_cssaval_parcb_r
         (fun parc =>
           match parc with
           | Iparcopy src dst =>
-              p2eq (get_cssaval src) (get_cssaval dst)
+              peq (get_cssaval src) (get_cssaval dst)
           end)
         (snd pcparcb))
     true parcbs.
@@ -105,7 +106,7 @@ Definition check_cssaval_phib_r
         (fun phi =>
           match phi with
           | Iphi args dst =>
-              p2eq (get_cssaval dst) dst
+              peq (get_cssaval dst) dst
           end)
         (snd pcphib))
     true phibs.
@@ -152,7 +153,7 @@ Proof.
   destruct (check_cssaval_ins_r elems get_cssaval).
   simpl in H; auto.
   unfold cssaval_ins_spec.
-  flatten H; try destruct p2eq; go.
+  flatten H; try destruct peq; go.
   simpl in H. congruence.
   assert (check_cssaval_ins_r elems get_cssaval = true).
   apply check_cssaval_ins_cons with (elt := a); auto.
@@ -173,7 +174,7 @@ Proof.
     - simpl in H.
       rewrite forallb_forall in H.
       exploit (H (Iparcopy src dst)); auto.
-      intros. destruct p2eq; go.
+      intros. destruct peq; go.
     - simpl in H. congruence.
   + simpl in H. 
     assert(check_cssaval_parcb_r pcparcbs get_cssaval = true).
@@ -195,7 +196,7 @@ Proof.
     - simpl in H.
       rewrite forallb_forall in H.
       exploit (H (Iphi args dst)); auto.
-      intros. destruct p2eq; go.
+      intros. destruct peq; go.
     - simpl in H. congruence.
   + simpl in H. 
     assert(check_cssaval_phib_r pcphibs get_cssaval
@@ -293,7 +294,7 @@ Proof.
         contradict Hin. apply none_not_in.
         apply nodef_none; eauto.
       }
-    - destruct p2eq; auto; simpl in H; congruence.
+    - destruct peq; auto; simpl in H; congruence.
 Qed.
 
 (* Utility lemmas about CSSA-value *)
@@ -564,7 +565,7 @@ Lemma cssaval_spec_jp_until_phi :
   (forall r, ~ assigned_phi_spec (fn_phicode f) pc r) ->
   (~ join_point pc f) ->
   index_pred (get_preds f) pc pc' = Some k ->
-  (forall r, cssadom f r pc -> rs #2 r = rs #2 (get_cssaval r)) ->
+  (forall r, cssadom f r pc -> rs # r = rs # (get_cssaval r)) ->
 
   forall r',
     cssadom f r' pc' ->
@@ -578,8 +579,8 @@ Lemma cssaval_spec_jp_until_phi :
 
     \/ (assigned_phi_spec (fn_phicode f) pc' r')
     ->
-    (phi_store k phib (parcopy_store parcb rs)) #2 r' =
-    (phi_store k phib (parcopy_store parcb rs)) #2 (get_cssaval r').
+    (phi_store k phib (parcopy_store parcb rs)) # r' =
+    (phi_store k phib (parcopy_store parcb rs)) # (get_cssaval r').
 Proof.
   intros until k.
   intros WF REACH Hcssavalspec Hparcb Hinop Hinop' Hphib
@@ -690,7 +691,7 @@ Lemma cssaval_spec_jp :
   (~ join_point pc f) ->
   index_pred (get_preds f) pc pc' = Some k ->
   (forall r, cssadom f r pc ->
-    rs #2 r = rs #2 (get_cssaval r)) ->
+    rs # r = rs # (get_cssaval r)) ->
   forall r',
     cssadom f r' pc' ->
 
@@ -702,8 +703,8 @@ Lemma cssaval_spec_jp :
 
     \/ assigned_parcopy_spec (fn_parcopycode f) pc' r' /\ ~ ext_params f r' ->
 
-   (parcopy_store parcb' (phi_store k phib (parcopy_store parcb rs))) !!2 r' =
-   (parcopy_store parcb' (phi_store k phib (parcopy_store parcb rs))) !!2 (get_cssaval r').
+   (parcopy_store parcb' (phi_store k phib (parcopy_store parcb rs))) !! r' =
+   (parcopy_store parcb' (phi_store k phib (parcopy_store parcb rs))) !! (get_cssaval r').
 Proof.
   intros until k.
   intros WF REACH Hcssavalspec Hparcb Hinop Hinop' Hphib
@@ -924,7 +925,7 @@ Inductive sf_inv (ge: genv) : stackframe -> Prop :=
     (SFINV: forall r,
                 cssadom f r pc ->
                 r <> res ->
-                rs #2 r = rs #2 (cssaval f r))
+                rs # r = rs # (cssaval f r))
     (SINS: (fn_code f) ! pred = Some (Icall sig ros args res pc)),
     sf_inv ge (Stackframe res f sp pc rs).
 Hint Constructors sf_inv: core.
@@ -940,7 +941,7 @@ Inductive s_inv (ge: genv) : state -> Prop :=
   | si_State : forall s f sp pc rs m
     (WFF: wf_cssa_function f)
     (REACHED: reached f pc)
-    (SINV: forall r, cssadom f r pc -> rs #2 r = rs #2 (cssaval f r))
+    (SINV: forall r, cssadom f r pc -> rs # r = rs # (cssaval f r))
     (SFINV: sfl_inv ge s),
     s_inv ge (State s f sp pc rs m)
   | si_Callstate : forall s f args m
@@ -1026,14 +1027,14 @@ Proof.
       { intros; repeat invh or ; repeat invh and; auto.
         - assert (cssaval f r = r) by (invh cssaval_spec ; go).
           congruence. 
-        - rewrite P2Map.gso; eauto. 
-          rewrite P2Map.gso; eauto. 
+        - rewrite PMap.gso; eauto. 
+          rewrite PMap.gso; eauto. 
           * intro. subst. 
             invh cssadom; try congruence; normalized.
             assert (dom f pc def_r) by (eapply cssaval_dom; eauto; go).
             eelim sdom_not_dom; eauto.
           * intro. subst. eelim H2; go.
-        - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+        - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
           invh assigned_code_spec; allinv.
           match goal with 
             | id: (fn_code f) ! pc = Some ?i |- _ => 
@@ -1041,9 +1042,9 @@ Proof.
                 by (invh cssaval_spec; eauto; go)
           end.
           simpl in H1. flatten H1 ; subst; eauto.
-          rewrite P2Map.gss.
+          rewrite PMap.gss.
           rewrite <- H1.
-          rewrite P2Map.gso; try congruence.
+          rewrite PMap.gso; try congruence.
           inv H8. 
           eapply SINV; eauto.
           exploit exists_def; go; intros [d Hd].
@@ -1064,14 +1065,14 @@ Proof.
       { intros; repeat invh or ; repeat invh and; auto.
         - assert (cssaval f r = r) by (invh cssaval_spec ; go).
           congruence. 
-        - rewrite P2Map.gso; eauto. 
-          rewrite P2Map.gso; eauto. 
+        - rewrite PMap.gso; eauto. 
+          rewrite PMap.gso; eauto. 
           * intro. subst. 
             invh cssadom; try congruence; normalized.
             assert (dom f pc def_r) by (eapply cssaval_dom; eauto; go).
             eelim sdom_not_dom; eauto.
           * intro. subst. eelim H2; go.
-        - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+        - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
           invh assigned_code_spec; allinv.
           match goal with 
             | id: (fn_code f) ! pc = Some ?i |- _ => 
@@ -1091,7 +1092,7 @@ Proof.
       { intros; repeat invh or ; repeat invh and; auto.
         - assert (cssaval f r = r) by (invh cssaval_spec ; go).
           congruence. 
-        - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+        - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
           invh assigned_code_spec; allinv.
       } 
 
@@ -1109,7 +1110,7 @@ Proof.
         { intros; repeat invh or ; repeat invh and; auto.
           - assert (cssaval f r = r) by (invh cssaval_spec ; go).
             congruence. 
-          - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+          - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
             invh assigned_code_spec; allinv. congruence.
         } 
 
@@ -1127,14 +1128,14 @@ Proof.
       { intros; repeat invh or ; repeat invh and; auto.
         - assert (cssaval f r = r) by (invh cssaval_spec ; go).
           congruence. 
-        - destruct res ; try eauto. simpl. rewrite P2Map.gso; eauto. 
-          rewrite P2Map.gso; eauto. 
+        - destruct res ; try eauto. simpl. rewrite PMap.gso; eauto. 
+          rewrite PMap.gso; eauto. 
           * intro. subst. 
             invh cssadom; try congruence; normalized.
             assert (dom f pc def_r) by (eapply cssaval_dom; eauto; go).
             eelim sdom_not_dom; eauto.
           * intro. subst. eelim H2; go.
-        - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+        - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
           invh assigned_code_spec; allinv.
           match goal with 
             | id: (fn_code f) ! pc = Some ?i |- _ => 
@@ -1155,7 +1156,7 @@ Proof.
       { intros; repeat invh or ; repeat invh and; auto.
         - assert (cssaval f r = r) by (invh cssaval_spec ; go).
           congruence. 
-        - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+        - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
           invh assigned_code_spec; allinv.
       }
       
@@ -1170,7 +1171,7 @@ Proof.
       { intros; repeat invh or ; repeat invh and; auto.
         - assert (cssaval f r = r) by (invh cssaval_spec ; go).
           congruence. 
-        - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+        - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
           invh assigned_code_spec; allinv.
       }
 
@@ -1194,7 +1195,7 @@ Proof.
       { intros; repeat invh or ; repeat invh and; auto.
         - assert (cssaval f r = r) by (invh cssaval_spec ; go).
           congruence. 
-        - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+        - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
           invh assigned_code_spec; allinv.
       }     
 
@@ -1225,9 +1226,9 @@ Proof.
       - assert (cssaval f r = r) by (invh cssaval_spec ; go).
         congruence. 
       - assert (r <> res) by (intro; subst; eelim H3; eauto). 
-        rewrite P2Map.gso; auto.
+        rewrite PMap.gso; auto.
         rewrite SFINV; eauto.
-        rewrite P2Map.gso; auto.
+        rewrite PMap.gso; auto.
         intro. 
         assert (def f (cssaval f r) pred) by go.
         invh cssadom.
@@ -1239,7 +1240,7 @@ Proof.
         + invh assigned_parcopy_spec; invh ex; 
           exploit (parcb_inop f WFF pred); eauto. go.
           intros [n Hn]. congruence. 
-      - destruct (p2eq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
+      - destruct (peq r (cssaval f r)) as [EQ|EQ]; [ rewrite <- EQ ; auto | idtac]. 
         invh assigned_code_spec; allinv.
         assert (cssaval f r = r) by (invh cssaval_spec; exploit H5; eauto). 
         rewrite H1; auto.
@@ -1271,7 +1272,7 @@ Lemma cssaval_spec_correct :
   forall f r pc s sp rs m,
   reachable prog (State s f sp pc rs m) ->
   cssadom f r pc ->
-  rs #2 r = rs #2 (cssaval f r).
+  rs # r = rs # (cssaval f r).
 Proof.
   intros.
   destruct H as [s0 [t [IS Hstar]]].
@@ -1285,7 +1286,7 @@ Lemma cssaval_spec_correct_2 :
   cssadom f r2 pc ->
   cssaval f r1 = cssaval f r2 ->
   reachable prog (State s f sp pc rs m) ->
-  rs #2 r1 = rs #2 r2.
+  rs # r1 = rs # r2.
 Proof.
   intros.
   erewrite cssaval_spec_correct; eauto.

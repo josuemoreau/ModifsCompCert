@@ -462,8 +462,10 @@ Module Type RTL_SSA_MAPPING.
   Parameter from_valid_index_to_valid_reg_ssa : forall size i,
     valid_index size i = true -> 
     forall r, valid_reg_ssa size (pamr size (r,i)) = true.
-  Parameter from_valid_reg_ssa_to_valid_index : forall size ri r i,
+  Parameter from_valid_reg_ssa_to_valid_index2 : forall size ri r i,
     valid_reg_ssa size ri = true -> rmap size ri = (r,i) -> valid_index size i = true.
+  Parameter from_valid_reg_ssa_to_valid_index : forall size ri,
+    valid_reg_ssa size ri = true -> valid_index size (snd (rmap size ri)) = true.
 
   Parameter INJ' : forall size r1 i1 r2 i2, 
     valid_index size i1 = true ->
@@ -518,9 +520,9 @@ Module Bij : RTL_SSA_MAPPING.
     rewrite toPair_fromPair; auto.
     apply andb_true_intro; split; auto.
     apply log_lower_implies_log_greater; auto.
-  Qed.    
-
-  Lemma from_valid_reg_ssa_to_valid_index : forall size ri r i,
+  Qed.
+  
+  Lemma from_valid_reg_ssa_to_valid_index2 : forall size ri r i,
     valid_reg_ssa size ri = true -> rmap size ri = (r,i) -> valid_index size i = true.
   Proof.
     unfold valid_index, valid_reg_ssa, rmap; intros s ri r i T1 T2.
@@ -531,6 +533,14 @@ Module Bij : RTL_SSA_MAPPING.
     rewrite T; auto.
   Qed.
 
+  Lemma from_valid_reg_ssa_to_valid_index : forall size ri,
+      valid_reg_ssa size ri = true -> valid_index size (snd (rmap size ri)) = true.
+  Proof.
+    intros.
+    eapply from_valid_reg_ssa_to_valid_index2 with (r:= fst (rmap size0 ri)); eauto.
+    rewrite <- surjective_pairing. auto.
+  Qed.
+  
   Lemma BIJ1 : forall size r i,
     valid_index size i = true -> rmap size (pamr size (r,i)) = (r,i).
   Proof.

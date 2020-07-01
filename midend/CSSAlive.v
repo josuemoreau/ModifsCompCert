@@ -22,31 +22,25 @@ Require Import Classical.
 Notation reg_live := SSARegSet.add.
 Notation reg_dead := SSARegSet.remove.
 
-Definition reg_option_live (or: option reg)
-    (lv: SSARegSet.t) :=
+Definition reg_option_live (or: option reg) (lv: SSARegSet.t) :=
   match or with
   | None => lv
   | Some r => reg_live r lv
   end.
 
-Definition reg_sum_live (ros: reg + ident)
-    (lv: SSARegSet.t) :=
+Definition reg_sum_live (ros: reg + ident) (lv: SSARegSet.t) :=
   match ros with
   | inl r => reg_live r lv
   | inr s => lv
   end.
 
-Fixpoint reg_list_live
-    (rl: list reg) (lv: SSARegSet.t) {struct rl}
-      : SSARegSet.t :=
+Fixpoint reg_list_live (rl: list reg) (lv: SSARegSet.t) {struct rl} : SSARegSet.t :=
   match rl with
   | nil => lv
   | r1 :: rs => reg_list_live rs (reg_live r1 lv)
   end.
 
-Fixpoint reg_list_dead
-   (rl: list reg) (lv: SSARegSet.t) {struct rl}
-     : SSARegSet.t :=
+Fixpoint reg_list_dead (rl: list reg) (lv: SSARegSet.t) {struct rl} : SSARegSet.t :=
   match rl with
   | nil => lv
   | r1 :: rs => reg_list_dead rs (reg_dead r1 lv)
@@ -169,7 +163,7 @@ Proof.
   simpl.
   eapply IHl; eauto.
   eapply SSARegSet.remove_2 ; eauto.
-  destruct a, r ; intro Hcont ; invh and ; subst ; go.
+  intro Hcont ; subst ; go.
 Qed.
 
 Lemma live_wf_live :
@@ -295,7 +289,6 @@ Proof.
               assert (DIFF: x <> r) by (intro Hcont ; subst ; eelim H2; go).
               eapply reg_list_live_incl; eauto.
               eapply SSARegSet.remove_2; eauto.
-              intro Hcont ; invh and ; subst ; eelim DIFF ; destruct x, r ; go.
             + eapply reg_list_live_incl; eauto.
             + eapply reg_list_live_incl; eauto.
           - eapply SSARegSet.add_2; eauto.

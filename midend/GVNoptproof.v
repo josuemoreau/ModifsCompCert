@@ -148,7 +148,7 @@ Section PRESERVATION.
     forall res (f:function) sp pc rs s st 
       (STACK: (match_stackframes s st))
       (WFF: wf_ssa_function f)
-      (HG:forall v, gamma GVN f ge sp pc (rs#2 res <- v))
+      (HG:forall v, gamma GVN f ge sp pc (rs# res <- v))
       (EXE: exec f pc),
       match_stackframes
       ((Stackframe res f sp pc rs) :: s)
@@ -239,7 +239,7 @@ Section PRESERVATION.
     intro Hcont; subst.
     eapply andb_true_iff in Eq1; eauto; invh and.
     eapply andb_true_iff in H0; eauto; invh and.
-    destruct (p2eq r r); intuition.
+    destruct (peq r r); intuition.
   Qed.
 
   Hint Constructors ext_params dsd: core.
@@ -273,12 +273,12 @@ Section PRESERVATION.
   Lemma eval_iop_correct : forall f (WF: wf_ssa_function f) m res rs sp v pc pc' args op s,
       exec f pc ->
       gamma GVN f ge sp pc rs ->
-      eval_operation ge sp op rs ##2 args m = Some v ->
+      eval_operation ge sp op rs ## args m = Some v ->
       s_inv ge (State s f sp pc rs m) ->
       (fn_code f) ! pc = Some (Iop op args res pc') ->
       (fn_code (transf_function f)) ! pc = Some (Iop Omove (A_r f res :: nil) res pc') ->
       res <> A_r f res ->
-      eval_operation tge sp Omove rs ##2 (A_r f res :: nil) m = Some v.
+      eval_operation tge sp Omove rs ## (A_r f res :: nil) m = Some v.
   Proof.
     intros until s. intros EXE HG EVAL SINV CODE TCODE COND. 
 
@@ -290,9 +290,9 @@ Section PRESERVATION.
     - assert (HE:[f,ge,sp,rs]|=(A_r f res)==(Iop op x1 (A_r f res) x0))
         by (inv SINV; eapply SINV0 ; eauto). 
       inv HE. invh SSAinv.eval.
-      assert (G_list GVN ge sp rs (map (A_r f) args) (rs##2 args))
+      assert (G_list GVN ge sp rs (map (A_r f) args) (rs## args))
         by (eapply gamma_v_args; eauto).
-      assert (G_list GVN ge sp rs (map (A_r f) x1) (rs##2 x1)).
+      assert (G_list GVN ge sp rs (map (A_r f) x1) (rs## x1)).
       { assert (gamma GVN f ge sp x rs) by (eapply  gamma_sdom_gamma; eauto).
         eapply gamma_v_args in H; go.
         auto. 
@@ -372,7 +372,7 @@ Section PRESERVATION.
       invh s_inv ; eauto.
       
     - (* Iop *)
-      exists (State st (transf_function f) sp pc' rs#2 res<-v  m); split;
+      exists (State st (transf_function f) sp pc' rs# res<-v  m); split;
         [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
         try solve [eapply subj_red_gamma; eauto].
       exploit new_fn_code; eauto; destruct 1 as [Hi|[res' [d [Hi2 Hi3]]]]. 
@@ -383,7 +383,7 @@ Section PRESERVATION.
         eapply eval_iop_correct; eauto.
 
     - (* Iload *) 
-      exists (State st (transf_function f) sp pc' rs#2 dst<-v m); split;
+      exists (State st (transf_function f) sp pc' rs# dst<-v m); split;
         [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|auto|eauto]];
         try solve [eapply subj_red_gamma; eauto].
       eapply exec_Iload; eauto.
@@ -403,7 +403,7 @@ Section PRESERVATION.
     - (* Icall *)
       assert (WF: wf_ssa_function f) by (invh s_inv ; eauto).
       exists (Callstate (Stackframe res (transf_function f) sp pc' rs :: st)
-                        (transf_fundef fd) rs ##2 args m); split;
+                        (transf_fundef fd) rs ## args m); split;
         [idtac| econstructor; [try eapply subj_red_gamma; eauto|econstructor; auto]].
       + eapply exec_Icall with (ros := ros); eauto.
         rewrite same_fn_code; [auto | congruence]. 
@@ -411,10 +411,10 @@ Section PRESERVATION.
         eapply find_function_translated; eauto.
       + eapply SSAinv.subj_red; eauto. 
       + intros v x Hyp1 Hyp2.
-        { destruct (p2eq x res).
+        { destruct (peq x res).
           - subst. exploit (same_fn_code1 f WF pc); go. 
             eapply G_top; eauto. 
-          - rewrite P2Map.gso; auto.
+          - rewrite PMap.gso; auto.
             exploit (HG x); eauto. 
             * destruct dsd_pred_njp with f pc pc' x as 
                   [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
@@ -424,7 +424,7 @@ Section PRESERVATION.
               eelim ssa_not_Inop_not_phi; eauto; go. 
             * intros HG'. inv HG'.
               econstructor; eauto. 
-              rewrite P2Map.gso; auto.
+              rewrite PMap.gso; auto.
               intros Hcont.
               simpl in *. 
               exploit (same_fn_code1 f WF pc); go.
@@ -432,7 +432,7 @@ Section PRESERVATION.
         }
 
     - (* Itailcall *)
-      exists (Callstate st (transf_fundef fd) rs ##2 args m'); split.
+      exists (Callstate st (transf_fundef fd) rs ## args m'); split.
       eapply exec_Itailcall with (ros := ros); eauto.
       rewrite same_fn_code; [eauto|congruence].
       simpl; rewrite sig_preserved; eauto. 
@@ -441,7 +441,7 @@ Section PRESERVATION.
       eapply SSAinv.subj_red; eauto.
 
     - (* Ibuiltin *)
-      exists (State st (transf_function f) sp pc' (regmap2_setres val res vres rs) m'); split;
+      exists (State st (transf_function f) sp pc' (regmap_setres res vres rs) m'); split;
         [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
         try solve [eapply subj_red_gamma; eauto].
       eapply exec_Ibuiltin with (args:= args); eauto.
@@ -473,7 +473,7 @@ Section PRESERVATION.
       rewrite same_fn_code; [eauto|congruence].
       
     - (* Ireturn *)
-      exists (Returnstate st (regmap2_optget or Vundef rs) m'); split;
+      exists (Returnstate st (regmap_optget or Vundef rs) m'); split;
         [idtac| econstructor; eauto].  
       econstructor; eauto.
       rewrite same_fn_code; [eauto|congruence].
@@ -505,7 +505,7 @@ Section PRESERVATION.
 
     - (* return *)
       inv STACK.
-      exists (State st0 (transf_function f) sp pc rs #2 res <- vres m); split.
+      exists (State st0 (transf_function f) sp pc rs # res <- vres m); split.
       econstructor; eauto.
       econstructor; eauto.
       eapply SSAinv.subj_red; eauto.

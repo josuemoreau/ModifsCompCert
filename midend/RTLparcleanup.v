@@ -89,36 +89,35 @@ Qed.
 Lemma store_purged_parcb_aux :
   forall parcb parcb' rs rs' r visited,
   remove_redundant_copies visited parcb = parcb' ->
-  (forall r', rs !!2 r' = rs' !!2 r') ->
+  (forall r', rs !! r' = rs' !! r') ->
   ~ SSARegSet.In r visited ->
-  (parcopy_store parcb rs) !!2 r =
-    (parcopy_store parcb' rs') !!2 r.
+  (parcopy_store parcb rs) !! r =
+    (parcopy_store parcb' rs') !! r.
 Proof.
   induction parcb; intros. go.  
   simpl in *. flatten H.
-  + rewrite P2Map.gso. go.
+  + rewrite PMap.gso. go.
     unfold not; intros Heq. rewrite Heq in *.
     contradict H1.
     apply SSARegSet.mem_2; auto.
   + rewrite <- H. simpl.
-    case_eq(p2eq r r1); intros.
-    rewrite e. repeat rewrite P2Map.gss. auto.
-    repeat rewrite P2Map.gso.
+    case_eq(peq r r1); intros.
+    rewrite e. repeat rewrite PMap.gss. auto.
+    repeat rewrite PMap.gso.
     eapply IHparcb; eauto.
     unfold not; intros Hin.
     contradict H1.
     eapply SSARegSet.add_3; eauto.
     destruct r; destruct r1; simpl in *; go.
     unfold not; intros. destruct H1. go.
-    go. go.
 Qed.
 
 Lemma store_purged_parcb :
   forall parcb parcb' rs rs' r,
   remove_redundant_copies SSARegSet.empty parcb = parcb' ->
-  (forall r', rs !!2 r' = rs' !!2 r') ->
-  (parcopy_store parcb rs) !!2 r =
-    (parcopy_store parcb' rs') !!2 r.
+  (forall r', rs !! r' = rs' !! r') ->
+  (parcopy_store parcb rs) !! r =
+    (parcopy_store parcb' rs') !! r.
 Proof.
   intros.
   eapply store_purged_parcb_aux; eauto.
@@ -129,11 +128,11 @@ Lemma store_purged_parcbparcb' :
   forall parcb' parcb parcb0 parcb'0 rs rs' r,
   remove_redundant_copies SSARegSet.empty parcb = parcb0 ->
   remove_redundant_copies SSARegSet.empty parcb' = parcb'0 ->
-  (forall r', rs !!2 r' = rs' !!2 r') ->
+  (forall r', rs !! r' = rs' !! r') ->
   (parcopy_store parcb'
-    (parcopy_store parcb rs)) !!2 r =
+    (parcopy_store parcb rs)) !! r =
     (parcopy_store parcb'0 
-    (parcopy_store parcb0 rs')) !!2 r.
+    (parcopy_store parcb0 rs')) !! r.
 Proof.
   intros.
   apply store_purged_parcb; eauto.
@@ -151,7 +150,6 @@ Definition transl_function (f : RTLpar.function) :=
         f.(fn_stacksize)
         f.(fn_code)
         (parcopycode_dstcleanup f.(fn_parcopycode))
-        f.(fn_max_indice)
         f.(fn_entrypoint)).
 
 Definition transl_fundef (f: RTLpar.fundef) : res RTLpar.fundef :=
@@ -216,6 +214,7 @@ Section MILL.
 End MILL.
 
 Require Import Linking.
+Require Import Registers.
 
 Section PRESERVATION.
 
@@ -263,7 +262,7 @@ Inductive match_stackframes :
 | match_stackframes_cons:
     forall res f sp pc rs rs' s tf ts
       (STACK : match_stackframes s ts )
-      (MREG: forall r, rs !!2 r = rs' !!2 r)
+      (MREG: forall r, rs !! r = rs' !! r)
       (SPEC: transl_function f = Errors.OK tf),
     match_stackframes
       (Stackframe res f sp pc rs :: s)
@@ -274,7 +273,7 @@ Inductive match_states: RTLpar.state -> RTLpar.state -> Prop :=
     forall s ts sp pc rs rs' m f tf
       (SPEC: transl_function f = Errors.OK tf)
       (STACK: match_stackframes s ts)
-      (MREG: forall r, rs !!2 r = rs' !!2 r),
+      (MREG: forall r, rs !! r = rs' !! r),
     match_states
       (State s f sp pc rs m)
       (RTLpar.State ts tf sp pc rs' m)
@@ -295,10 +294,11 @@ Inductive match_states: RTLpar.state -> RTLpar.state -> Prop :=
 Ltac dogo SPEC :=
   unfold transl_function in SPEC; go.
 
+
 Lemma registers_equal :
   forall args (rs rs' : SSA.regset),
-  (forall r, rs !!2 r = rs' !!2 r) ->
-  rs ##2 args = rs' ##2 args.
+  (forall r, rs !! r = rs' !! r) ->
+  rs ## args = rs' ## args.
 Proof.
   induction args; go.
   simpl; intros.
@@ -332,7 +332,7 @@ Qed.
 
 Lemma spec_ros_r_find_function:
   forall rs rs' f r,
-  (forall r, rs !!2 r = rs' !!2 r) ->
+  (forall r, rs !! r = rs' !! r) ->
   RTLpar.find_function ge (inl _ r) rs = Some f ->
   exists tf,
     RTLpar.find_function tge (inl _ r) rs' = Some tf
@@ -489,7 +489,7 @@ Proof.
     apply store_purged_parcbparcb'; auto.
   }
   { (* Iop *)
-    exists (RTLpar.State ts tf sp pc' (rs' #2 res <- v) m).
+    exists (RTLpar.State ts tf sp pc' (rs' # res <- v) m).
     split; auto.
     eapply RTLpar.exec_Iop; eauto.
     dogo SPEC.
@@ -499,13 +499,13 @@ Proof.
     eapply symbols_preserved.
     constructor; go.
     intros.
-    case_eq(p2eq res r); intros.
+    case_eq(peq res r); intros.
     + rewrite e.
-      repeat rewrite P2Map.gss; auto.
-    + repeat rewrite P2Map.gso; auto.
+      repeat rewrite PMap.gss; auto.
+    + repeat rewrite PMap.gso; auto.
   }
   { (* Iload *)
-    exists (RTLpar.State ts tf sp pc' (rs' #2 dst <- v) m).
+    exists (RTLpar.State ts tf sp pc' (rs' # dst <- v) m).
     split; auto.
     eapply RTLpar.exec_Iload; eauto.
     dogo SPEC.
@@ -515,10 +515,10 @@ Proof.
     eapply symbols_preserved.
     constructor; go.
     intros.
-    case_eq(p2eq dst r); intros.
+    case_eq(peq dst r); intros.
     + rewrite e.
-      repeat rewrite P2Map.gss; auto.
-    + repeat rewrite P2Map.gso; auto.
+      repeat rewrite PMap.gss; auto.
+    + repeat rewrite PMap.gso; auto.
   }
   { (* Istore *)
     exists (RTLpar.State ts tf sp pc' rs' m').
@@ -540,7 +540,7 @@ Proof.
       destruct Htfd as [tfd Htfd].
       exists (RTLpar.Callstate
         (RTLpar.Stackframe res tf sp pc' rs' :: ts)
-        tfd (rs' ##2 args) m).
+        tfd (rs' ## args) m).
       split; auto.
       eapply RTLpar.exec_Icall; eauto.
       rewrite sig_fundef_translated with (f := fd); go.
@@ -554,7 +554,7 @@ Proof.
       destruct Htfd as [tfd Htfd].
       exists (RTLpar.Callstate
         (RTLpar.Stackframe res tf sp pc' rs' :: ts)
-        tfd (rs' ##2 args) m).
+        tfd (rs' ## args) m).
       split; auto.
       eapply RTLpar.exec_Icall; eauto.
       rewrite sig_fundef_translated with (f := fd); go.
@@ -569,7 +569,7 @@ Proof.
         /\ transl_fundef fd = Errors.OK tfd).
       eapply spec_ros_r_find_function; eauto.
       destruct Htfd as [tfd Htfd].
-      exists (RTLpar.Callstate ts tfd (rs' ##2 args) m').
+      exists (RTLpar.Callstate ts tfd (rs' ## args) m').
       split; auto.
       eapply RTLpar.exec_Itailcall; eauto.
       rewrite sig_fundef_translated with (f := fd); go.
@@ -582,7 +582,7 @@ Proof.
         /\ transl_fundef fd = Errors.OK tfd).
       eapply spec_ros_id_find_function; eauto.
       destruct Htfd as [tfd Htfd].
-      exists (RTLpar.Callstate ts tfd (rs' ##2 args) m').
+      exists (RTLpar.Callstate ts tfd (rs' ## args) m').
       split; auto.
       eapply RTLpar.exec_Itailcall; eauto.
       rewrite sig_fundef_translated with (f := fd); go.
@@ -592,7 +592,7 @@ Proof.
       econstructor; go. tauto.
   }
   { (* Ibuiltin *)
-    exists (RTLpar.State ts tf sp pc' (regmap2_setres val res vres rs') m').
+    exists (RTLpar.State ts tf sp pc' (regmap_setres res vres rs') m').
     split; auto.
     eapply RTLpar.exec_Ibuiltin with (vargs := vargs); eauto.
     dogo SPEC.
@@ -610,10 +610,10 @@ Proof.
       apply senv_preserved.
     - econstructor; go. intros.
       destruct res; simpl; eauto.
-      case_eq(p2eq x r); intros.
+      case_eq(peq x r); intros.
       + rewrite e.
-        repeat rewrite P2Map.gss; auto.
-      + repeat rewrite P2Map.gso; auto. 
+        repeat rewrite PMap.gss; auto.
+      + repeat rewrite PMap.gso; auto. 
   }
   { (* ifso *)
     exists (RTLpar.State ts tf sp ifso rs' m).
@@ -640,15 +640,13 @@ Proof.
   }
   { (* ireturn *)
     destruct or.
-    + exists (RTLpar.Returnstate ts
-        (regmap2_optget (Some r) Vundef rs') m').
+    + exists (RTLpar.Returnstate ts (regmap_optget (Some r) Vundef rs') m').
       split; auto.
       eapply RTLpar.exec_Ireturn.
       dogo SPEC.
       rewrite <- stacksize_preserved with (f := f); auto.
       simpl. rewrite MREG. go.
-    + exists (RTLpar.Returnstate ts
-        (regmap2_optget None Vundef rs') m').
+    + exists (RTLpar.Returnstate ts (regmap_optget None Vundef rs') m').
       split; auto.
       eapply RTLpar.exec_Ireturn.
       dogo SPEC.
@@ -677,15 +675,15 @@ Proof.
   }
   { (* return state *)
     inv STACK.
-    exists (RTLpar.State ts0 tf sp pc (rs' #2 res <- vres) m).
+    exists (RTLpar.State ts0 tf sp pc (rs' # res <- vres) m).
     split; auto.
     + eapply RTLpar.exec_return.
     + econstructor; eauto.
       intros.
-      case_eq(p2eq res r); intros.
+      case_eq(peq res r); intros.
       - rewrite e.
-        repeat rewrite P2Map.gss; auto.
-      - repeat rewrite P2Map.gso; auto.
+        repeat rewrite PMap.gss; auto.
+      - repeat rewrite PMap.gso; auto.
   }
 Qed.
 

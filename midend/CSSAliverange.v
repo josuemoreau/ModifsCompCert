@@ -35,8 +35,6 @@ Require Import CSSApar.
 Require Import CSSAcoalescing. 
 Require Import CSSApargenwf. 
 
-
-
 Section CSSAparDefProp.
 
 Variable tf : CSSApar.function.
@@ -77,19 +75,19 @@ Lemma STRUCT1: check_parcborparcb' tf = true.
 Proof.
   unfold transl_function in *; flatten TRANSL ; boolInv ; auto.
 Qed.
-Hint Resolve STRUCT1.
+Hint Resolve STRUCT1: core.
 
 Lemma NORM: normalized_jp f.
 Proof.
   unfold transl_function in *; flatten TRANSL ; boolInv ; auto.
   eapply normalisation_checker_correct; eauto.
 Qed.
-Hint Resolve NORM.
+Hint Resolve NORM: core.
 
 Lemma use_phi_pltmaxreg_r:
   forall r pc,
   use_phicode tf r pc  ->
-  Plt (get_maxreg f) (fst r).
+  Plt (get_maxreg f) r.
 Proof.
   intros r pc Hphi. 
   exploit CSSApargenproof.transl_function_charact; eauto. intros.
@@ -365,13 +363,14 @@ Theorem cssa_phi_live :
 Proof.
   intros pc res Hphi r1 r2 Hr1 Hr2.
   invh phi_resources.
-  destruct (p2eq r1 r2) ; subst ; auto.
+  destruct (peq r1 r2) ; subst ; auto.
   repeat invh In; allinv; auto.
   
-  - (* Source and dest *)
-    right; eapply phi_src_dst_ninterlive; eauto. 
-  - (* Dest and sources *)
+  - (* Source and dest *) 
     right. eapply ninterlive_spec_sym; eauto.
+    eapply phi_src_dst_ninterlive ; eauto. 
+  - (* Dest and sources *)
+    right.
     eapply phi_src_dst_ninterlive; eauto. 
   - (* Sources *) 
     right.

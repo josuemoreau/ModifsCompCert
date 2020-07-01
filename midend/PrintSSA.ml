@@ -13,8 +13,7 @@ open SSA
 open PrintAST
 
 let reg pp r =
-  let (r,i) = r in
-    fprintf pp "x%ld_%ld" (P.to_int32 r) (P.to_int32 i)
+    fprintf pp "x%ld" (P.to_int32 r)
 
 let rec regs pp = function
   | [] -> ()

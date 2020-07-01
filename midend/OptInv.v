@@ -129,7 +129,7 @@ Record DsdAnalysis := {
  ; G_top : 
      forall f r ge sp rs, 
        is_at_Top (fst (A f)) r -> 
-       G ge sp rs (fst (A f) r) (rs#2 r)
+       G ge sp rs (fst (A f) r) (rs# r)
 
 }.
 
@@ -150,7 +150,7 @@ Section Opt_ANALYSIS.
  Definition gamma (f:function) ge sp (pc:node) (rs:regset) : Prop :=
     (forall x, dsd f x pc -> 
                exec AA f pc -> 
-               G AA ge sp rs (A_r f x) (rs#2 x)).
+               G AA ge sp rs (A_r f x) (rs# x)).
 
   Lemma gamma_entry (f:function) : 
     wf_ssa_function f -> 
@@ -187,7 +187,7 @@ Section Opt_ANALYSIS.
     gamma f ge sp pc rs ->
     use_code f r pc -> 
     exec AA f pc ->
-    G AA ge sp rs (A_r f r) (rs#2 r).
+    G AA ge sp rs (A_r f r) (rs# r).
   Proof.
     intros f ge sp pc rs r WF GAMMA USE EXE.
     assert (H3: exists pc', def f r pc') by (eapply ssa_use_exists_def; go).
@@ -208,7 +208,7 @@ Section Opt_ANALYSIS.
      wf_ssa_function f ->
      (forall r, In r args -> use_code f r pc) ->
      gamma f ge sp pc rs -> 
-     G_list ge sp rs (map (A_r f) args) (rs##2 args). 
+     G_list ge sp rs (map (A_r f) args) (rs## args). 
   Proof.
   induction args; intros.
   - go. 
@@ -230,7 +230,7 @@ Section Opt_ANALYSIS.
      wf_ssa_function f ->
      gamma f ge sp pc rs -> 
      (fn_code f) ! pc = Some (Iop op args res pc') ->
-     G_list ge sp rs (map (A_r f) args) (rs##2 args).
+     G_list ge sp rs (map (A_r f) args) (rs## args).
   Proof.
     intros. 
     eapply all_used_approx; eauto.
@@ -247,19 +247,19 @@ Section Opt_ANALYSIS.
   Variable G_upd_diff : forall (f:function) (Hwf:wf_ssa_function f) ge sp rs dst x v,
                     x <> dst ->
                     A_r f x <> A_r f dst ->
-                    G AA ge sp rs (A_r f x) rs !!2 x ->
-                    G AA ge sp (rs #2 dst <- v) (A_r f x) rs !!2 x.
+                    G AA ge sp rs (A_r f x) rs !! x ->
+                    G AA ge sp (rs # dst <- v) (A_r f x) rs !! x.
 
   (** Local soundness of analysis for variable assignment *)
   Variable Iop_correct : forall (f:function) pc sf op args res pc' v rs ge sp m x,
                       forall (WFF: wf_ssa_function f)
                              (SINV: s_inv ge (State sf f sp pc rs m)),
                         (fn_code f) ! pc = Some (Iop op args res pc') ->
-                        eval_operation ge sp op (rs ##2 args) m = Some v ->
+                        eval_operation ge sp op (rs ## args) m = Some v ->
                         gamma f ge sp pc rs ->
                         exec AA f pc ->
                         dsd f x pc' ->
-                        G AA ge sp (rs #2 res <- v) (A_r f x) (rs #2 res <- v) !!2 x.
+                        G AA ge sp (rs # res <- v) (A_r f x) (rs # res <- v) !! x.
 
   (** Local soundness of analysis for phi-blocks *)
   Variable gamma_step_phi: forall (f:function) ge sp pc pc' phib k rs,
@@ -288,7 +288,7 @@ Section subject_reduction.
   | sf_inv_cons: 
     forall res (f:function) sp pc rs s
       (STACK: sfg_inv s)
-      (HG:forall v, gamma f ge sp pc (rs#2 res <- v))
+      (HG:forall v, gamma f ge sp pc (rs# res <- v))
       (EXE: exec AA f pc),
       sfg_inv ((Stackframe res f sp pc rs) :: s).
   Hint Constructors sfg_inv: core.
@@ -365,7 +365,7 @@ Section subject_reduction.
 
     + (* Iload *)
       unfold gamma in *; intros x Hyp1 Hyp2.
-      { destruct (p2eq x dst).
+      { destruct (peq x dst).
         - subst. 
           exploit (A_intra_locals f WF pc); go. 
           eapply G_top; eauto; go.
@@ -382,7 +382,7 @@ Section subject_reduction.
             { destruct (classic ((A_r f x) = (A_r f dst))).
               - assert (is_at_Top AA (A_r f) x) by (eapply is_at_Top_eq_is_at_Top; eauto). 
                 eapply G_top; eauto. 
-              - rewrite P2Map.gso; auto.  
+              - rewrite PMap.gso; auto.  
             }             
       }
 
@@ -398,7 +398,7 @@ Section subject_reduction.
     + (* Icall *)
       econstructor; eauto.
       intros v x Hyp1 Hyp2.
-        { destruct (p2eq x res).
+        { destruct (peq x res).
           - subst. exploit (A_intra_locals f WF pc); go. 
             eapply G_top; eauto. 
           - exploit (HG x); eauto. 
@@ -412,7 +412,7 @@ Section subject_reduction.
               { destruct (classic ((A_r f x) = (A_r f res))).
                 - assert (is_at_Top AA (A_r f) x) by (eapply is_at_Top_eq_is_at_Top; eauto). 
                   eapply G_top; eauto. 
-                - rewrite P2Map.gso; auto.  
+                - rewrite PMap.gso; auto.  
               }
         } 
        eapply exec_step in STEP'; eauto.
@@ -420,7 +420,7 @@ Section subject_reduction.
     + (* Itailcall *)
       unfold gamma in *; intros x Hyp1 Hyp2.
       { destruct res.
-        - destruct (p2eq x x0).
+        - destruct (peq x x0).
           + subst. exploit (A_intra_locals f WF pc); go. 
           eapply G_top; eauto. 
           + exploit (HG x); eauto. 
@@ -436,8 +436,8 @@ Section subject_reduction.
                 - assert (is_at_Top AA (A_r f) x) 
                     by (eapply is_at_Top_eq_is_at_Top; eauto). 
                   eapply G_top; eauto. 
-                - unfold regmap2_setres.
-                  rewrite P2Map.gso; auto.  
+                - unfold regmap_setres.
+                  rewrite PMap.gso; auto.  
               }
         - simpl. eapply HG; eauto.
           destruct dsd_pred_njp with f pc pc' x as 

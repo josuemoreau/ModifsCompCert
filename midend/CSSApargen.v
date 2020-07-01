@@ -30,7 +30,7 @@ Record state : Type := mkstate {
 Inductive state_incr: state -> state -> Prop :=
   state_incr_intro:
     forall (s1 s2: state),
-    (Ple (fst (next_fresh_reg s1)) (fst (next_fresh_reg s2))) ->
+    (Ple (next_fresh_reg s1) (next_fresh_reg s2)) ->
     state_incr s1 s2.
 
 Lemma state_incr_refl:
@@ -113,7 +113,7 @@ Fixpoint mfold {A B: Type} (f: A -> B -> mon B) (l: list A) (b: B) : mon B :=
 
 (** next fresh register *)
 Definition next_fs (fs : reg) :=
-  (Pos.succ (fst fs), 1%positive).
+  (Pos.succ fs).
 
 Remark gen_newreg_incr:
   forall s,
@@ -303,7 +303,7 @@ Definition copy_node (predsfun: PTree.t (list node)) (code: code)
 
 (** ** functions to get a first fresh register  *)
 Definition max_reg_in_list (l: list reg) :=
-  List.fold_left (fun m r => Pos.max m (fst r)) l 1%positive.
+  List.fold_left (fun m r => Pos.max m r) l 1%positive.
 
 Definition get_max_reg_in_ins (ins : SSA.instruction) :=
   match ins with
@@ -350,7 +350,7 @@ Definition get_maxreg (f: SSA.function) :=
 (** ** State initialisation *)
 Definition init_state (f: SSA.function) :=
   (mkstate
-    (Pos.succ (get_maxreg f), 1%positive)
+    (Pos.succ (get_maxreg f))
     (PTree.empty phiblock)
     (PTree.empty CSSApar.parcopyblock)
   , List.map fst (PTree.elements (fn_code f))).
@@ -540,7 +540,6 @@ Definition transl_function (f: SSA.function) : Errors.res CSSApar.function :=
             f.(SSA.fn_code)
             s.(st_phicode)
             s.(st_parcopycode)
-            f.(SSA.fn_max_indice)
             f.(SSA.fn_entrypoint))
         in
         if check_nb_args tf (get_preds tf) &&

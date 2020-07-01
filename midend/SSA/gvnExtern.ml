@@ -1,4 +1,3 @@
-open TrMaps2
 open SSA
 open SSAutils
 open Maps
@@ -226,7 +225,7 @@ module ExprHash = struct
 end
 
 
-type numbering = { num: reg Ptmap.t; classes: reg list Ptmap.t; drepr: (SSA.reg * ssa_def) Ptmap.t }
+type numbering = { num: reg Ptmap.t; classes: reg list Ptmap.t; drepr: (Registers.reg * ssa_def) Ptmap.t }
 
 let constant = function
   | Param _ -> true
@@ -379,16 +378,16 @@ let build_equations f =
 (*  let _ = if debugmode then Graph.show (Graph.make f tes eqs2) in  *)
     eqs2
 
-let extern_gvn (f':SSA.coq_function) (register_dom_test:ssa_def->node->unit) : ssa_def P2Tree.t =
+let extern_gvn (f':SSA.coq_function) (register_dom_test:ssa_def->node->unit) : ssa_def PTree.t =
   let f = f' in
   let _ = if debugmode then print_string "starting extern_gvn\n" in
   SSAvarHash.init ();
   let eqs = build_equations f in
-    if Ptmap.is_empty eqs then P2Tree.empty
+    if Ptmap.is_empty eqs then PTree.empty
     else
       let g = Graph.make f f'.SSA.fn_dom_test eqs in
       let numbering = build_numbering g (gvn g) in
-      let drepr x : (SSA.reg * ssa_def) option =
+      let drepr x : (Registers.reg * ssa_def) option =
 	try Some (Ptmap.find (SSAvarHash.hash x) numbering.drepr)
 	with Not_found -> None in
       let count_optim = ref 0 in 
@@ -402,15 +401,15 @@ let extern_gvn (f':SSA.coq_function) (register_dom_test:ssa_def->node->unit) : s
 				      begin
 					incr count_optim;
 					register_dom_test d' pc;
-					P2Tree.set res d' repr;
+					PTree.set res d' repr;
 				      end
 				    else repr
 				  | _ -> repr)
-				| _ -> repr) f.fn_code P2Tree.empty in
+				| _ -> repr) f.fn_code PTree.empty in
       (* Printf.printf "%d\n" !count_optim; *)
       representant
 
-let extern_gvn2 (f':SSA.coq_function) : ssa_def P2Tree.t =
+let extern_gvn2 (f':SSA.coq_function) : ssa_def PTree.t =
   extern_gvn f' (fun _ _ -> ())
 
 let extern_gvn_record_dom_test f =

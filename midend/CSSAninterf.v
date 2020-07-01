@@ -15,7 +15,7 @@ Require Import CSSAval.
 Require Import RTLpargen.
 Require Import CSSAutils.
 Require Import CSSApardef.
-Require Import TrMaps2.
+Require Import Registers.
 
 (** Interference *)
 
@@ -105,7 +105,7 @@ Proof.
   intros.
   unfold compute_ninterfere in H0.
   flatten H0.
-  destruct p2eq.
+  destruct peq.
   + go.
   + simpl in *.
     constructor 2.
@@ -176,12 +176,12 @@ Lemma mem_class_reg_correct_true :
   forall regrepr classes r,
   mem_class_reg regrepr classes r = true ->
   (exists class,
-    P2Tree.get (regrepr r) classes = Some class /\
+    PTree.get (regrepr r) classes = Some class /\
     In r class) \/
-    (r = regrepr r /\ P2Tree.get (regrepr r) classes = None).
+    (r = regrepr r /\ PTree.get (regrepr r) classes = None).
 Proof.
   intros.
-  case_eq (P2Tree.get (regrepr r) classes); intros.
+  case_eq (PTree.get (regrepr r) classes); intros.
   + left.
     exists l.
     unfold mem_class_reg in H.
@@ -191,7 +191,7 @@ Proof.
   + right.
     unfold mem_class_reg in H.
     flatten H.
-    destruct p2eq; go.
+    destruct peq; go.
 Qed.
 
 Lemma mem_class_regs_correct :
@@ -199,9 +199,9 @@ Lemma mem_class_regs_correct :
   In r reglist ->
   mem_class_regs regrepr classes reglist = true ->
   (exists class,
-    P2Tree.get (regrepr r) classes = Some class /\
+    PTree.get (regrepr r) classes = Some class /\
     In r class) \/ 
-    (r = regrepr r /\ P2Tree.get (regrepr r) classes = None).
+    (r = regrepr r /\ PTree.get (regrepr r) classes = None).
 Proof.
   intros.
   unfold mem_class_regs in H0.

@@ -39,10 +39,10 @@ Inductive equiv_phib_spec (maxreg: positive) (k : nat) :
     (forall args'' dst'', In (Iphi args'' dst'') phib' ->
       arg' <> dst'') ->
 
-    (Ple (fst arg) maxreg) ->
-    (Ple (fst dst) maxreg) ->
-    (Plt maxreg (fst arg')) ->
-    (Plt maxreg (fst dst')) ->
+    (Ple arg maxreg) ->
+    (Ple dst maxreg) ->
+    (Plt maxreg arg') ->
+    (Plt maxreg dst') ->
 
     equiv_phib_spec maxreg k phib parcb phib' parcb' ->
     equiv_phib_spec maxreg k
@@ -85,10 +85,10 @@ Inductive equiv_phib (maxreg: positive) (k : nat) :
     (forall arg'' dst'', In (Iparcopy arg'' dst'') parcb' ->
       dst <> dst'') ->
 
-    (Ple (fst arg) maxreg) ->
-    (Ple (fst dst) maxreg) ->
-    (Plt maxreg (fst arg')) ->
-    (Plt maxreg (fst dst')) ->
+    (Ple arg maxreg) ->
+    (Ple dst maxreg) ->
+    (Plt maxreg arg') ->
+    (Plt maxreg dst') ->
 
     equiv_phib maxreg k phib parcb phib' parcb' ->
     equiv_phib maxreg k
@@ -163,7 +163,6 @@ Inductive tr_function: SSA.function -> CSSApar.function -> Prop :=
         f.(SSA.fn_code)
         s.(st_phicode)
         s.(st_parcopycode)
-        f.(SSA.fn_max_indice)
         f.(SSA.fn_entrypoint)).
 
 Inductive transl_function_spec:

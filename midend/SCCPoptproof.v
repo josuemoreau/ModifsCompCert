@@ -25,6 +25,7 @@ Require Import SSAinv.
 Require Import OptInv.
 Require Import SCCPopt.
 Require Import SCCPoptProp.
+Require Import Registers.
 
 Require Import Linking.
 
@@ -118,7 +119,7 @@ Section PRESERVATION.
     Qed.
 
     Lemma same_eval_addressing: forall sp addr rs args,
-        eval_addressing tge sp addr rs ##2 args = eval_addressing ge sp addr rs ##2 args.
+        eval_addressing tge sp addr rs ## args = eval_addressing ge sp addr rs ## args.
     Proof.
       intros.
       unfold eval_addressing, eval_addressing32, eval_addressing64, Genv.symbol_address.
@@ -128,7 +129,7 @@ Section PRESERVATION.
     Hint Resolve same_symbols: core.
 
     Lemma same_eval: forall sp op rs args m,
-        eval_operation tge sp op rs ##2 args m = eval_operation ge sp op rs ##2 args m.
+        eval_operation tge sp op rs ## args m = eval_operation ge sp op rs ## args m.
     Proof.
       intros.
       unfold eval_operation, eval_addressing32, eval_addressing64, Genv.symbol_address.
@@ -163,7 +164,7 @@ Section PRESERVATION.
         forall res f sp pc rs s st
                (STACK: (match_stackframes s st))
                (WFF: wf_ssa_function f)
-               (HG:forall v, gamma SCCP f ge sp pc (rs#2 res <- v))
+               (HG:forall v, gamma SCCP f ge sp pc (rs# res <- v))
                (EXE: exec f pc),
           match_stackframes
             ((Stackframe res f sp pc rs) :: s)
@@ -268,7 +269,7 @@ Section PRESERVATION.
             id: (fn_code _)! ?pc = Some ?instr |- _ =>
         case_eq (DS.fixpoint f handle_instr (initial f) f) ;
         intros lv es FIX;
-        set (lv' := fun reg => P2Map.get reg lv) in * ;
+        set (lv' := fun reg => PMap.get reg lv) in * ;
         try assert ((fn_code (transf_function f)) !pc = Some(transf_instr lv' pc instr))
           by (unfold transf_function, Opt.transf_function, fn_code;
               simpl; rewrite PTree.gmap; try rewrite FIX;
@@ -307,7 +308,7 @@ Section PRESERVATION.
         rewrite make_predecessors_transf_function; auto.
         
       (* Iop *)
-      - exists (State st (transf_function f) sp pc' rs #2 res <- v m).
+      - exists (State st (transf_function f) sp pc' rs # res <- v m).
         split; try match_go.        
         TransfInstr.
 
@@ -315,7 +316,7 @@ Section PRESERVATION.
         { unfold transf_function, transf_instr, Opt.transf_function.
           simpl; rewrite PTree.gmap; try rewrite FIX.
           unfold option_map; unfold transf_instr ; destruct f ; simpl in *; flatten;
-            (replace (lv##2 args) with (map (fun r : reg => lv' r) args)
+            (replace (lv## args) with (map (fun r : reg => lv' r) args)
               in Eq1 at 1 by (induction args; go)); try congruence.
         }
         simpl transf_instr in *.
@@ -324,22 +325,22 @@ Section PRESERVATION.
         eapply G_list_val_list_match_approx; eauto.
         eapply gamma_v_args; eauto.
         intros.
-        (replace (lv##2 args) with (map (fun r : reg => lv' r) args)
+        (replace (lv## args) with (map (fun r : reg => lv' r) args)
           in H3 at 1 by (induction args; go)).
-        unfold const_for_result in *. flatten Eq; inv H3; auto.
+        unfold const_for_result in *. flatten Eq; inv H3; auto. 
 
-
-  - exists (State st (transf_function f) sp pc' rs #2 dst <- v m).
+  - exists (State st (transf_function f) sp pc' rs # dst <- v m).
     split; try match_go.
     TransfInstr.
-    eapply exec_Iload; eauto. rewrite same_eval_addressing. auto.
+    eapply exec_Iload; eauto.
+    rewrite same_eval_addressing. auto.
     
   - exists (State st (transf_function f) sp pc' rs m').
     split; try match_go.
     TransfInstr. eapply exec_Istore; eauto. rewrite same_eval_addressing; auto.
 
   - exists (Callstate (Stackframe res (transf_function f) sp pc' rs::st)
-                      (transf_fundef fd) rs ##2 args m); split.
+                      (transf_fundef fd) rs ## args m); split.
     + TransfInstr; intros.
       eapply exec_Icall; eauto.
       rewrite transf_ros_correct with (f := fd); eauto.
@@ -350,10 +351,10 @@ Section PRESERVATION.
       * eapply SSAinv.subj_red; eauto.
       * constructor; eauto.
         { intros v x Hyp1 Hyp2.
-          { destruct (p2eq x res).
+          { destruct (peq x res).
             - subst. exploit (same_fn_code1 f pc); go.
               eapply G_top; eauto.
-            - rewrite P2Map.gso; auto.
+            - rewrite PMap.gso; auto.
               exploit (HG x); eauto.
               destruct dsd_pred_njp with f pc pc' x as
                   [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
@@ -365,7 +366,7 @@ Section PRESERVATION.
         }
        eapply exec_step in H2; eauto.
 
-  - exists (Callstate st (transf_fundef fd) rs ##2 args m'); split; try match_go.
+  - exists (Callstate st (transf_fundef fd) rs ## args m'); split; try match_go.
     + TransfInstr; intros.
       eapply exec_Itailcall; eauto.
       rewrite transf_ros_correct with (f := fd); eauto.
@@ -375,7 +376,7 @@ Section PRESERVATION.
     + econstructor; eauto.
       eapply SSAinv.subj_red; eauto.
 
-  - exists (State st (transf_function f) sp pc' (regmap2_setres val res vres rs) m').
+  - exists (State st (transf_function f) sp pc' (regmap_setres res vres rs) m').
     split; try match_go.
     TransfInstr.
     eapply exec_Ibuiltin with (vargs:= vargs); eauto.
@@ -398,7 +399,7 @@ Section PRESERVATION.
     TransfInstr. eapply exec_Ijumptable; eauto.
 
 
-  - exists (Returnstate st (regmap2_optget or Vundef rs) m'); split; try match_go.
+  - exists (Returnstate st (regmap_optget or Vundef rs) m'); split; try match_go.
     + TransfInstr.    econstructor; eauto.
 
     + econstructor; eauto.
@@ -427,7 +428,7 @@ Section PRESERVATION.
       eapply SSAinv.subj_red; eauto.
 
   - inv STACK.
-    exists (State st0 (transf_function f) sp pc rs #2 res <- vres m); split; go.
+    exists (State st0 (transf_function f) sp pc rs # res <- vres m); split; go.
     econstructor; eauto.
     eapply SSAinv.subj_red; eauto.
 Qed.

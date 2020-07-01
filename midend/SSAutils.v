@@ -23,7 +23,6 @@ Require Import FSets.
 Require Import DLib.
 Require FSetAVL.
 
-
 (** * Decidable equalities over various types *)
 Lemma zeq : forall (x y:Z), {x = y} + {x <> y}.
 Proof. 
@@ -770,13 +769,13 @@ End WF_SSA_PROP.
 
 (** This semantics is sequential, and it is equivalent to the parallel one 
 whenever the block is parallelizable *)
-Definition phi_store_aux k phib (rs:SSA.regset) :=
+Definition phi_store_aux k phib (rs:regset) :=
   List.fold_left (fun rs phi  =>
     match phi with
       | (Iphi args dst) => 
         match nth_error args k with 
           | None =>  rs (* should not happen *)
-          | Some r => rs #2 dst <- (rs #2 r)
+          | Some r => rs # dst <- (rs # r)
         end
     end
   ) phib rs.
@@ -794,32 +793,32 @@ Hint Resolve notin_cons_notin: core.
 Lemma phi_store_notin_preserved_aux: forall k block r v dst rs,
   (forall args, ~ In (Iphi args dst) block) ->
   r <> dst ->
-  (phi_store k block (rs#2 r <- v))#2 dst = rs#2 dst.
+  (phi_store k block (rs# r <- v))# dst = rs# dst.
 Proof.
   induction block; intros; simpl.
-  (* *) eapply P2Map.gso; eauto. 
+  (* *) eapply PMap.gso; eauto. 
   (* *) destruct a; simpl. 
         case_eq (nth_error l k); intros ; eauto. 
-        (**) rewrite P2Map.gso ; eauto. 
+        (**) rewrite PMap.gso ; eauto. 
         intro Hcont. inv Hcont. eelim H  ; eauto.
 Qed.
     
 Lemma phi_store_notin_preserved: forall k  block rs dst,
   (forall args, ~ (In (Iphi args dst) block)) ->
-    (phi_store k block rs)#2 dst = rs#2 dst.
+    (phi_store k block rs)# dst = rs# dst.
 Proof.
   induction block; intros.
   (* *) simpl; auto.
   (* *) destruct a; simpl. 
         case_eq (nth_error l k); intros; eauto.
         (* case some *)
-        rewrite P2Map.gso ; eauto.
+        rewrite PMap.gso ; eauto.
         intro Hinv; subst; exploit (H l); eauto. 
 Qed.
 
-Lemma phistore_compat: forall k block (rs1 rs2: SSA.regset), 
-  (forall r, rs1#2 r = rs2#2 r) ->
-  (forall r, (phi_store k block rs1)#2 r = (phi_store k block rs2)#2 r).
+Lemma phistore_compat: forall k block (rs1 rs2: regset), 
+  (forall r, rs1# r = rs2# r) ->
+  (forall r, (phi_store k block rs1)# r = (phi_store k block rs2)# r).
 Proof.
   induction block; intros.
   (* *) simpl; auto.
@@ -827,100 +826,32 @@ Proof.
         destruct (nth_error l k); eauto.  
         (* case some *) 
         rewrite H.  
-        case_eq (p2eq r r0); intros ; auto. 
+        case_eq (peq r r0); intros ; auto. 
            (* case eq *)
-           rewrite P2Map.gsspec. rewrite H0.
-           rewrite P2Map.gsspec. rewrite H0. 
+           rewrite PMap.gsspec. rewrite H0.
+           rewrite PMap.gsspec. rewrite H0. 
            auto.           
-           repeat (rewrite P2Map.gso; eauto).
+           repeat (rewrite PMap.gso; eauto).
 Qed.
 
 Lemma phi_store_copy_preserved: forall k  block rs dst arg , 
   (forall args, not (In (Iphi args dst) block)) ->
-  (phi_store k block rs #2 dst <- (rs #2 arg)) #2 dst = rs #2 arg.
+  (phi_store k block rs # dst <- (rs # arg)) # dst = rs # arg.
 Proof.
   intros. 
-  case (p2eq arg dst); intros.
+  case (peq arg dst); intros.
   (* case eq *) 
   inv e.
-  assert (Hrs: (forall r, (rs#2 dst <- (rs#2 dst))#2 r = rs#2 r)) by (eapply gsregset2; eauto).
-  rewrite (phistore_compat _ _ (rs#2 dst<- (rs#2 dst)) rs); eauto.
+  assert (Hrs: (forall r, (rs# dst <- (rs# dst))# r = rs# r)) by (eapply gsregset; eauto).
+  rewrite (phistore_compat _ _ (rs# dst<- (rs# dst)) rs); eauto.
   rewrite phi_store_notin_preserved; eauto.
   (* case diff *)
   rewrite phi_store_notin_preserved; eauto.
-  eapply P2Map.gss ; eauto.
+  eapply PMap.gss ; eauto.
 Qed.
 
 (** * How to compute the list of registers of a SSA function. *)
-Module MiniOrderedTypeProd (O1 O2:OrderedType) <: MiniOrderedType.
-
-  Module P1 := OrderedTypeFacts O1.
-  Module P2 := OrderedTypeFacts O2.
-
-  Definition t : Type := (O1.t * O2.t)%type.
-
-  Definition eq : t -> t -> Prop :=
-    fun a b => O1.eq (fst a) (fst b) /\ O2.eq (snd a) (snd b).
-
-  Definition lt : t -> t -> Prop :=
-    fun a b => O1.lt (fst a) (fst b) \/
-      (O1.eq (fst a) (fst b) /\ O2.lt (snd a) (snd b)).
-
-  Lemma eq_refl : forall x : t, eq x x.
-  Proof.
-    split; auto with ordered_type.
-  Qed.
-
-  Lemma eq_sym : forall x y : t, eq x y -> eq y x.
-  Proof.
-    intros x y H; inv H; split; auto with ordered_type.
-  Qed.
-
-  Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
-  Proof.
-    intros x y z H1 H2; inv H1; inv H2; split; eauto with ordered_type.
-  Qed.
-
-  Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-  Proof.
-    intros x y z H1 H2; inv H1; inv H2.
-    left; eauto with ordered_type.
-    destruct H0; left; eauto with ordered_type.
-    destruct H; left; eauto with ordered_type.
-    destruct H; destruct H0; right; split; eauto with ordered_type.
-  Qed.
-
-  Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-  Proof.
-    intros x y H1 H2.
-    destruct H2; destruct H1.
-    eelim O1.lt_not_eq; eauto.
-    destruct H1.
-    eelim O2.lt_not_eq; eauto.
-  Qed.
-    
-  Definition compare : forall x y : t, Compare lt eq x y.
-  Proof.
-    destruct x as [x1 x2].
-    destruct y as [y1 y2].
-    destruct (O1.compare x1 y1).
-    constructor 1; left; auto.
-    destruct (O2.compare x2 y2).
-    constructor 1; right; split; simpl; auto with ordered_type.
-    constructor 2; split; auto with ordered_type.
-    constructor 3; right; split; simpl; auto with ordered_type.
-    constructor 3; left; auto with ordered_type. 
-  Defined.
-    
-End MiniOrderedTypeProd.
-
-Module OrderedTypeProd (O1 O2:OrderedType) <: OrderedType.
-  Module P := MiniOrderedTypeProd O1 O2.
-  Include MOT_to_OT P.
-End OrderedTypeProd.
-
-Module OP2 := OrderedTypeProd OrderedPositive OrderedPositive.
-Module SSARegSet := FSetAVL.Make OP2.
+Module SSARegSet := FSetAVL.Make OrderedPositive.
 
 Definition all_def (c:code) (phic: phicode) : SSARegSet.t :=
   PTree.fold
@@ -987,10 +918,9 @@ Lemma In_fold_right_add3: forall x l a,
   SSARegSet.In x (fold_right SSARegSet.add a l) -> SSARegSet.In x a \/ In x l.
 Proof.
   induction l; simpl; auto; intros.
-  destruct (p2eq x a); subst; auto.
+  destruct (peq x a); subst; auto.
   destruct (IHl a0); auto.
   eapply SSARegSet.add_3; eauto.
-  destruct a; destruct x; simpl; red; destruct 1; elim n; subst; auto.
 Qed.
 
 Lemma in_all_uses1: forall x pc code s ins,
@@ -1149,18 +1079,6 @@ Definition ext_params_list (c: code) (phic: phicode) (params: list reg) : list r
     (SSARegSet.union (all_def c phic) (param_set params)))
 ++params.
 
-Lemma InA_In : forall x (l:list reg),
-  InA (fun a b : OP2.P.t => fst a = fst b /\ snd a = snd b) x l <-> In x l.
-Proof.
-  induction l; simpl; split; intros; inv H.
-  destruct x; destruct a; simpl in *; destruct H1; left.
-  f_equal; auto.
-  rewrite IHl in H1; auto.
-  constructor 1 ;auto.
-  constructor 2; auto.
-  rewrite IHl; auto.
-Qed.
-
 Lemma In_param_set : forall l x, SSARegSet.In x (param_set l) -> In x l.
 Proof.
   unfold param_set; intros.
@@ -1223,7 +1141,7 @@ Proof.
       * econstructor 2; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       * econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       * econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
-    + destruct (p2eq x r).
+    + destruct (peq x r).
       * subst; right; exists k; econstructor; eauto.
         rewrite PTree.gss; eauto.
       * { elim H1; auto.
@@ -1234,9 +1152,9 @@ Proof.
             + econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
             + econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
           - eapply SSARegSet.add_3; eauto.
-            destruct r; destruct x; simpl; red; destruct 1; elim n0; subst; auto.
+            
         }
-    + destruct (p2eq x r).
+    + destruct (peq x r).
       subst; right; exists k; econstructor 2; eauto.
       rewrite PTree.gss; eauto.
       elim H1; auto.
@@ -1247,14 +1165,14 @@ Proof.
       econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       eapply SSARegSet.add_3; eauto.
-      destruct r; destruct x; simpl; red; destruct 1; elim n0; subst; auto.
+      
     + destruct H3 as [pc H3]; right; exists pc.
       inv H3.
       econstructor 1; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       econstructor 2; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
-    + destruct (p2eq x r).
+    + destruct (peq x r).
       subst; right; exists k; econstructor 3; eauto.
       rewrite PTree.gss; eauto.
       elim H1; auto.
@@ -1265,7 +1183,7 @@ Proof.
       econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       eapply SSARegSet.add_3; eauto.
-      destruct r; destruct x; simpl; red; destruct 1; elim n0; subst; auto.
+      
     + destruct H3 as [pc H3]; right; exists pc.
       inv H3.
       econstructor 1; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
@@ -1273,7 +1191,7 @@ Proof.
       econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
     + case_eq b; intros; subst.
-      * destruct (p2eq x0 x).
+      * destruct (peq x0 x).
         subst; right; exists k; econstructor 4; go. 
         rewrite PTree.gss; go. 
         elim H1; auto.
@@ -1284,7 +1202,7 @@ Proof.
         econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
         econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
         eapply SSARegSet.add_3; eauto.
-        destruct x0; destruct x; simpl; red; destruct 1; elim n0; subst; auto.
+        
       * elim H1; auto.
         destruct 1 as [pc T].
         right; exists pc; inv T.
@@ -1327,9 +1245,8 @@ Proof.
   induction phib; simpl; auto; intros.
   elim IHphib with (1:=H); clear IHphib; intros.
   destruct a.
-  destruct (p2eq x r); subst; eauto.
+  destruct (peq x r); subst; eauto.
   left; eapply SSARegSet.add_3; eauto.
-  destruct r; destruct x; simpl; red; destruct 1; elim n; subst; auto.
   destruct H0; eauto.
 Qed.
 
@@ -1367,6 +1284,16 @@ Proof.
   elim SSARegSet.empty_1 with (1:=H).
 Qed.
 
+Lemma InA_In : forall x (l:list reg),
+  InA (fun a b : OrderedPositive.t => a = b) x l <-> In x l.
+Proof.
+  induction l; simpl; split; intros; inv H.
+  - auto.
+  - rewrite IHl in H1; auto.
+  - constructor 1 ;auto.
+  - constructor 2; auto.
+    rewrite IHl; auto.
+Qed.
 
 Lemma ext_params_list_spec : forall f x,
     ext_params f x ->
@@ -1374,19 +1301,19 @@ Lemma ext_params_list_spec : forall f x,
 Proof.
   unfold ext_params_list; intros f x H.
   inv H.
-  auto with datatypes.
-  destruct (classic (In x (fn_params f))) as [E|E].
-  rewrite in_app; right; auto.
-  rewrite in_app; left.
-  rewrite <- InA_In.
-  apply SSARegSet.elements_1.
-  apply SSARegSet.diff_3.
-  destruct H0; eapply use_In_all_usses; eauto.
-  intro.
-  elim SSARegSet.union_1 with (1:=H); clear H; intros H.
-  elim In_all_def with (1:=H); intros [pc T]; intuition eauto.
-  elim E.
-  apply In_param_set; auto.
+  - auto with datatypes.
+  - destruct (classic (In x (fn_params f))) as [E|E].
+    + rewrite in_app; right; auto.
+    + rewrite in_app; left.
+      eapply InA_In.
+      apply SSARegSet.elements_1.
+      apply SSARegSet.diff_3.
+      * destruct H0; eapply use_In_all_usses; eauto.
+      * intro.
+        elim SSARegSet.union_1 with (1:=H); clear H; intros H.
+        elim In_all_def with (1:=H); intros [pc T]; intuition eauto.
+        elim E.
+        apply In_param_set; auto.
 Qed.
 
 Lemma unique_def_elim1: forall f pc pc' x, 

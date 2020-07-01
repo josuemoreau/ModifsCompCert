@@ -18,7 +18,7 @@ Require Import KildallComp.
 Require Import DLib.
 Require Import CSSAutils.
 Require CSSAlive.
-Require Import TrMaps2.
+Require Import Registers.
 
 Section TRANSFORMATION.
 
@@ -40,7 +40,7 @@ Definition compute_code_def (f : function) :=
   PTree.fold
     (fun acc pc ins =>
       match defined_var ins with
-      | Some r => P2Tree.set r pc acc
+      | Some r => PTree.set r pc acc
       | None   => acc
       end)
     (fn_code f).
@@ -52,7 +52,7 @@ Definition compute_phi_def (f : function) :=
        (fun acc phi =>
        match phi with
        | Iphi args dst =>
-           P2Tree.set dst pc acc
+           PTree.set dst pc acc
        end)
        phib acc)
    (fn_phicode f).
@@ -64,65 +64,55 @@ Definition compute_parc_def (f : function) :=
        (fun acc parc =>
        match parc with
        | Iparcopy src dst =>
-           P2Tree.set dst pc acc
+           PTree.set dst pc acc
        end)
        parcb acc)
    (fn_parcopycode f).
 
 Definition get_all_def f :=
-  P2Tree.empty node
+  PTree.empty node
   @@ compute_code_def f
   @@ compute_phi_def f
   @@ compute_parc_def f.
 
 Definition compute_def (f : function) all_defs :=
   fun r =>
-    match P2Tree.get r all_defs with
+    match PTree.get r all_defs with
     | Some d => d
     | None => fn_entrypoint f
     end.
 
 (** ** gather extern parameters *)
 Definition def_set defs :=
-  List.fold_right SSARegSet.add SSARegSet.empty
-    defs.
+  List.fold_right SSARegSet.add SSARegSet.empty defs.
 
-Definition get_ext_params f (all_defs : P2Tree.t positive)  :=
+Definition get_ext_params f (all_defs : PTree.t positive)  :=
   SSARegSet.union
     (SSARegSet.diff
       (search_used f)
-      (def_set (map fst (P2Tree.elements all_defs))))
+      (def_set (map fst (PTree.elements all_defs))))
     (param_set f).
 
 (** ** Coalescing classes construction in OCaml. Validated. *)
 Parameter build_coalescing_classes_extern :
-  function -> (reg -> reg -> bool) -> (reg -> reg) * (P2Tree.t (list reg)).
+  function -> (reg -> reg -> bool) -> (reg -> reg) * (PTree.t (list reg)).
 
 (** ** Checker for CSSA value computation *)
-Definition check_cssaval_ins
-    (elems : list (node * instruction))
-    (get_cssaval : reg -> reg) : bool :=
+Definition check_cssaval_ins (elems : list (node * instruction)) (get_cssaval : reg -> reg) : bool :=
   fold_left
     (fun acc pcins =>
       if negb acc then false
       else match snd pcins with
-      | Iop Omove (src :: nil) dst _ =>
-          p2eq (get_cssaval src) (get_cssaval dst)
-      | Iop _ _ dst _ =>
-          p2eq (get_cssaval dst) dst
-      | Iload _ _ _ dst _ =>
-          p2eq (get_cssaval dst) dst
-      | Icall _ _ _ dst _ =>
-          p2eq (get_cssaval dst) dst
-      | Ibuiltin _ _ (BR dst) _ =>
-          p2eq (get_cssaval dst) dst
+      | Iop Omove (src :: nil) dst _ => peq (get_cssaval src) (get_cssaval dst)
+      | Iop _ _ dst _ => peq (get_cssaval dst) dst
+      | Iload _ _ _ dst _ => peq (get_cssaval dst) dst
+      | Icall _ _ _ dst _ => peq (get_cssaval dst) dst
+      | Ibuiltin _ _ (BR dst) _ => peq (get_cssaval dst) dst
       | _ => true
       end)
     elems true.
 
-Definition check_cssaval_parcb
-    (parcbs : list (node * parcopyblock))
-    (get_cssaval : reg -> reg) : bool :=
+Definition check_cssaval_parcb (parcbs : list (node * parcopyblock)) (get_cssaval : reg -> reg) : bool :=
   fold_left
     (fun acc pcparcb =>
       if negb acc then false
@@ -130,45 +120,34 @@ Definition check_cssaval_parcb
         (fun parc =>
           match parc with
           | Iparcopy src dst =>
-              p2eq (get_cssaval src) (get_cssaval dst)
+              peq (get_cssaval src) (get_cssaval dst)
           end)
         (snd pcparcb))
     parcbs
     true.
 
-Definition check_cssaval_phib
-    (phibs : list (node * phiblock))
-    (get_cssaval : reg -> reg) : bool :=
+Definition check_cssaval_phib (phibs : list (node * phiblock)) (get_cssaval : reg -> reg) : bool :=
   fold_left
     (fun acc pcphib =>
       if negb acc then false
       else forallb
         (fun phi =>
           match phi with
-          | Iphi args dst =>
-              p2eq (get_cssaval dst) dst
+          | Iphi args dst => peq (get_cssaval dst) dst
           end)
         (snd pcphib))
     phibs
     true.
 
-Definition check_cssaval_ext_params (ext_params : list reg)
-    (get_cssaval : reg -> reg) : bool :=
-  forallb
-    (fun param =>
-      p2eq (get_cssaval param) param)
-    ext_params.
+Definition check_cssaval_ext_params (ext_params : list reg) (get_cssaval : reg -> reg) : bool :=
+  forallb (fun param => peq (get_cssaval param) param) ext_params.
 
 Definition check_cssaval (f : function)
     (get_cssaval : reg -> reg) ext_params : bool :=
-  check_cssaval_ins (PTree.elements (fn_code f))
-    get_cssaval &&
-  check_cssaval_parcb (PTree.elements (fn_parcopycode f))
-    get_cssaval &&
-  check_cssaval_phib (PTree.elements (fn_phicode f))
-    get_cssaval &&
-  check_cssaval_ext_params (SSARegSet.elements ext_params)
-    get_cssaval.
+  check_cssaval_ins (PTree.elements (fn_code f)) get_cssaval
+  && check_cssaval_parcb (PTree.elements (fn_parcopycode f)) get_cssaval
+  && check_cssaval_phib (PTree.elements (fn_phicode f)) get_cssaval
+  && check_cssaval_ext_params (SSARegSet.elements ext_params) get_cssaval.
 
 Parameter compute_cssaval_function : function -> (reg -> reg).
 
@@ -183,7 +162,7 @@ Definition compute_ninterfere f all_defs ext_params :=
       else
         Errors.OK
           (fun r1 r2 =>
-            p2eq (cssaval r1) (cssaval r2)
+            peq (cssaval r1) (cssaval r2)
             ||
               let '(d1, d2) := (def r1, def r2) in
               negb
@@ -193,8 +172,7 @@ Definition compute_ninterfere f all_defs ext_params :=
   end.
 
 (** ** Validation of congruence classes, naive algorithm *)
-Fixpoint check_interference_with_class (r : reg)
-    (class : list reg) ninterf :=
+Fixpoint check_interference_with_class (r : reg) (class : list reg) ninterf :=
   match class with
   | nil => true
   | a :: t =>
@@ -210,24 +188,24 @@ Fixpoint check_interference_in_class (class : list reg) ninterf :=
   end.
 
 Definition mem_class_reg regrepr classes r :=
-  match P2Tree.get (regrepr r) classes with
+  match PTree.get (regrepr r) classes with
   | Some class => In_reg r class
-  | None => p2eq r (regrepr r)
+  | None => peq r (regrepr r)
   end.
 
 Definition mem_class_regs regrepr classes reglist :=
   forallb (mem_class_reg regrepr classes) reglist.
 
-Definition check_coalescing_classes regrepr classes ninterf (all_defs : P2Tree.t positive) ext_params :=
-  forallb (fun class => check_interference_in_class class ninterf) (map snd (P2Tree.elements classes)) &&
-  mem_class_regs regrepr classes (map fst (P2Tree.elements all_defs)) &&
+Definition check_coalescing_classes regrepr classes ninterf (all_defs : PTree.t positive) ext_params :=
+  forallb (fun class => check_interference_in_class class ninterf) (map snd (PTree.elements classes)) &&
+  mem_class_regs regrepr classes (map fst (PTree.elements all_defs)) &&
   mem_class_regs regrepr classes (SSARegSet.elements ext_params).
 
 (** ** Check that phi_ressources are correctly mapped to destinations *)
 Definition check_phi_ressources_coalescing regrepr phi :=
   match phi with
   | Iphi args dst =>
-      forallb (fun arg => p2eq (regrepr arg) (regrepr dst)) args
+      forallb (fun arg => peq (regrepr arg) (regrepr dst)) args
   end.
 
 Definition check_cssa_coalescing_in_phib regrepr phib :=
@@ -257,30 +235,18 @@ Definition compute_regrepr (f : function) :=
 Definition transl_instruction regrepr ins :=
   match ins with
   | Inop s => Inop s
-  | Iop op args res s =>
-      Iop op (map regrepr args) (regrepr res) s
-  | Iload chunk addr args dst s =>
-      Iload chunk addr (map regrepr args) (regrepr dst) s
-  | Istore chunk addr args src s =>
-      Istore chunk addr (map regrepr args) (regrepr src) s
-  | Icall sig (inl r) args res s =>
-      Icall sig (inl (regrepr r))
-        (map regrepr args) (regrepr res) s
-  | Icall sig os args res s =>
-      Icall sig os (map regrepr args) (regrepr res) s
-  | Itailcall sig (inl r) args =>
-      Itailcall sig (inl (regrepr r)) (map (regrepr) args)
-  | Itailcall sig os args =>
-      Itailcall sig os (map regrepr args)
-  | Ibuiltin ef args res s =>
-      Ibuiltin ef (map (map_builtin_arg regrepr) args) (map_builtin_res regrepr res) s
-  | Icond cond args ifso ifnot =>
-      Icond cond (map regrepr args) ifso ifnot
-  | Ijumptable arg tbl =>
-      Ijumptable (regrepr arg) tbl
+  | Iop op args res s => Iop op (map regrepr args) (regrepr res) s
+  | Iload chunk addr args dst s => Iload chunk addr (map regrepr args) (regrepr dst) s
+  | Istore chunk addr args src s => Istore chunk addr (map regrepr args) (regrepr src) s
+  | Icall sig (inl r) args res s => Icall sig (inl (regrepr r)) (map regrepr args) (regrepr res) s
+  | Icall sig os args res s => Icall sig os (map regrepr args) (regrepr res) s
+  | Itailcall sig (inl r) args => Itailcall sig (inl (regrepr r)) (map (regrepr) args)
+  | Itailcall sig os args => Itailcall sig os (map regrepr args)
+  | Ibuiltin ef args res s => Ibuiltin ef (map (map_builtin_arg regrepr) args) (map_builtin_res regrepr res) s
+  | Icond cond args ifso ifnot => Icond cond (map regrepr args) ifso ifnot
+  | Ijumptable arg tbl => Ijumptable (regrepr arg) tbl
   | Ireturn None => Ireturn None
-  | Ireturn (Some arg) =>
-      Ireturn (Some (regrepr arg))
+  | Ireturn (Some arg) => Ireturn (Some (regrepr arg))
   end.
 
 Definition transl_parcb regrepr (parcb : parcopyblock) :=
@@ -291,17 +257,11 @@ Definition transl_parcb regrepr (parcb : parcopyblock) :=
     end)
     parcb.
 
-Definition transl_code (regrepr : reg -> reg)
-    (code : code) :=
-  PTree.map1
-    (transl_instruction regrepr)
-    code.
+Definition transl_code (regrepr : reg -> reg) (code : code) :=
+  PTree.map1 (transl_instruction regrepr) code.
 
-Definition transl_parcopycode (regrepr : reg -> reg)
-    (parcode : parcopycode) :=
-  PTree.map1
-    (transl_parcb regrepr)
-    parcode.
+Definition transl_parcopycode (regrepr : reg -> reg) (parcode : parcopycode) :=
+  PTree.map1 (transl_parcb regrepr) parcode.
 
 (** ** Post processing *)
 
@@ -309,7 +269,7 @@ Fixpoint parcb_cleanup (parcb : parcopyblock) :=
   match parcb with
   | nil => nil
   | Iparcopy src dst :: parcb =>
-      if p2eq src dst then parcb_cleanup parcb
+      if peq src dst then parcb_cleanup parcb
       else Iparcopy src dst :: parcb_cleanup parcb
   end.
 
@@ -329,15 +289,13 @@ Definition transl_function (f : CSSApar.function) :=
           f.(fn_stacksize)
           (transl_code regrepr f.(fn_code))
           (parcopycode_cleanup (transl_parcopycode regrepr f.(fn_parcopycode)))
-          f.(fn_max_indice)
           f.(fn_entrypoint))
   end.
 
 Definition transl_fundef :=
   transf_partial_fundef transl_function.
 
-Definition transl_program (p: CSSApar.program) :
-    Errors.res RTLpar.program :=
+Definition transl_program (p: CSSApar.program) : Errors.res RTLpar.program :=
   transform_partial_program transl_fundef p.
 
 End TRANSFORMATION.
