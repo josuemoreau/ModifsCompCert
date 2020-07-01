@@ -118,7 +118,7 @@ MIDEND=\
   GVNopt.v  GVNoptproof.v GVNoptProp.v \
   CSSAutils.v CSSApar.v CSSApardef.v CSSApargen.v \
   CSSApargenspec.v CSSApargenwf.v CSSApargenproof.v \
-  CSSAval.v CSSAlive.v CSSAninterf.v CSSAcoalescing.v \
+  CSSAval.v CSSAlive.v CSSAninterf.v CSSAcoalescing.v CSSAliverange.v \
   RTLpar.v RTLpargen.v RTLparcleanup.v \
   RTLdpar.v RTLdparspec.v RTLdparproof.v \
   ValueDomainSSA.v ValueAOpSSA.v \
