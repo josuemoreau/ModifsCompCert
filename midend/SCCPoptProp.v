@@ -16,28 +16,47 @@ Require Import KildallComp.
 Require Import SSA.
 Require Import SSAutils.
 Require Import Utilsvalidproof.
-
+Require Values.
 Require Import SCCPopt.
 Require Opt.
 Require Import Dsd.
-
 
 (** * Proof obligations from [OptInv] *)
 Module DS := DataflowSolver.
 
 Require Import OptInv ValueDomainSSA ValueAOpSSA.
-  
+Require Import Globalenvs.
+
 Section DSD_ANALYSIS.
 
   Notation A := fixpoint.
   Notation A_r f := (fst (A f)).
   Notation A_e f := (snd (A f)).
+
+  (* Minimal block classification for analyzing operators *)
+  Program Definition bctop (ge:genv): block_classification :=
+    BC (fun b =>
+          if (plt b (Genv.genv_next ge)) then
+            match Genv.invert_symbol ge b with
+            | None => BCother
+            | Some id => BCglob id end
+          else BCother) _ _.
+  Next Obligation.
+    flatten H.
+  Qed.
+  Next Obligation.
+    flatten H. 
+    eapply Genv.invert_find_symbol in Eq0.
+    eapply Genv.invert_find_symbol in Eq.
+    congruence.
+  Qed.
   
-  Definition G (ge: genv) (sp: Values.val) (rs: regset) := fun av v => (vmatch v av).
+  Definition G (ge: genv) (sp: Values.val) (rs: regset) := fun av v => (vmatch (bctop ge) v av).
+  
   Hint Unfold G: core.
   Definition result := reg -> AVal.t.
   Definition is_at_Top (res: result) (r: reg) : Prop := res r = AVal.top.
-  
+
   Lemma G_increasing: forall ge sp rs x y z,
                         vge x y -> G ge sp rs y z -> G ge sp rs x z.
   Proof.
@@ -50,7 +69,21 @@ Section DSD_ANALYSIS.
   Proof.
     intros. invh is_at_Top.
     unfold G. simpl. rewrite H1. unfold AVal.top.
-    destruct (rs !! r) ; eapply vmatch_top ; go.
+    destruct (rs !! r) ; try solve [eapply vmatch_top ; eauto; go].
+    case_eq (bctop ge b); intros.
+    - simpl in H; flatten H.
+    - simpl in H; flatten H.
+      eapply vmatch_top; eauto.
+      econstructor; eauto.
+      econstructor; eauto.
+      simpl. flatten. eauto.
+    - simpl in H; flatten H.
+    - simpl in H; flatten H;
+      try solve [(econstructor; eauto);
+                 (econstructor; eauto);
+                 (simpl; flatten)].
+    Unshelve.
+    go. go.
   Qed.
 
  Lemma is_at_Top_eq_is_at_Top : forall f dst x,
@@ -109,8 +142,8 @@ Section DSD_ANALYSIS.
   Qed.
 
   Lemma params_at_top: forall f,
-                            forall r,
-                         In r (fn_params f) -> (initial f) # r = AVal.top.
+      forall r,
+        In r (fn_params f) -> (initial f) # r = AVal.top.
   Proof.
     intros.
     set (lv := initial f). unfold initial in *.
@@ -120,8 +153,8 @@ Section DSD_ANALYSIS.
   Qed.
 
   Lemma ext_param_at_top: forall (f:function) r,
-           wf_ssa_function f ->
-           ext_params f r -> is_at_Top (A_r f) r.
+      wf_ssa_function f ->
+      ext_params f r -> is_at_Top (A_r f) r.
   Proof.
     intros.
     destruct (in_dec peq r (fn_params f)).
@@ -319,13 +352,13 @@ Proof.
   rewrite FIX'. simpl.
   unfold is_at_Top.
   invh AVal.ge; auto; intuition auto.
+  invh pge; auto.
 Qed.
-
 
 Lemma G_list_val_list_match_approx : forall f ge sp lv es args rs,
   G_list SCCP ge sp rs (map (A_r SCCP f) args) rs ## args ->
   DS.fixpoint f handle_instr (initial f) f = (lv, es) ->
-  list_forall2 vmatch rs ## args lv ## args.
+  list_forall2 (vmatch (bctop ge)) rs ## args lv ## args.
 Proof.
   induction args ; intros; go.
   simpl in *. inv H.
@@ -336,17 +369,17 @@ Qed.
 
 Import SSAinv.
 Import Utils.
-
+  
 Lemma Iop_correct : forall (f:function) pc sf op args res pc' v rs
                            (ge: Globalenvs.Genv.t fundef unit) sp m x,
                     forall (WFF: wf_ssa_function f)
-                           (SINV: s_inv ge (State sf f sp pc rs m)),
+                           (SINV: s_inv ge (State sf f (Values.Vptr sp Ptrofs.zero) pc rs m)),
     (fn_code f) ! pc = Some (Iop op args res pc') ->
-    eval_operation ge sp op (rs ## args) m = Some v ->
-    gamma SCCP f ge sp pc rs ->
+    eval_operation ge (Values.Vptr sp Ptrofs.zero) op (rs ## args) m = Some v ->
+    gamma SCCP f ge (Values.Vptr sp Ptrofs.zero) pc rs ->
     exec f pc ->
     dsd f x pc' ->
-    G ge sp (rs # res <- v) (A_r SCCP f x) (rs # res <- v) !! x.
+    G ge (Values.Vptr sp Ptrofs.zero) (rs # res <- v) (A_r SCCP f x) (rs # res <- v) !! x.
 Proof.
   intros until x; intros WFF SINV CODE EVAL GAMMA EXE DSD.
   destruct (peq x res).
@@ -363,12 +396,23 @@ Proof.
       unfold exec in EXE; simpl in *.
       rewrite FIX' in EXE. simpl in *. auto.
     }
-    assert (vmatch v (eval_static_operation op lv ## args)).
-    { exploit (all_used_approx SCCP ge f pc sp rs args); eauto.
-      induction args; go.
-      intros HG_list.
-      eapply eval_static_operation_sound ; eauto.
-      eapply G_list_val_list_match_approx; eauto.
+    assert (vmatch (bctop ge) v (eval_static_operation op lv ## args)).
+    { exploit (all_used_approx SCCP ge f pc (Values.Vptr sp Ptrofs.zero) rs args); eauto.
+      induction args; go. intros HG_list. 
+      eapply eval_static_operation_sound; eauto.
+      - constructor; auto.
+        + intros. split; intros.
+          * simpl. flatten; try solve [unfold Genv.find_symbol in *;
+                                       apply Genv.genv_symb_range in H0; intuition].
+            -- apply Genv.find_invert_symbol in H0; congruence.
+            -- apply Genv.find_invert_symbol in H0; congruence.
+          * simpl in H0; flatten H0.
+            apply Genv.invert_find_symbol. auto.
+        + intros. simpl. flatten.
+          * split; congruence.
+          * split; congruence. 
+      - simpl. flatten.
+      - eapply G_list_val_list_match_approx; eauto.
     }
     eapply G_increasing; eauto.
     replace (A_r SCCP f res) with ((fst (fixpoint f)) res) by reflexivity.
@@ -389,8 +433,8 @@ Proof.
         exploit GAMMA; eauto.
       * unfold fn_code in *.
         invh assigned_code_spec; try congruence.
-Grab Existential Variables.
-go. go. go. go.
+Unshelve. 
+go. go. go. go. 
 Qed.
 
 Import Dom.
@@ -434,11 +478,12 @@ Proof.
           unfold SCCP, A_e ; simpl ; rewrite FIX'; go.
         + flatten H12. destruct H3 as [Hso _].
           specialize (Hso (eq_refl _)).
-          exploit (eval_static_condition_sound cond (rs## args) m (lv## args)); eauto.
+          exploit (eval_static_condition_sound (bctop ge0) cond (rs## args) m (lv## args)); eauto. 
           eapply G_list_val_list_match_approx; eauto.
           eapply all_used_approx; eauto.
           induction args; go.
-          intros. rewrite Hso in H3 at 1. inv H3; try congruence.
+          intros.
+          rewrite Hso in H3 at 1. inv H3; try congruence. 
       }
       right. exists pc ; split; go.
       unfold fixpoint ; rewrite FIX; simpl; auto.
@@ -457,11 +502,11 @@ Proof.
           unfold SCCP, A_e ; simpl ; rewrite FIX'; go.
         + flatten H12. destruct H3 as [_ Hifnot].
           specialize (Hifnot (eq_refl _)).
-          exploit (eval_static_condition_sound cond (rs## args) m (lv## args)); eauto.
+          exploit (eval_static_condition_sound (bctop ge0) cond (rs## args) m (lv## args)); eauto.
           eapply G_list_val_list_match_approx; eauto.
           eapply all_used_approx; eauto.
           induction args; go.
-          intros. rewrite Hifnot in H3 at 1. inv H3; try congruence.
+          intros. rewrite Hifnot in H3 at 1. inv H3; try congruence. 
       }
       right. exists pc ; split; go.
       unfold fixpoint ; rewrite FIX; simpl; auto.
@@ -481,24 +526,23 @@ Proof.
         + flatten H12. destruct H3 as [n0 [Hlv Hlistnth]].
           assert (n0 = n).
           {
-            assert (vmatch rs !! arg  lv !! arg).
+            assert (vmatch (bctop ge0) rs !! arg  lv !! arg).
             exploit used_match_approx; eauto.
             econstructor 10; eauto. intros.
             unfold G, SCCP, A_r in * ; simpl in *; auto.
             rewrite FIX' in *. simpl in *. go.
             rewrite Hlv in H3 at 1.
             rewrite H13 in H3 at 1.
-            inv H3. auto.
+            inv H3. auto. 
           }
           subst.
           congruence.
       }
       right. exists pc ; split; go.
       unfold fixpoint ; rewrite FIX; simpl; auto.
-Grab Existential Variables.
-go. go. go. go. go. go. go. go.
+Unshelve.
+all: go. 
 Qed.
-
 
 (** * Structural properties. Helpers *)
 

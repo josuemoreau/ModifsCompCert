@@ -187,7 +187,7 @@ Fixpoint check_interference_in_class (class : list reg) ninterf :=
       check_interference_in_class t ninterf
   end.
 
-Definition mem_class_reg regrepr classes r :=
+Definition mem_class_reg regrepr classes r : bool :=
   match PTree.get (regrepr r) classes with
   | Some class => In_reg r class
   | None => peq r (regrepr r)
@@ -200,6 +200,8 @@ Definition check_coalescing_classes regrepr classes ninterf (all_defs : PTree.t 
   forallb (fun class => check_interference_in_class class ninterf) (map snd (PTree.elements classes)) &&
   mem_class_regs regrepr classes (map fst (PTree.elements all_defs)) &&
   mem_class_regs regrepr classes (SSARegSet.elements ext_params).
+
+Check check_coalescing_classes.
 
 (** ** Check that phi_ressources are correctly mapped to destinations *)
 Definition check_phi_ressources_coalescing regrepr phi :=

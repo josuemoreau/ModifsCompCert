@@ -253,13 +253,13 @@ Section Opt_ANALYSIS.
   (** Local soundness of analysis for variable assignment *)
   Variable Iop_correct : forall (f:function) pc sf op args res pc' v rs ge sp m x,
                       forall (WFF: wf_ssa_function f)
-                             (SINV: s_inv ge (State sf f sp pc rs m)),
+                             (SINV: s_inv ge (State sf f (Vptr sp Ptrofs.zero) pc rs m)),
                         (fn_code f) ! pc = Some (Iop op args res pc') ->
-                        eval_operation ge sp op (rs ## args) m = Some v ->
-                        gamma f ge sp pc rs ->
+                        eval_operation ge (Vptr sp Ptrofs.zero) op (rs ## args) m = Some v ->
+                        gamma f ge (Vptr sp Ptrofs.zero) pc rs ->
                         exec AA f pc ->
                         dsd f x pc' ->
-                        G AA ge sp (rs # res <- v) (A_r f x) (rs # res <- v) !! x.
+                        G AA ge (Vptr sp Ptrofs.zero) (rs # res <- v) (A_r f x) (rs # res <- v) !! x.
 
   (** Local soundness of analysis for phi-blocks *)
   Variable gamma_step_phi: forall (f:function) ge sp pc pc' phib k rs,
@@ -286,7 +286,8 @@ Section subject_reduction.
   Inductive sfg_inv : list stackframe -> Prop :=
   | sf_inv_nil: sfg_inv nil
   | sf_inv_cons: 
-    forall res (f:function) sp pc rs s
+    forall res (f:function) sp b pc rs s
+      (SP: sp = (Vptr b Ptrofs.zero))
       (STACK: sfg_inv s)
       (HG:forall v, gamma f ge sp pc (rs# res <- v))
       (EXE: exec AA f pc),
@@ -295,7 +296,8 @@ Section subject_reduction.
   
   Inductive sg_inv (ge: genv): state -> Prop :=
   | si_State:
-      forall s sp pc rs m f
+      forall s sp b pc rs m f
+        (SP: sp = (Vptr b Ptrofs.zero))
         (SINV:s_inv ge (State s f sp pc rs m))
         (HG:gamma f ge sp pc rs)
         (EXE: exec AA f pc)
@@ -520,12 +522,12 @@ Qed.
 
 (** * Final correctness lemma. To be used in correctness proof of optimization *)
 Lemma subj_red_gamma : forall (f f':function) t m m' rs rs' sp sp' pc pc' s s', 
-    gamma f ge sp pc rs ->
+    gamma f ge (Vptr sp Ptrofs.zero) pc rs ->
     exec AA f pc ->
     sfg_inv s ->
-    s_inv ge (State s f sp pc rs m) ->
-    step ge (State s f sp pc rs m) t (State s' f' sp' pc' rs' m') ->
-    gamma f' ge sp' pc' rs'.  
+    s_inv ge (State s f (Vptr sp Ptrofs.zero) pc rs m) ->
+    step ge (State s f (Vptr sp Ptrofs.zero) pc rs m) t (State s' f' (Vptr sp' Ptrofs.zero) pc' rs' m') ->
+    gamma f' ge (Vptr sp' Ptrofs.zero) pc' rs'.  
 Proof.
   intros.
   exploit subj_red; eauto.

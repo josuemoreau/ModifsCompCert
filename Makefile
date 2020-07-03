@@ -104,7 +104,7 @@ BACKEND=\
   Bounds.v Stacklayout.v Stacking.v Stackingproof.v \
   Asm.v Asmgen.v Asmgenproof0.v Asmgenproof1.v Asmgenproof.v
 
-# Middle-end modules (in midend/, $(VLIB2)/)
+# Middle-end modules (in midend/, $(VLIB2)/, $(ARCH))
 MIDEND=\
   DLib.v Bijection.v \
   RTLt.v RTLdfs.v RTLdfsproof.v \

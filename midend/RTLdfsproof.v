@@ -878,7 +878,7 @@ Proof.
   exploit instr_at; eauto; intros.
   exists (RTLt.State ts tf sp pc' (rs#dst <- v) m); split ; eauto. 
   eapply RTLt.exec_Iload ; eauto. 
-  rewrite <- H0 ; eauto with valagree.
+  try solve [rewrite <- H0 ; eauto with valagree].
   econstructor ; eauto.
   try_succ f pc pc'.
   
@@ -886,7 +886,7 @@ Proof.
   exploit instr_at; eauto; intros.
   exists (RTLt.State ts tf sp pc' rs m'); split ; eauto. 
   eapply RTLt.exec_Istore ; eauto. 
-  rewrite <- H0 ; eauto with valagree.
+  try solve [rewrite <- H0 ; eauto with valagree].
   constructor ; eauto.
   try_succ f pc pc'.
 

@@ -145,8 +145,9 @@ Section PRESERVATION.
   Inductive match_stackframes : list stackframe -> list stackframe -> Prop :=
   | match_stackframes_nil: match_stackframes nil nil
   | match_stackframes_cons: 
-    forall res (f:function) sp pc rs s st 
+    forall res (f:function) sp b pc rs s st 
       (STACK: (match_stackframes s st))
+      (SP: sp = (Vptr b Ptrofs.zero))
       (WFF: wf_ssa_function f)
       (HG:forall v, gamma GVN f ge sp pc (rs# res <- v))
       (EXE: exec f pc),
@@ -156,7 +157,8 @@ Section PRESERVATION.
 
   Inductive match_states: state -> state -> Prop :=
   | match_states_intro:
-      forall s st sp pc rs m f
+      forall s st sp b pc rs m f
+        (SP: sp = (Vptr b Ptrofs.zero))     
         (SINV:s_inv ge (State s f sp pc rs m))
         (HG:gamma GVN f ge sp pc rs)
         (EXE: exec  f pc)
@@ -319,17 +321,17 @@ Section PRESERVATION.
   Lemma subj_red_gamma : forall prog (WFP: wf_ssa_program prog),
       forall (f f' : function)
              (t : trace) (m m' : mem) 
-             (rs rs' : regset) (sp sp' : val) (pc pc' : node)
+             (rs rs' : regset) sp sp' (pc pc' : node)
              (s s' : list stackframe),
-        gamma GVN f (Genv.globalenv prog) sp pc rs ->
+        gamma GVN f (Genv.globalenv prog) (Vptr sp Ptrofs.zero) pc rs ->
         sfg_inv GVN prog s ->
         exec f pc ->
-        s_inv (Genv.globalenv prog) (State s f sp pc rs m) ->
-        step (Genv.globalenv prog) (State s f sp pc rs m) t
-             (State s' f' sp' pc' rs' m') ->
-        gamma GVN f' (Genv.globalenv prog) sp' pc' rs'.
+        s_inv (Genv.globalenv prog) (State s f (Vptr sp Ptrofs.zero) pc rs m) ->
+        step (Genv.globalenv prog) (State s f (Vptr sp Ptrofs.zero) pc rs m) t
+             (State s' f' (Vptr sp' Ptrofs.zero) pc' rs' m') ->
+        gamma GVN f' (Genv.globalenv prog) (Vptr sp' Ptrofs.zero) pc' rs'.
   Proof.
-    intros.
+    intros. 
     eapply subj_red_gamma; eauto.
     - intros. 
       eapply same_fn_code1; eauto.
@@ -352,8 +354,8 @@ Section PRESERVATION.
     induction 1; intros; inv MS; auto.
 
     -  (* Inop not jnp *)
-      exists (State st (transf_function f) sp pc' rs m); split;
-        [idtac  | econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]]; 
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs m); split;
+        [idtac  | econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]]; 
         try solve [eapply subj_red_gamma; eauto].
       eapply exec_Inop_njp; eauto.
       rewrite same_fn_code; [auto|congruence].
@@ -361,8 +363,8 @@ Section PRESERVATION.
       invh s_inv ; eauto.
 
     - (* Inop jnp *)
-      exists (State st (transf_function f) sp pc' (phi_store k phib rs) m); split;
-        [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' (phi_store k phib rs) m); split;
+        [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
         try solve [eapply subj_red_gamma; eauto].
       eapply exec_Inop_jp; eauto.
       rewrite same_fn_code; [auto|congruence].
@@ -372,8 +374,8 @@ Section PRESERVATION.
       invh s_inv ; eauto.
       
     - (* Iop *)
-      exists (State st (transf_function f) sp pc' rs# res<-v  m); split;
-        [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs# res<-v  m); split;
+        [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
         try solve [eapply subj_red_gamma; eauto].
       exploit new_fn_code; eauto; destruct 1 as [Hi|[res' [d [Hi2 Hi3]]]]. 
       + eapply exec_Iop; eauto.
@@ -383,26 +385,26 @@ Section PRESERVATION.
         eapply eval_iop_correct; eauto.
 
     - (* Iload *) 
-      exists (State st (transf_function f) sp pc' rs# dst<-v m); split;
-        [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|auto|eauto]];
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs# dst<-v m); split;
+        [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|auto|eauto]];
         try solve [eapply subj_red_gamma; eauto].
-      eapply exec_Iload; eauto.
-      rewrite same_fn_code; [eauto|congruence].       
-      erewrite eval_addressing_preserved; eauto.  
-      apply symbols_preserved; auto.
+      eapply exec_Iload; eauto;
+        first [ rewrite same_fn_code; [eauto|congruence]
+              | (erewrite eval_addressing_preserved; eauto);  
+                (apply symbols_preserved; auto)].
       
     - (* Istore *) 
-      exists (State st (transf_function f) sp pc' rs m'); split;
-        [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto;fail]];
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs m'); split;
+        [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|eauto|eauto;fail]];
         try solve [eapply subj_red_gamma; eauto].
-      eapply exec_Istore; eauto.
-      rewrite same_fn_code; [eauto|congruence].
-      erewrite eval_addressing_preserved; eauto.  
-      apply symbols_preserved; auto.  
+      eapply exec_Istore; eauto;
+        first [ rewrite same_fn_code; [eauto|congruence]
+             | (erewrite eval_addressing_preserved; eauto);
+               (apply symbols_preserved; auto)].
       
     - (* Icall *)
       assert (WF: wf_ssa_function f) by (invh s_inv ; eauto).
-      exists (Callstate (Stackframe res (transf_function f) sp pc' rs :: st)
+      exists (Callstate (Stackframe res (transf_function f) (Vptr b Ptrofs.zero) pc' rs :: st)
                         (transf_fundef fd) rs ## args m); split;
         [idtac| econstructor; [try eapply subj_red_gamma; eauto|econstructor; auto]].
       + eapply exec_Icall with (ros := ros); eauto.
@@ -441,8 +443,8 @@ Section PRESERVATION.
       eapply SSAinv.subj_red; eauto.
 
     - (* Ibuiltin *)
-      exists (State st (transf_function f) sp pc' (regmap_setres res vres rs) m'); split;
-        [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' (regmap_setres res vres rs) m'); split;
+        [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
         try solve [eapply subj_red_gamma; eauto].
       eapply exec_Ibuiltin with (args:= args); eauto.
       erewrite (same_fn_code f pc) ; eauto; try congruence.
@@ -452,22 +454,22 @@ Section PRESERVATION.
       eapply senv_equiv.
       
     - (* Icond, true *)
-      exists (State st (transf_function f) sp ifso rs m); split;
-        [idtac| econstructor; [eapply SSAinv.subj_red; eauto|auto|eauto|eauto;fail]];
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) ifso rs m); split;
+        [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|auto|eauto|eauto;fail]];
         try solve [eapply subj_red_gamma; eauto].
       eapply exec_Icond_true; eauto.
       rewrite same_fn_code; [eauto|congruence].
       
     - (* Icond, false *)
-      exists (State st (transf_function f) sp ifnot rs m); split;
-        [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto;fail]];
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) ifnot rs m); split;
+        [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|eauto|eauto;fail]];
         try solve [eapply subj_red_gamma; eauto].
       eapply exec_Icond_false; eauto.
       rewrite same_fn_code; [eauto|congruence].
 
     - (* Ijumptable *)
-      exists (State st (transf_function f) sp pc' rs m); split;
-        [idtac| econstructor; [eapply SSAinv.subj_red; eauto|eauto|eauto|eauto;fail]];
+      exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs m); split;
+        [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|eauto|eauto;fail]];
         try solve [eapply subj_red_gamma; eauto].
       eapply exec_Ijumptable; eauto. 
       rewrite same_fn_code; [eauto|congruence].
@@ -505,7 +507,7 @@ Section PRESERVATION.
 
     - (* return *)
       inv STACK.
-      exists (State st0 (transf_function f) sp pc rs # res <- vres m); split.
+      exists (State st0 (transf_function f) (Vptr b Ptrofs.zero) pc rs # res <- vres m); split.
       econstructor; eauto.
       econstructor; eauto.
       eapply SSAinv.subj_red; eauto.

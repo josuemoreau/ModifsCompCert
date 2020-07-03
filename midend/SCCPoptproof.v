@@ -43,7 +43,6 @@ Section PRESERVATION.
     eapply match_transform_program_contextual; auto.
   Qed.
 
-
   Section CORRECTNESS.
     
     Hint Unfold exec: core.
@@ -122,7 +121,9 @@ Section PRESERVATION.
         eval_addressing tge sp addr rs ## args = eval_addressing ge sp addr rs ## args.
     Proof.
       intros.
-      unfold eval_addressing, eval_addressing32, eval_addressing64, Genv.symbol_address.
+      unfold eval_addressing;
+        try (unfold eval_addressing32, eval_addressing64);
+        unfold Genv.symbol_address.
       flatten; rewrite <- same_symbols in *; eauto; flatten.
     Qed.
 
@@ -132,7 +133,9 @@ Section PRESERVATION.
         eval_operation tge sp op rs ## args m = eval_operation ge sp op rs ## args m.
     Proof.
       intros.
-      unfold eval_operation, eval_addressing32, eval_addressing64, Genv.symbol_address.
+      unfold eval_operation;
+        try unfold eval_addressing32, eval_addressing64;
+        unfold Genv.symbol_address.
       flatten;
         match goal with
         | id: Genv.find_symbol _ _ = _ |- _ =>
@@ -161,7 +164,8 @@ Section PRESERVATION.
     Inductive match_stackframes : list stackframe -> list stackframe -> Prop :=
     | match_stackframes_nil: match_stackframes nil nil
     | match_stackframes_cons:
-        forall res f sp pc rs s st
+        forall res f sp pc rs s st b
+               (SP: sp = (Vptr b Ptrofs.zero))
                (STACK: (match_stackframes s st))
                (WFF: wf_ssa_function f)
                (HG:forall v, gamma SCCP f ge sp pc (rs# res <- v))
@@ -172,7 +176,8 @@ Section PRESERVATION.
 
     Inductive match_states: SSA.state -> SSA.state -> Prop :=
     | match_states_intro:
-        forall s st sp pc rs m f
+        forall s st sp pc rs m f b
+               (SP: sp = (Vptr b Ptrofs.zero))
                (SINV:s_inv ge (State s f sp pc rs m))
                (HG:gamma SCCP f ge sp pc rs)
                (EXE: exec f pc)
@@ -194,7 +199,6 @@ Section PRESERVATION.
          list_nth_z_in: core.
     Hint Constructors clos_refl_trans SSA.step: core.
     
-
     Lemma match_stackframes_sfg_inv : forall s st,
         match_stackframes s st ->
         sfg_inv SCCP prog s.
@@ -236,21 +240,21 @@ Section PRESERVATION.
     Lemma subj_red_gamma : forall prog (WFP: wf_ssa_program prog),
         forall (f f':function) (HWF : wf_ssa_function f)
                t m m' rs rs' sp sp' pc pc' s s',
-          gamma SCCP f (Genv.globalenv prog) sp pc rs ->
+          gamma SCCP f (Genv.globalenv prog) (Vptr sp Ptrofs.zero) pc rs ->
           sfg_inv SCCP prog s ->
           exec f pc ->
-          s_inv (Genv.globalenv prog) (State s f sp pc rs m) ->
-          SSA.step (Genv.globalenv prog) (State s f sp pc rs m) t
-                       (State s' f' sp' pc' rs' m') ->
-          gamma SCCP f' (Genv.globalenv prog) sp' pc' rs'.
+          s_inv (Genv.globalenv prog) (State s f (Vptr sp Ptrofs.zero) pc rs m) ->
+          SSA.step (Genv.globalenv prog) (State s f (Vptr sp Ptrofs.zero) pc rs m) t
+                       (State s' f' (Vptr sp' Ptrofs.zero) pc' rs' m') ->
+          gamma SCCP f' (Genv.globalenv prog) (Vptr sp' Ptrofs.zero) pc' rs'.
     Proof.
-      intros.
+      intros. 
       eapply subj_red_gamma; eauto.
       - intros; eapply same_fn_code1; eauto.
       - intros; eapply Iop_correct; eauto.
       - intros; eapply step_phi_aux; eauto.
       - intros; eapply exec_step; eauto.
-    Qed.
+    Qed. 
 
     Hint Resolve match_stackframes_sfg_inv
          subj_red subj_red_gamma: core.
@@ -292,15 +296,15 @@ Section PRESERVATION.
       induction 1; intros; inv MS; auto.
 
       (* Inop *)
-      - exists (State st (transf_function f) sp pc' rs m).
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs m).
         split; try match_go.
         TransfInstr.
         eapply exec_Inop_njp; eauto.
         intro Hcont.
         erewrite join_point_transf_function in Hcont ; go.
-
+          
       (* Inop phi *)
-      - exists (State st (transf_function f) sp pc' (phi_store k phib rs) m).
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' (phi_store k phib rs) m).
         split; try match_go.
         TransfInstr.
         eapply exec_Inop_jp; eauto.
@@ -308,7 +312,7 @@ Section PRESERVATION.
         rewrite make_predecessors_transf_function; auto.
         
       (* Iop *)
-      - exists (State st (transf_function f) sp pc' rs # res <- v m).
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs # res <- v m).
         split; try match_go.        
         TransfInstr.
 
@@ -321,127 +325,137 @@ Section PRESERVATION.
         }
         simpl transf_instr in *.
         flatten H2; try ( eapply exec_Iop; eauto; rewrite same_eval; auto).
-        exploit ValueAOpSSA.eval_static_operation_sound; eauto.
-        eapply G_list_val_list_match_approx; eauto.
-        eapply gamma_v_args; eauto.
-        intros.
-        (replace (lv## args) with (map (fun r : reg => lv' r) args)
-          in H3 at 1 by (induction args; go)).
-        unfold const_for_result in *. flatten Eq; inv H3; auto. 
+        exploit (ValueAOpSSA.eval_static_operation_sound (bctop ge) ge); eauto.
+        + constructor.
+          * intros. split; intros.
+            -- simpl. flatten; try solve [unfold Genv.find_symbol in *;
+                                          apply Genv.genv_symb_range in H3  ; intuition].
+               ++ apply Genv.find_invert_symbol in H3; congruence.
+               ++ apply Genv.find_invert_symbol in H3; congruence.
+            -- simpl in H3. flatten H3.
+               apply Genv.invert_find_symbol. auto.
+          * intros. simpl. flatten.
+            -- split; congruence.
+            -- split; congruence. 
+        + simpl. flatten. 
+        + eapply G_list_val_list_match_approx; eauto.
+          eapply gamma_v_args; eauto.
+        + intros.
+          (replace (lv## args) with (map (fun r : reg => lv' r) args)
+            in H3 at 1 by (induction args; go)).
+          unfold const_for_result in *. flatten Eq; inv H3; auto.  
+                                                              
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs # dst <- v m).
+        split; try match_go.
+        TransfInstr.
+        eapply exec_Iload; eauto;
+        try (rewrite same_eval_addressing; auto).
+        
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs m').
+        split; try match_go.
+        TransfInstr.
+        eapply exec_Istore; eauto;
+          try (rewrite same_eval_addressing; auto).
 
-  - exists (State st (transf_function f) sp pc' rs # dst <- v m).
-    split; try match_go.
-    TransfInstr.
-    eapply exec_Iload; eauto.
-    rewrite same_eval_addressing. auto.
-    
-  - exists (State st (transf_function f) sp pc' rs m').
-    split; try match_go.
-    TransfInstr. eapply exec_Istore; eauto. rewrite same_eval_addressing; auto.
-
-  - exists (Callstate (Stackframe res (transf_function f) sp pc' rs::st)
-                      (transf_fundef fd) rs ## args m); split.
-    + TransfInstr; intros.
+      - exists (Callstate (Stackframe res (transf_function f) (Vptr b Ptrofs.zero) pc' rs::st)
+                          (transf_fundef fd) rs ## args m); split.
+        + TransfInstr; intros.
       eapply exec_Icall; eauto.
       rewrite transf_ros_correct with (f := fd); eauto.
       unfold funsig, transf_fundef.
       destruct fd; simpl; eauto.
 
-    + econstructor; eauto.
-      * eapply SSAinv.subj_red; eauto.
-      * constructor; eauto.
-        { intros v x Hyp1 Hyp2.
-          { destruct (peq x res).
-            - subst. exploit (same_fn_code1 f pc); go.
-              eapply G_top; eauto.
-            - rewrite PMap.gso; auto.
-              exploit (HG x); eauto.
-              destruct dsd_pred_njp with f pc pc' x as
-                  [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
-              go.
-              intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
-              go.
-              eelim ssa_not_Inop_not_phi; eauto; go.
-          }
-        }
-       eapply exec_step in H2; eauto.
+      + econstructor; eauto.
+        * eapply SSAinv.subj_red; eauto.
+        * econstructor; eauto.
+          -- intros v x Hyp1 Hyp2.
+             destruct (peq x res).
+             ++ subst. exploit (same_fn_code1 f pc); go.
+                eapply G_top; eauto.
+             ++ rewrite PMap.gso; auto.
+                exploit (HG x); eauto.
+                destruct dsd_pred_njp with f pc pc' x as
+                    [[Dx Dx']|[[Dx [Dx' Dx'']]|[Dx Dx']]]; simplify_dsd; eauto.
+                go.
+                intro; subst; exploit fn_entry; eauto; intros (succ' & Hscucc); congruence.
+                go.
+                eelim ssa_not_Inop_not_phi; eauto; go.
+          -- eapply exec_step in H2; eauto.
 
-  - exists (Callstate st (transf_fundef fd) rs ## args m'); split; try match_go.
-    + TransfInstr; intros.
+      - exists (Callstate st (transf_fundef fd) rs ## args m'); split; try match_go.
+        + TransfInstr; intros.
       eapply exec_Itailcall; eauto.
       rewrite transf_ros_correct with (f := fd); eauto.
       unfold funsig, transf_fundef.
       destruct fd; simpl; eauto; unfold transf_function.
 
-    + econstructor; eauto.
-      eapply SSAinv.subj_red; eauto.
+      + econstructor; eauto.
+        eapply SSAinv.subj_red; eauto.
 
-  - exists (State st (transf_function f) sp pc' (regmap_setres res vres rs) m').
-    split; try match_go.
-    TransfInstr.
-    eapply exec_Ibuiltin with (vargs:= vargs); eauto.
-    eapply eval_builtin_args_preserved; eauto.
-    eapply external_call_symbols_preserved; eauto.
-    apply senv_equiv.
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' (regmap_setres res vres rs) m').
+        split; try match_go.
+        TransfInstr.
+        eapply exec_Ibuiltin with (vargs:= vargs); eauto.
+        eapply eval_builtin_args_preserved; eauto.
+        eapply external_call_symbols_preserved; eauto.
+        apply senv_equiv.
+        
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) ifso rs m).
+        split; try match_go.
+        TransfInstr. eapply exec_Icond_true; eauto.
+        
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) ifnot rs m).
+        split; try match_go.
+        TransfInstr. eapply exec_Icond_false; eauto.
+
+      - exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs m).
+        split; try match_go.
+        TransfInstr. eapply exec_Ijumptable; eauto.
+
+      - exists (Returnstate st (regmap_optget or Vundef rs) m'); split; try match_go.
+        + TransfInstr.
+          econstructor; eauto.
+
+        + econstructor; eauto.
+          eapply SSAinv.subj_red; eauto.
+
+      - exists (State st (transf_function f) (Vptr stk Ptrofs.zero)
+                      (fn_entrypoint (transf_function f))
+                      (init_regs args (fn_params (transf_function f))) m');
+          split; try match_go.
+        + econstructor; eauto.
+        + replace (fn_entrypoint (transf_function f)) with (fn_entrypoint f);
+            [|compute; reflexivity].
+          replace (fn_params (transf_function f)) with (fn_params f);
+            [|compute; reflexivity].
+          econstructor; eauto.
+          * eapply SSAinv.subj_red; eauto.
+          * eapply gamma_entry; eauto.
+            invh s_inv. invh wf_ssa_fundef; auto.
+          * go.
+          
+      - exists (Returnstate st res m'); split.
+        + econstructor; eauto.
+          eapply external_call_symbols_preserved; eauto.
+          apply senv_equiv.
+        + econstructor; eauto.
+          eapply SSAinv.subj_red; eauto.
+
+      - inv STACK.
+        exists (State st0 (transf_function f) (Vptr b Ptrofs.zero) pc rs # res <- vres m); split; go.
+        econstructor; eauto.
+        eapply SSAinv.subj_red; eauto.
+    Qed.
     
-  - exists (State st (transf_function f) sp ifso rs m).
-    split; try match_go.
-    TransfInstr. eapply exec_Icond_true; eauto.
-    
-
-  - exists (State st (transf_function f) sp ifnot rs m).
-    split; try match_go.
-    TransfInstr. eapply exec_Icond_false; eauto.
-
-
-  - exists (State st (transf_function f) sp pc' rs m).
-    split; try match_go.
-    TransfInstr. eapply exec_Ijumptable; eauto.
-
-
-  - exists (Returnstate st (regmap_optget or Vundef rs) m'); split; try match_go.
-    + TransfInstr.    econstructor; eauto.
-
-    + econstructor; eauto.
-      eapply SSAinv.subj_red; eauto.
-
-  - exists (State st (transf_function f) (Vptr stk Ptrofs.zero)
-                  (fn_entrypoint (transf_function f))
-                  (init_regs args (fn_params (transf_function f))) m');
-      split; try match_go.
-    + econstructor; eauto.
-    + replace (fn_entrypoint (transf_function f)) with (fn_entrypoint f).
-      replace (fn_params (transf_function f)) with (fn_params f).
-      econstructor; eauto. 
-      eapply SSAinv.subj_red; eauto.
-      eapply gamma_entry; eauto.
-      invh s_inv. invh wf_ssa_fundef; auto.
-      go.
-      compute; reflexivity.
-      compute; reflexivity.
-      
-  - exists (Returnstate st res m'); split.
-    + econstructor; eauto.
-      eapply external_call_symbols_preserved; eauto.
-      apply senv_equiv.
-    + econstructor; eauto.
-      eapply SSAinv.subj_red; eauto.
-
-  - inv STACK.
-    exists (State st0 (transf_function f) sp pc rs # res <- vres m); split; go.
-    econstructor; eauto.
-    eapply SSAinv.subj_red; eauto.
-Qed.
-
-Theorem transf_program_correct:
-  forward_simulation (SSA.semantics prog) (SSA.semantics tprog).
-Proof.
-  eapply forward_simulation_step.
-  eapply senv_equiv.
-  eexact transf_initial_states.
-  eexact transf_final_states.
-  intros; eapply transf_step_correct; eauto.
-Qed.
+    Theorem transf_program_correct:
+      forward_simulation (SSA.semantics prog) (SSA.semantics tprog).
+    Proof.
+      eapply forward_simulation_step.
+      eapply senv_equiv.
+      eexact transf_initial_states.
+      eexact transf_final_states.
+      intros; eapply transf_step_correct; eauto.
+    Qed.
 
   End CORRECTNESS.
         

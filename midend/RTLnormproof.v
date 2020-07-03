@@ -326,23 +326,23 @@ Proof.
   
   - (* iload *)
     normalized. 
-    succ O (RTL.State ts tf sp pc' (rs#dst <- v) m).
-    + econstructor 3; eauto. 
-      rewrite <- H0 ; eauto with valagree. 
-    + auto. 
-    + econstructor 3 ; eauto.
-      rewrite <- H0 ; eauto with valagree. 
-    + auto.
-
+    succ O (RTL.State ts tf sp pc' (rs#dst <- v) m);
+      first [econstructor 3; eauto;
+             rewrite <- H0 ; eauto with valagree
+            |auto
+            |econstructor 3 ; eauto;
+             rewrite <- H0 ; eauto with valagree
+            | auto].
+    
   - (* istore *)
     normalized. 
-    succ O (RTL.State ts tf sp pc' rs m'). 
-    + econstructor 4 ; eauto.
-      rewrite <- H0 ; eauto with valagree. 
-    + auto. 
-    + econstructor 4 ; eauto. 
-      rewrite <- H0 ; eauto with valagree. 
-    + auto.    
+    succ O (RTL.State ts tf sp pc' rs m');
+    first [ econstructor 4 ; eauto;
+            rewrite <- H0 ; eauto with valagree
+          | auto
+          | econstructor 4 ; eauto;
+            rewrite <- H0 ; eauto with valagree
+          | auto].
   
   - (* icall *)
     normalized.

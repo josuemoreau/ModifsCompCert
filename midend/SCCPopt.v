@@ -18,7 +18,6 @@ Require Import Utilsvalidproof.
 Require Opt.
 Require Import Dsd.
 Require Import ValueDomainSSA ValueAOpSSA.
-Require ValueDomain.
 
 (** Instantiation of the generic analysis to Sparse Conditional Constant Propagation *)
 
@@ -279,8 +278,8 @@ Module DataflowSolver.
      match instr with
        | Icond cond args ifso ifnot =>
          match eval_static_condition cond lv ## args with
-           | ValueDomain.Just true => ((pc, ifso)::cfgwl, iws, lv, es)
-           | ValueDomain.Just false => ((pc, ifnot)::cfgwl, iws, lv, es)
+           | Just true => ((pc, ifso)::cfgwl, iws, lv, es)
+           | Just false => ((pc, ifnot)::cfgwl, iws, lv, es)
            | _ => ((pc, ifso) :: (pc, ifnot) :: cfgwl, iws, lv, es)
          end
        | Ijumptable arg tbl =>
@@ -418,10 +417,10 @@ Module DataflowSolver.
       | Some (Icond cond args ifso ifnot) =>
         match Pos.eq_dec pc' ifso with
           | left _ => match eval_static_condition cond lv ## args with
-                      | ValueDomain.Just false => match Pos.eq_dec pc' ifnot with
+                      | Just false => match Pos.eq_dec pc' ifnot with
                                         | right _ => true
                                         | left _ => match eval_static_condition cond lv ## args with
-                                                      | ValueDomain.Just true => true
+                                                      | Just true => true
                                                       | _ => false
                                                     end
                                       end
@@ -430,7 +429,7 @@ Module DataflowSolver.
           | right _ => match Pos.eq_dec pc' ifnot with
                        | right _ => false
                        | left _ => match eval_static_condition cond lv ## args with
-                                   | ValueDomain.Just true => true
+                                   | Just true => true
                                    | _ => false
                                    end
                        end
@@ -612,8 +611,8 @@ Module DataflowSolver.
        ~executable_node pc es \/
        match (fn_code f) ! pc with
          | Some (Icond cond args ifso ifnot) =>
-           (ifso  = pc' -> eval_static_condition cond lv ## args = ValueDomain.Just false) /\
-           (ifnot = pc' -> eval_static_condition cond lv ## args = ValueDomain.Just true)
+           (ifso  = pc' -> eval_static_condition cond lv ## args = Just false) /\
+           (ifnot = pc' -> eval_static_condition cond lv ## args = Just true)
          | Some (Ijumptable arg tbl) =>
            exists n, (lv # arg = I n /\ list_nth_z tbl (Int.unsigned n) <> Some pc')
          | _ => False

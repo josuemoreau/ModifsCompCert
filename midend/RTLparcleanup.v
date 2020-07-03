@@ -507,27 +507,28 @@ Proof.
   { (* Iload *)
     exists (RTLpar.State ts tf sp pc' (rs' # dst <- v) m).
     split; auto.
-    eapply RTLpar.exec_Iload; eauto.
-    dogo SPEC.
-    erewrite <- registers_equal; eauto.
-    erewrite <- eval_addressing_preserved; eauto.
-    symmetry.
-    eapply symbols_preserved.
-    constructor; go.
-    intros.
-    case_eq(peq dst r); intros.
-    + rewrite e.
-      repeat rewrite PMap.gss; auto.
-    + repeat rewrite PMap.gso; auto.
+    - eapply RTLpar.exec_Iload; eauto.
+      dogo SPEC.
+      erewrite <- registers_equal; eauto;
+      try (erewrite <- eval_addressing_preserved; eauto);
+      try (symmetry);
+      try (eapply symbols_preserved).
+    - constructor; go.
+      intros.
+      case_eq(peq dst r); intros.
+      + rewrite e.
+        repeat rewrite PMap.gss; auto.
+      + repeat rewrite PMap.gso; auto.
   }
   { (* Istore *)
     exists (RTLpar.State ts tf sp pc' rs' m').
     split; auto.
     eapply RTLpar.exec_Istore; eauto.
     dogo SPEC.
-    erewrite <- registers_equal; eauto.
-    erewrite <- eval_addressing_preserved; eauto.
-    symmetry.  eapply symbols_preserved.
+    erewrite <- registers_equal; eauto;
+      try (erewrite <- eval_addressing_preserved; eauto);
+      try (symmetry);
+      try (eapply symbols_preserved).
     go.
     constructor; go.
   }
