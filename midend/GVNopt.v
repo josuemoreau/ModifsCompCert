@@ -25,7 +25,6 @@ Require FSetAVL.
 Require Import Opt.
 Require Import OptInv.
 Require Import DLib.
-Require Import TrMaps2.
 
 (** Common Subexpression Elimination based on Global Value Numbering *)
 

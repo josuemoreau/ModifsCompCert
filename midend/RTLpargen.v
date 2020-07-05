@@ -201,8 +201,6 @@ Definition check_coalescing_classes regrepr classes ninterf (all_defs : PTree.t 
   mem_class_regs regrepr classes (map fst (PTree.elements all_defs)) &&
   mem_class_regs regrepr classes (SSARegSet.elements ext_params).
 
-Check check_coalescing_classes.
-
 (** ** Check that phi_ressources are correctly mapped to destinations *)
 Definition check_phi_ressources_coalescing regrepr phi :=
   match phi with

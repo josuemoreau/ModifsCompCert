@@ -18,7 +18,6 @@ Require String.
 Require Import Relation_Operators.
 Require Psatz.
 Require Import Permutation.
-Require Import TrMaps2.
 
 (** * Tactics *)
 Ltac exploit_dstr x := 
@@ -132,72 +131,6 @@ Proof.
 Qed.
 
 Require Import DLib.
-
-(* Lemma append_assoc : forall p1 p2 p3, *)
-(*   PTree.append p1 (PTree.append p2 p3) = PTree.append (PTree.append p1 p2) p3. *)
-(* Proof. *)
-(*   induction p1; simpl; go. *)
-(* Qed. *)
-
-(* Lemma xmap_ext: *)
-(*   forall (A B: Type) (f1 f2: positive -> A -> B) (m: PTree.t A) (i0 : positive), *)
-(*     (forall i x, m!i = Some x -> f1 (PTree.append i0 i) x = f2 (PTree.append i0 i) x) -> *)
-(*     PTree.xmap f1 m i0 = PTree.xmap f2 m i0. *)
-(* Proof. *)
-(*   induction m; intros; destruct i0; simpl; auto; *)
-(*   rewrite IHm1; try rewrite IHm2; auto. *)
-(*   - destruct o; simpl; try rewrite H; auto. *)
-(*     generalize (H xH); simpl. *)
-(*     rewrite PTree.append_neutral_r. *)
-(*     intros T; auto. *)
-(*     f_equal. *)
-(*     rewrite T; auto. *)
-(*   - intros i x. *)
-(*     generalize (H (xI i)); simpl. *)
-(*     rewrite <- append_assoc. *)
-(*     simpl. *)
-(*     auto. *)
-(*   - intros i x. *)
-(*     generalize (H (xO i)); simpl. *)
-(*     rewrite <- append_assoc. *)
-(*     simpl. *)
-(*     auto. *)
-(*   - destruct o; simpl; try rewrite H; auto. *)
-(*     generalize (H xH); simpl. *)
-(*     rewrite PTree.append_neutral_r. *)
-(*     intros T; auto. *)
-(*     f_equal. *)
-(*     rewrite T; auto. *)
-(*   - intros i x. *)
-(*     generalize (H (xI i)); simpl. *)
-(*     rewrite <- append_assoc. *)
-(*     simpl. *)
-(*     auto. *)
-(*   - intros i x. *)
-(*     generalize (H (xO i)); simpl. *)
-(*     rewrite <- append_assoc. *)
-(*     simpl. *)
-(*     auto. *)
-(*   - destruct o; simpl; try rewrite H; auto. *)
-(*     f_equal. *)
-(*     generalize (H xH); simpl. *)
-(*     intros T; rewrite T; auto. *)
-(*   - intros i x. *)
-(*     generalize (H (xI i)); simpl. *)
-(*     auto. *)
-(*   - intros i x. *)
-(*     generalize (H (xO i)); simpl. *)
-(*     auto. *)
-(* Qed. *)
-
-(* Lemma map_ext: *)
-(*   forall (A B: Type) (f1 f2: positive -> A -> B) (m: PTree.t A), *)
-(*     (forall i x, m!i = Some x -> f1 i x = f2 i x) -> *)
-(*     PTree.map f1 m = PTree.map f2 m. *)
-(* Proof. *)
-(*   unfold PTree.map; intros. *)
-(*   apply xmap_ext; auto. *)
-(* Qed. *)
 
 Lemma xmap_map1_opt:
   forall (A B: Type) (f: A -> B) (m: PTree.t A) (i: positive),
@@ -389,10 +322,7 @@ Proof.
 Qed.
 
 (** * PTrees over pairs of positive *)
-Require Import TrMaps2.
 Require Maps2.
-
-Module P2Tree_Properties := Maps.Tree_Properties(P2Tree).
 
 Module P2Map : MAP with Definition elt := (positive * positive)%type :=
   Maps2.MakeProdMap PMap PMap.
@@ -400,90 +330,8 @@ Module P2Map : MAP with Definition elt := (positive * positive)%type :=
 Notation "a #2 b" := (P2Map.get b a) (at level 1).
 Notation "a ##2 b" := (List.map (fun r => P2Map.get r a) b) (at level 1).
 Notation "a #2 b <- c" := (P2Map.set b c a) (at level 1, b at next level).
-Notation "a !2 b" := (P2Tree.get b a) (at level 1).
 Notation "a !!2 b" := (P2Map.get b a) (at level 1).
 Notation p2eq :=  P2Map.elt_eq.
-
-Definition regmap2_setres
-    (A: Type) (res: builtin_res P2Map.elt) (v: A) (rs: P2Map.t A) : P2Map.t A :=
-  match res with
-  | BR r => P2Map.set r v rs
-  | _ => rs
-  end.
-
-Definition p2eqb (x y:positive * positive) : bool :=
-  if p2eq x y then true else false.
-
-Lemma p2eqb_true : forall x y, 
-  p2eqb x y = true -> x = y.
-Proof.
-  unfold p2eqb; intros; destruct p2eq; congruence.
-Qed.
-
-Definition forall_p2tree {A: Type} (f: P2Tree.elt -> A -> bool) (m: P2Tree.t A) : bool :=
-    P2Tree.fold (fun (res: bool) i (x: A) => res && f i x) m true.
-
-Lemma ptree2_forall:
-  forall (A: Type) (f: P2Tree.elt -> A -> bool) (m: P2Tree.t A),
-  forall_p2tree f m = true ->
-  forall i x, m!2 i = Some x -> f i x = true.
-Proof.
-  unfold forall_p2tree.
-  intros.
-  set (f' := fun (res: bool) (i: P2Tree.elt) (x: A) => res && f i x).
-  set (P := fun (m: P2Tree.t A) (res: bool) =>
-              res = true -> m!2 i = Some x -> f i x = true).
-  assert (P m true).
-  rewrite <- H. fold f'. apply P2Tree_Properties.fold_rec.
-  unfold P; intros. rewrite <- H1 in H4. auto. 
-  red; intros. rewrite P2Tree.gempty in H2. discriminate.
-  unfold P; intros. unfold f' in H4. boolInv. 
-  rewrite P2Tree.gsspec in H5. destruct (P2Tree.elt_eq i k). 
-  subst. inv H5. auto.
-  apply H3; auto. 
-  red in H1. auto. 
-Qed.
-
-Lemma gsregset2: forall  (j: (positive * positive)) (v:val) (m: P2Map.t val) ,
-  (m#2 j) = v -> (forall r, (m#2 j <- v)#2 r = m#2 r).
-Proof.
-  intros.
-  rewrite P2Map.gsspec.
-  destruct p2eq; congruence.
-Qed.
-
-Lemma regset_setset2: forall rs r (v1 v2:val),
-  forall dst, (rs #2  r <- v1) #2  r <- v2 #2  dst = 
-              (rs #2  r <- v2) #2  dst.
-Proof.
-  intros.
-  repeat rewrite P2Map.gsspec.
-  destruct p2eq; congruence.
-Qed.
-
-Lemma regset_permut2: forall rs r (v:val) r1 r0,
-  r <> r0 ->  r <> r1 ->
-  forall dst, (rs #2  r <- v) #2  r0 <- (rs #2  r1) #2  dst = 
-              (rs #2  r0 <- (rs #2  r1)) #2  r <- v  #2  dst.
-Proof.
-  intros.
-  repeat rewrite P2Map.gsspec.
-  repeat destruct p2eq; try congruence.
-Qed.
-
-Definition regmap2_optget
-    {A: Type} (or: option (positive * positive)) (dfl: A) (rs: P2Map.t A) : A :=
-  match or with
-  | None => dfl
-  | Some r => P2Map.get r rs
-  end.
-
-Definition regmap2_optset
-    {A: Type} (or: option (positive * positive)) (v: A) (rs: P2Map.t A) : P2Map.t A :=
-  match or with
-  | None => rs
-  | Some r => P2Map.set r v rs
-  end.
 
 (** * Lemmas about lists *)
 Lemma in_tl_in_cons: forall (A:Type) (l: list A) (a e:A), 

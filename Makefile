@@ -65,7 +65,7 @@ VLIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
 
 # General-purpose libraries for the SSA midend (in midend/libSSA)
 
-VLIB2=TrMaps2.v Maps2.v Utils.v RTLutils.v
+VLIB2= Maps2.v Utils.v RTLutils.v
 
 # Parts common to the front-ends and the back-end (in common/)
 
