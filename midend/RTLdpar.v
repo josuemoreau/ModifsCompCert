@@ -1,5 +1,4 @@
 (** Destruction of RTLpar *)
-
 Require Import Coqlib.
 Require Errors.
 Require Import Maps.
@@ -19,6 +18,8 @@ Require Import DLib.
 Require Import CSSApar.
 Require CSSApargen.
 Require Import RTLpar.
+
+Unset Allow StrictProp.
 
 Local Open Scope string_scope.
 
@@ -63,7 +64,7 @@ Record state : Type := mkstate {
     \/ (st_code!pc = None)                           (** no instruction yet *)
 }.
 
-Inductive state_incr: state -> state -> Prop :=
+Variant state_incr: state -> state -> Prop :=
 | state_incr_intro : forall (s1 s2: state),
   Ple (st_nextnode_cp s1) (st_nextnode_cp s2) ->
   Ple (st_nextnode_fs s1) (st_nextnode_fs s2) ->
@@ -96,7 +97,7 @@ Proof.
 Qed.
 
 (** ** Additional Monadic machinery *)
-Inductive res (A: Type) (s: state): Type :=
+Variant res (A: Type) (s: state): Type :=
   | Error: Errors.errmsg -> res A s
   | OK: A -> forall (s': state), state_incr s s' -> res A s.
 
@@ -109,10 +110,6 @@ Definition ret (A: Type) (x: A) : mon A :=
   fun (s: state) => OK x s (state_incr_refl s).
 
 Arguments ret [A].
-
-Definition error (A: Type) (msg: Errors.errmsg) : mon A := fun (s: state) => Error msg.
-
-Arguments error [A].
 
 Definition bind (A B: Type) (f: mon A) (g: A -> mon B) : mon B :=
   fun (s: state) =>
@@ -127,29 +124,13 @@ Definition bind (A B: Type) (f: mon A) (g: A -> mon B) : mon B :=
 
 Arguments bind [A B].
 
-Definition bind2 (A B C: Type) (f: mon (A * B)) (g: A -> B -> mon C) : mon C :=
-  bind f (fun xy => g (fst xy) (snd xy)).
-
-Arguments bind2 [A B C].
-
 Notation "'do' X <- A ; B" := (bind A (fun X => B))
    (at level 200, X ident, A at level 100, B at level 200).
-
-Notation "'do' ( X , Y ) <- A ; B" := (bind2 A (fun X Y => B))
-   (at level 200, X ident, Y ident, A at level 100, B at level 200).
 
 Fixpoint mfold_unit {A: Type} (f: A -> mon unit) (l: list A) : mon unit :=
   match l with
     | nil => ret tt
     | hd :: tl => (do rhd <- f hd ; mfold_unit f tl)
-  end.
-
-Fixpoint mfold {A B: Type} (f: A -> B -> mon B) (l: list A) (b: B) : mon B :=
-  match l with
-    | nil => ret b
-    | hd :: tl =>
-      do rhd <- f hd b;
-      mfold f tl rhd
   end.
 
 (** * Transformation *)
@@ -176,40 +157,6 @@ Proof.
       | destruct (plt maxacc a) ;  eapply IHl ; eauto]. 
 Qed.   
 
-Lemma get_max_fold_aux : forall l maxacc lacc,
-  Ple maxacc (fst (fold_left (fun (al: positive * list positive) pc => 
-    let (a,l) := al in 
-    if plt a pc then (pc, pc::l) else (a, pc::l)) l (maxacc,lacc))).
-Proof.
-  induction l ; intros.
-  simpl. apply Ple_refl.
-  simpl.
-  destruct (plt maxacc a).
-  assert (Ha := IHl a).
-  eapply Plt_Ple in p.  
-  eapply (Ple_trans maxacc a (fst (fold_left (fun (al : positive * list positive) (pc : positive) =>
-                let (a, l) := al in
-                if plt a pc then (pc, pc :: l) else (a, pc :: l)) l (a,a::lacc)))); eauto.
-  eapply IHl ; eauto.
-Qed.
-
-Lemma get_max_fold : forall l pc maxacc lacc,
-  In pc l ->
-  Ple pc (fst (fold_left (fun (al: positive * list positive) pc => 
-    let (a,l) := al in 
-    if plt a pc then (pc,pc::l) else (a,pc::l)) l (maxacc,lacc))).
-Proof.
-  induction l ; intros ; inv H.
-  simpl.
-  destruct (plt maxacc pc).
-  eapply get_max_fold_aux ; eauto.
-  assert (Ple pc maxacc) by (unfold Plt, Ple in * ;  zify ; omega).
-  assert (Htr:= get_max_fold_aux l maxacc).
-  eapply Ple_trans ; eauto.
-  simpl.
-  destruct (plt maxacc a); eapply IHl ; eauto.
-Qed.
-
 Lemma get_max_in : forall (A: Type) t pc (a:A), 
   t ! pc = Some a -> In pc (snd (get_max t)).
 Proof.
@@ -219,19 +166,6 @@ Proof.
   simpl in Hinpc. 
   eapply (get_max_fold_aux'); eauto.
 Qed.  
-
-Lemma get_max_lt {A: Type} : forall t pc (a:A),
-    t ! pc = Some a -> Plt pc (Pos.succ (Pos.succ (fst (get_max t)))).
-Proof.
-  unfold get_max ; intros.
-  exploit PTree.elements_correct ; eauto. intros.
-  assert (Hinpc : In (fst (pc,a)) (map (@fst positive A) (PTree.elements t))) by (eapply in_map ; eauto).
-  simpl in Hinpc.
-  eapply Ple_Plt_succ ; eauto.
-  eapply Plt_Ple ; eauto.
-  eapply Ple_Plt_succ ; eauto.
-  eapply get_max_fold ; eauto.  
-Qed.
 
 Ltac sz := unfold Plt, Ple in * ; zify ; omega.
 
@@ -672,7 +606,7 @@ Require Import List Setoid Permutation Sorted Orders.
 
 Module PosOrder <: TotalLeBool.
   Definition t := positive.
-  Definition leb x y := 
+  Definition leb (x y: t) := 
     match Ple_dec x y with 
       | left _ => true
       | right _ => false

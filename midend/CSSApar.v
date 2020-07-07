@@ -23,12 +23,14 @@ Require Import DLib.
 Require Import SSA.
 Require Import Dom.
 
+Unset Allow StrictProp.
+
 (** * Abstract syntax *)
 
 (** Instructions are those of SSA, plus parallel copy blocks. *)
 
 (** [Iparcopy src dst] copies the value of [src] to [dst] *)
-Inductive parcopy: Type :=
+Variant parcopy: Type :=
 | Iparcopy: reg -> reg -> parcopy.
 
 (** parallel copy blocks are lists of parallel copy instructions *)
@@ -60,16 +62,16 @@ Definition funsig (fd: fundef) :=
 Notation preds :=
   (fun f pc => (make_predecessors (fn_code f) successors_instr) !!! pc).
 
-Inductive join_point (jp: node) (f:function) : Prop :=
-  | jp_cons : forall l,
-              forall (Hpreds: (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
-                     (Hl: (length l > 1)%nat),
-                join_point jp f.
+Variant join_point (jp: node) (f:function) : Prop :=
+| jp_cons : forall l,
+    forall (Hpreds: (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
+           (Hl: (length l > 1)%nat),
+      join_point jp f.
 
 (** * Use and definition of registers *)
 Section UDEF.
 
-Inductive assigned_parcopy_spec (parcopycode: parcopycode) (pc: node): reg -> Prop :=
+Variant assigned_parcopy_spec (parcopycode: parcopycode) (pc: node): reg -> Prop :=
 | AIparcopy: forall parcb dst,
     (parcopycode ! pc) = Some parcb ->
     (exists src, List.In (Iparcopy src dst) parcb) ->
@@ -78,7 +80,7 @@ Inductive assigned_parcopy_spec (parcopycode: parcopycode) (pc: node): reg -> Pr
 Variable f : function.
 
 (** [use_code r pc] holds whenever register [r] is used at [pc] in the regular code of [f] *)
-Inductive use_code : reg -> node -> Prop := 
+Variant use_code : reg -> node -> Prop := 
 | UIop: forall pc arg op args dst s,
   (fn_code f) !pc = Some (SSA.Iop op args dst s)  -> In arg args -> use_code arg pc
 | UIload: forall pc arg chk adr args dst s,
@@ -103,7 +105,7 @@ Inductive use_code : reg -> node -> Prop :=
   (fn_code f) !pc = Some (SSA.Ireturn (Some arg)) -> use_code arg pc.
 
 (** [use_phicode r pc] holds whenever register [r] is used at [pc] in the phi-code of [f] *)
-Inductive use_phicode : reg -> node -> Prop :=
+Variant use_phicode : reg -> node -> Prop :=
 | upc_intro : forall pc pred k arg args dst phib
   (PHIB: (fn_phicode f) ! pc = Some phib)
   (ASSIG : In (SSA.Iphi args dst) phib)
@@ -113,7 +115,7 @@ Inductive use_phicode : reg -> node -> Prop :=
 
 (** [use_parcopycode r pc] holds whenever register [r] is used at [pc] in
     parallel copy code of [f] *)
-Inductive use_parcopycode : reg -> node -> Prop :=
+Variant use_parcopycode : reg -> node -> Prop :=
 | uparc_intro : forall pc parcb src dst
     (PARCB: (fn_parcopycode f) ! pc = Some parcb)
     (ASSIG: In (Iparcopy src dst) parcb),
@@ -121,7 +123,7 @@ Inductive use_parcopycode : reg -> node -> Prop :=
 
 (** A register is used in the code, or in the phicode, or in the parcopycode of
     a function *)
-Inductive use : reg -> node -> Prop :=
+Variant use : reg -> node -> Prop :=
 | u_code : forall x pc, use_code x pc -> use x pc
 | u_phicode : forall x pc, use_phicode x pc -> use x pc
 | u_parcopycode : forall x pc, use_parcopycode x pc -> use x pc.
@@ -149,6 +151,7 @@ Inductive def : reg -> node -> Prop :=
 | def_parcopycode : forall x pc,
     assigned_parcopy_spec (fn_parcopycode f) pc x -> def x pc.
 
+
 End UDEF.
 
 Hint Constructors ext_params def assigned_code_spec assigned_phi_spec: core.
@@ -162,11 +165,11 @@ Section DOMINATORS.
   Notation code := (fn_code f).
 
   (** [cfg i j] holds if [j] is a successor of [i] in the code of [f] *)
-  Inductive _cfg (i j:node) : Prop :=
+  Variant _cfg (i j:node) : Prop :=
   | CFG : forall ins
     (HCFG_ins: code !i = Some ins)
     (HCFG_in : In j (successors_instr ins)),
-    _cfg i j.
+      _cfg i j.
 
   Definition exit (pc: node) : Prop :=
   match code ! pc with
@@ -182,7 +185,7 @@ Section DOMINATORS.
 
 End DOMINATORS.
 
-(** * Well-formed SSA functions *)
+(** * Well-formed CSSA functions *)
 
 (** Every variable is assigned at most once *)
 Definition unique_def_spec (f : function) :=
@@ -250,9 +253,8 @@ Notation reached := (fun f => (reached (cfg f) (entry f))).
 Notation sdom := (fun f => (sdom (cfg f) (exit f) (entry f))).
 
 (* def of r strict dom pc *)
-Inductive cssadom (f : function) (r : reg) (pc : node) : Prop :=
-| cssadom_sdom:
-    forall def_r,
+Variant cssadom (f : function) (r : reg) (pc : node) : Prop :=
+| cssadom_sdom: forall def_r,
     def f r def_r ->
     sdom f def_r pc ->
     cssadom f r pc
@@ -336,13 +338,6 @@ Inductive ninterlive_spec (f : function) (r1 r2 : reg)
     ~ cssaliveout_spec f r2 d1 ->
     d1 <> d2 -> (* trop technique, et insuffisant si pas les autres invariants structurels *)
     ninterlive_spec f r1 r2.
-
-Definition ninterlive_list_spec
-    (f : function) (l : list reg ) :=
-  forall r r',
-  In r l ->
-  In r' l ->
-  ninterlive_spec f r r'.
 
 Definition get_preds f :=
   make_predecessors (fn_code f) successors_instr.
@@ -436,19 +431,6 @@ Record wf_cssa_function (f:function) : Prop := {
     use_phicode f x pc ->
     assigned_parcopy_spec (fn_parcopycode f) pc x
 }.
-
-Lemma fn_strict_jp_use_parc (f: function) (WF: wf_cssa_function f) :
-    forall x pc,
-    join_point pc f ->
-    use_parcopycode f x pc ->
-    ~ assigned_code_spec (fn_code f) pc x.
-Proof.
-  intros.
-  exploit fn_jp_use_parcb'; eauto. intros.
-  intros Hcont. 
-  eelim fn_cssa; eauto. intros; repeat invh and.
-  eelim (H2 x pc pc); eauto; intuition.
-Qed.
   
 (** Well-formed CSSA function definitions *)
 Inductive wf_cssa_fundef: fundef -> Prop :=
@@ -468,8 +450,7 @@ Definition genv := Genv.t fundef unit.
 
 (** The same as SSA, but with parallel copies at junction points and their
     predecessors *)
-
-Inductive stackframe : Type :=
+Variant stackframe : Type :=
   | Stackframe:
       forall (res: reg)        (**r where to store the result *)
              (f: function)     (**r calling function *)
@@ -478,7 +459,7 @@ Inductive stackframe : Type :=
              (rs: regset),     (**r register state in calling function *)
       stackframe.
 
-Inductive state : Type :=
+Variant state : Type :=
   | State:
       forall (stack: list stackframe) (**r call stack *)
              (f: function)            (**r current function *)
@@ -642,8 +623,7 @@ End RELSEM.
   from an initial state to a final state.  An initial state is a [Callstate]
   corresponding to the invocation of the ``main'' function of the program
   without arguments and with an empty call stack. *)
-
-Inductive initial_state (p: program): state -> Prop :=
+Variant initial_state (p: program): state -> Prop :=
   | initial_state_intro: forall b f m0,
       let ge := Genv.globalenv p in
       Genv.init_mem p = Some m0 ->
@@ -653,15 +633,12 @@ Inductive initial_state (p: program): state -> Prop :=
       initial_state p (Callstate nil f nil m0).
 
 (** A final state is a [Returnstate] with an empty call stack. *)
-
-Inductive final_state: state -> int -> Prop :=
+Variant final_state: state -> int -> Prop :=
   | final_state_intro: forall r m, final_state (Returnstate nil (Vint r) m) r.
 
 (** The small-step semantics for a program. *)
-
 Definition semantics (p: program) :=
   Semantics step (initial_state p) final_state (Genv.globalenv p).
-
 
 Definition parc_dst (pcopy : parcopy) :=
   match pcopy with

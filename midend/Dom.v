@@ -7,6 +7,8 @@ Require Import Relation_Operators.
 Require Import Relations.Relation_Definitions.
 Require Import DLib.
 
+Unset Allow StrictProp.
+
 (** * Formalization of Dominators *)
 
 (** We formalize dominators on top of an abstract notion of graph,
@@ -25,11 +27,12 @@ Section Graph.
   Definition reached (pc: node) : Prop :=  (cfg **) entry pc.  
   
   (** Definition of paths in the CFG of a function *)
-  Inductive pstate : Type :=
+
+  Variant pstate : Type :=
   | PState: forall (pc: node), pstate
   | PStop: pstate.
   
-  Inductive path_step : pstate -> node -> pstate -> Prop :=
+  Variant path_step : pstate -> node -> pstate -> Prop :=
   | step_i: forall pc pc'
     (CFG : reached pc)
     (STEP: cfg pc pc'), 
@@ -38,7 +41,7 @@ Section Graph.
     (CFG : reached pc)
     (NOSTEP : exit pc),
     path_step (PState pc) pc PStop.
-    
+  
   Inductive path : pstate -> list node -> pstate -> Prop :=
   | path_refl : forall s,  path s nil s  
   | path_cons : forall s1 t s2 pc s3 
@@ -68,15 +71,6 @@ Section Graph.
     inv STEP.
   Qed.
   
-  Lemma path_from_ret_ret : forall p s,
-    path PStop p s ->  s = PStop.
-  Proof.
-    intros.
-    exploit path_from_ret_nil ; eauto.
-    intros. inv H0.
-    inv H. auto.
-  Qed.
-
   Lemma in_path_split : forall (pc pc' pc'' : node) (p : list node),
     path (PState pc) p (PState pc') ->
     In pc'' p ->
@@ -143,35 +137,6 @@ Section Graph.
     elim H.
   Qed.      
 
-  Lemma path_first : forall p pc pc', 
-    path (PState pc) p (PState pc') ->
-    pc <> pc' ->
-    exists pc'', exists p', 
-      path (PState pc) p' (PState pc'') /\
-      ~ In pc' p' /\
-      pc'' <> pc' /\
-      path_step (PState pc'') pc'' (PState pc').
-  Proof.
-    induction p ; intros; inv H. 
-    congruence.
-    assert (a = pc) by (inv STEP; auto). inv H.
-    destruct s2.
-    destruct (peq pc0 pc').
-    (* peq *)
-    inv e.  exists pc. exists nil.
-    split; auto. 
-    (* diff *)
-    exploit IHp ; eauto. intros [pc'' [p' [Hp' [Hpc'' [Hdiff Hnotin]]]]].
-    exists pc''. exists (pc::p').
-    split ; auto.
-    econstructor ; eauto. 
-    split ; auto.
-    intro Hcont. inv Hcont. congruence. elim Hpc'' ; auto.
-    exploit path_from_ret_nil ; eauto.
-    intros Heq; subst.
-    inv PATH.
-  Qed.
-
   Lemma cfg_path : forall pc pc', 
     cfg** pc pc' -> reached pc -> exists p, path (PState pc) p (PState pc'). 
   Proof.
@@ -197,14 +162,14 @@ Section Graph.
   Qed.  
 
   (** Dominance relation: [dom pc pc'] holds if node [pc'] dominates node [pc] *)
-  Inductive dom : node -> node -> Prop :=
+  Variant dom : node -> node -> Prop :=
   | dom_eq : forall pc, dom pc pc
   | dom_path : forall pc pc'
     (RPC' : reached pc') 
     (PATH : forall p, path (PState entry) p (PState pc') -> In pc p), 
     dom pc pc'.
   Hint Constructors dom: core.
-
+  
   (** Dominance relation is reflexive *)
   Lemma dom_refl : forall pc, dom pc pc.
   Proof.

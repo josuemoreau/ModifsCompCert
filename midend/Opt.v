@@ -210,34 +210,6 @@ Proof.
   erewrite <- new_code; eauto.
 Qed.
 
-Lemma map1_assoc:
-  forall (A B C: Type) (f1: A -> B) (f2: B -> C) (m: PTree.t A),
-    PTree.map1 (fun x => f2 (f1 x)) m = 
-    PTree.map1 f2 (PTree.map1 f1 m).
-Proof.
-  intros.
-  erewrite <- map1_opt ; eauto.
-  erewrite <- map1_opt ; eauto.
-  erewrite <- map1_opt ; eauto.
-  unfold PTree.map.
-  rewrite <- xmap_assoc.
-  auto. 
-Qed.
-
-(* XXX Outdated : no more extensional equality on ptrees *) 
-(* Lemma same_successors : forall (f:function) (Hwf:wf_ssa_function f), *)
-(*   successors (transf_function f) = successors f. *)
-(* Proof. *)
-(*   unfold successors, transf_function; intros. *)
-(*   case_eq (analysis f) ; intros lv es Ha ; simpl in *. *)
-(*   rewrite <- map1_assoc. *)
-(*   erewrite <- map1_opt. *)
-(*   erewrite <- map1_opt. *)
-(*   apply map_ext; intros. *)
-(*   replace lv with (fst (analysis f)) by (rewrite Ha ; auto). *)
-(*   erewrite <- new_code; eauto. *)
-(* Qed. *)
-
 Lemma join_point_transf_function : forall (f:function) (Hwf:wf_ssa_function f) j,
   join_point j (transf_function f) <-> join_point j f.
 Proof.

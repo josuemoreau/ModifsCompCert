@@ -18,6 +18,7 @@ Require Import KildallComp.
 Require Import DLib.
 Require Import Events.
 Require Import CSSAutils.
+Unset Allow StrictProp.
 
 (** ** Functions to remove redundants copies in parallel copy blocks *)
 
@@ -256,55 +257,54 @@ Section PRESERVATION.
         + eapply IHlist_forall2; eauto.
     Qed.
 
-Inductive match_stackframes :
-    list RTLpar.stackframe -> list RTLpar.stackframe -> Prop :=
-| match_stackframes_nil: match_stackframes nil nil
-| match_stackframes_cons:
-    forall res f sp pc rs rs' s tf ts
-      (STACK : match_stackframes s ts )
-      (MREG: forall r, rs !! r = rs' !! r)
-      (SPEC: transl_function f = Errors.OK tf),
-    match_stackframes
-      (Stackframe res f sp pc rs :: s)
-      (RTLpar.Stackframe res tf sp pc rs' :: ts).
+    Inductive match_stackframes :
+      list RTLpar.stackframe -> list RTLpar.stackframe -> Prop :=
+    | match_stackframes_nil: match_stackframes nil nil
+    | match_stackframes_cons:
+        forall res f sp pc rs rs' s tf ts
+               (STACK : match_stackframes s ts )
+               (MREG: forall r, rs !! r = rs' !! r)
+               (SPEC: transl_function f = Errors.OK tf),
+          match_stackframes
+            (Stackframe res f sp pc rs :: s)
+            (RTLpar.Stackframe res tf sp pc rs' :: ts).
 
-Inductive match_states: RTLpar.state -> RTLpar.state -> Prop :=
-| match_states_intro:
-    forall s ts sp pc rs rs' m f tf
-      (SPEC: transl_function f = Errors.OK tf)
-      (STACK: match_stackframes s ts)
-      (MREG: forall r, rs !! r = rs' !! r),
-    match_states
-      (State s f sp pc rs m)
-      (RTLpar.State ts tf sp pc rs' m)
-| match_states_call:
-    forall s ts f tf args m
-      (SPEC: transl_fundef f = Errors.OK tf)
-      (STACK: match_stackframes s ts),
-    match_states
-      (Callstate s f args m)
-      (RTLpar.Callstate ts tf args m)
-| match_states_return:
-    forall s ts v m
-      (STACK: match_stackframes s ts ),
-    match_states
-      (Returnstate s v m)
-      (RTLpar.Returnstate ts v m).
+    Variant match_states: RTLpar.state -> RTLpar.state -> Prop :=
+    | match_states_intro:
+        forall s ts sp pc rs rs' m f tf
+               (SPEC: transl_function f = Errors.OK tf)
+               (STACK: match_stackframes s ts)
+               (MREG: forall r, rs !! r = rs' !! r),
+          match_states
+            (State s f sp pc rs m)
+            (RTLpar.State ts tf sp pc rs' m)
+    | match_states_call:
+        forall s ts f tf args m
+               (SPEC: transl_fundef f = Errors.OK tf)
+               (STACK: match_stackframes s ts),
+          match_states
+            (Callstate s f args m)
+            (RTLpar.Callstate ts tf args m)
+    | match_states_return:
+        forall s ts v m
+               (STACK: match_stackframes s ts ),
+          match_states
+            (Returnstate s v m)
+            (RTLpar.Returnstate ts v m).
+    
+    Ltac dogo SPEC :=
+      unfold transl_function in SPEC; go.
 
-Ltac dogo SPEC :=
-  unfold transl_function in SPEC; go.
-
-
-Lemma registers_equal :
-  forall args (rs rs' : SSA.regset),
-  (forall r, rs !! r = rs' !! r) ->
-  rs ## args = rs' ## args.
-Proof.
-  induction args; go.
-  simpl; intros.
-  rewrite H.
-  erewrite IHargs; eauto.
-Qed.
+    Lemma registers_equal :
+      forall args (rs rs' : SSA.regset),
+        (forall r, rs !! r = rs' !! r) ->
+        rs ## args = rs' ## args.
+    Proof.
+      induction args; go.
+      simpl; intros.
+      rewrite H.
+      erewrite IHargs; eauto.
+    Qed.
 
 Lemma symbols_preserved:
   forall (s: ident), Genv.find_symbol tge s = Genv.find_symbol ge s.
@@ -381,15 +381,6 @@ Proof.
     simpl. auto.
   - rewrite H0 in H. go.
 Qed.
-
-Lemma sig_function_translated:
-  forall f tf,
-  transl_function f = OK tf ->
-  RTLpar.fn_sig tf = RTLpar.fn_sig f.
-Proof.
-  intros f tf. destruct f; simpl; intros.
-  monadInv H; auto.
-Qed. 
 
 Lemma transf_initial_states:
   forall st1, RTLpar.initial_state prog st1 ->

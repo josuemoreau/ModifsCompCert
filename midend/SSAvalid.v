@@ -29,12 +29,13 @@ Require Import RTLdfs.
 Require Import Bijection.
 Local Open Scope string_scope.
 
+Unset Allow StrictProp.
+
 (** * Type and value definitions *)
 
 Definition index := positive.       
 Definition tgamma := node -> Registers.reg -> index. 
 Definition ttgamma := PTree.t (PTree.t index).
-Definition tdelta := node -> Registers.reg -> (list index).
 Definition dft_pos := xH.
   
 (** * Auxiliary checkers for some of the structural invariants of code *)
@@ -146,12 +147,6 @@ Definition map_os (f:positive->reg) (fn:positive + ident) : reg + ident :=
   match fn with
     | inl r => inl _ (f r)
     | inr s => inr _ s
-  end.
-
-Definition check_os (f:reg->bool) (fn:reg + ident) : bool :=
-  match fn with
-    | inl r => f r
-    | inr s => true
   end.
 
 Definition upd_list {A:Type} (l:list positive) (g:A) (m: PTree.t A) : PTree.t A :=

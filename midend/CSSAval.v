@@ -18,6 +18,7 @@ Require Import Kildall.
 Require Import KildallComp.
 Require Import CSSApardef.
 Require Import Registers.
+Unset Allow StrictProp.
 
 Definition cssaval_ins_spec (get_cssaval : reg -> reg) (ins : instruction) :=
   match ins with
@@ -34,7 +35,7 @@ Definition cssaval_ins_spec (get_cssaval : reg -> reg) (ins : instruction) :=
   | _ => True
   end.
 
-Inductive cssaval_spec (f : function) (get_cssaval : reg -> reg) : Prop :=
+Variant cssaval_spec (f : function) (get_cssaval : reg -> reg) : Prop :=
 | check_cssaval_spec_intro :
     (forall pc parcb src dst,
       (fn_parcopycode f) ! pc = Some parcb ->
@@ -918,7 +919,7 @@ Proof.
   left. eapply check_cssaval_correct; eauto.
 Qed.
 
-Inductive sf_inv (ge: genv) : stackframe -> Prop :=
+Variant sf_inv (ge: genv) : stackframe -> Prop :=
   | sf_inv_intro: forall res f sp pc rs pred sig ros args
     (WFF: wf_cssa_function f)
     (REACHED: reached f pc)
@@ -937,7 +938,7 @@ Inductive sfl_inv (ge: genv) : list stackframe -> Prop :=
                sfl_inv ge sl ->
                sfl_inv ge (s::sl).
 
-Inductive s_inv (ge: genv) : state -> Prop :=
+Variant s_inv (ge: genv) : state -> Prop :=
   | si_State : forall s f sp pc rs m
     (WFF: wf_cssa_function f)
     (REACHED: reached f pc)
@@ -951,6 +952,7 @@ Inductive s_inv (ge: genv) : state -> Prop :=
   | si_Returnstate: forall s v m
     (SFINV: sfl_inv ge s),
     s_inv ge (Returnstate s v m).
+
 Hint Constructors s_inv: core.
 
 Section INV.

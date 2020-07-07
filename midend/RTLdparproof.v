@@ -29,45 +29,16 @@ Require Import CSSApargenproof.
 Require Import RTLpar.
 Require Import RTLdpar.
 
-Lemma max_reg_correct_params_aux : forall f, 
-    Ple (CSSApargen.max_reg_in_list (fn_params f)) (get_maxreg f).
-Proof.
-  intros.
-  unfold get_maxreg.
-  eapply Pos.le_trans.
-  - eapply Pos.le_trans.
-    + eapply Pos.le_refl; eauto.
-    + eapply Pos.le_max_r; eauto.
-  - eapply Pos.le_trans.
-    + eapply Pos.le_max_r; eauto.
-    + eapply Pos.le_refl; eauto.
-Qed.
-
 Lemma max_reg_correct_code: forall f,
-  Ple (CSSApargen.get_max_reg_in_code (RTLpar.fn_code f))
-    (get_maxreg f).
+    Ple (CSSApargen.get_max_reg_in_code (RTLpar.fn_code f))
+        (get_maxreg f).
 Proof.
   intros.
   unfold get_maxreg.
   eapply Pos.le_max_l; eauto.
 Qed.
 
-Notation no_fresh := 
-  (fun f => Parmov.is_not_temp reg (fun _ : reg => (fresh_init f))).
-
-Lemma max_reg_correct_params : 
-  forall f r,
-    In r (fn_params f) -> no_fresh f r.
-Proof.
-  unfold fresh_init, Parmov.is_not_temp.
-  intros. 
-  intro Hcont.  subst.
-  assert (Hple:= max_reg_correct_params_aux f).
-  rewrite <- Pos.lt_succ_r in Hple.
-  eapply max_reg_in_list_correct in H; eauto.
-  simpl in H.
-  eapply Pos.lt_nle in H ; eauto.  
-Qed. 
+Notation no_fresh :=  (fun f => Parmov.is_not_temp reg (fun _ : reg => (fresh_init f))).
 
 Lemma get_maxreg_is_not_temp_code : 
   forall f pc, 
@@ -326,19 +297,6 @@ Proof.
   exists s0; auto.
 Qed.
 
-Remark bind2_inversion:
-  forall (A B C: Type) (f: mon (A*B)) (g: A -> B -> mon C)
-         (z: C) (s1 s3: state) (i: state_incr s1 s3),
-  bind2 f g s1 = OK z s3 i ->
-  exists x, exists y, exists s2, exists i1, exists i2,
-  f s1 = OK (x, y) s2 i1 /\ g x y s2 = OK z s3 i2.
-Proof.
-  unfold bind2; intros.
-  exploit bind_inversion; eauto. 
-  intros [[x y] [s2 [i1 [i2 [P Q]]]]]. simpl in Q.
-  exists x; exists y; exists s2; exists i1; exists i2; auto.
-Qed.
-
 Ltac monadInv1 H :=
   match type of H with
   | (OK _ _ _ = OK _ _ _) =>
@@ -359,17 +317,6 @@ Ltac monadInv1 H :=
       destruct (bind_inversion _ _ F G X S S' I H) as [x [s [i1 [i2 [EQ1 EQ2]]]]];
       clear H;
       try (monadInv1 EQ2)))))))
-  | (bind2 ?F ?G ?S = OK ?X ?S' ?I) =>
-      let x1 := fresh "x" in (
-      let x2 := fresh "x" in (
-      let s := fresh "s" in (
-      let i1 := fresh "INCR" in (
-      let i2 := fresh "INCR" in (
-      let EQ1 := fresh "EQ" in (
-      let EQ2 := fresh "EQ" in (
-      destruct (bind2_inversion _ _ _ F G X S S' I H) as [x1 [x2 [s [i1 [i2 [EQ1 EQ2]]]]]];
-      clear H;
-      try (monadInv1 EQ2))))))))
   end.
 
 Ltac monadInv H :=
@@ -396,30 +343,6 @@ Ltac monadInv H :=
       ((progress simpl in H) || unfold F in H); monadInv1 H
   end.
 
-
-Lemma mfold_step {A B : Type}: forall (f: A -> B -> mon B) l b a s1 s2 b' INCR,
-  mfold f (a::l) b s1 = OK b' s2 INCR ->
-  exists b'' , exists s'', exists INCR'', exists INCR''',
-    f a b s1 = OK b'' s'' INCR'' 
-    /\ (mfold f l b'' s'' = OK b' s2 INCR''').
-Proof.
-  induction l ; intros; monadInv H ; simpl.
-  exists b' ; exists s2 ; exists INCR0 ; exists (state_incr_refl s2); auto.
-  unfold bind.  exists x ; exists s ; exists INCR0; exists (state_incr_trans s s0 s2 INCR2 INCR3).
-  split ; auto. rewrite EQ1; rewrite EQ2; auto. 
-Qed.
-
-Lemma step_mfold : forall (A B : Type) (f: A -> B -> mon B)  a b s1 b'' s'' INCR''
-  l b' s2 INCR''',
-  f a b s1 = OK b'' s'' INCR'' ->
-  (mfold f l b'' s'' = OK b' s2 INCR''') ->
-  exists INCR, mfold f (a::l) b s1 = OK b' s2 INCR.
-Proof.
-  intros.
-  simpl. unfold bind. rewrite H. rewrite H0.
-  eauto.
-Qed.
-
 Lemma mfold_unit_step: forall (A: Type) (f: A -> mon unit) l u a s1 s2 INCR,
   mfold_unit f (a::l) s1 = OK u s2 INCR ->
   exists u'' , exists s'', exists INCR'', exists INCR''',
@@ -433,15 +356,6 @@ Proof.
 Qed.
 
 (** Monotonicity properties of the state *)
-Lemma instr_at_incr:
-  forall s1 s2 n i,
-  state_incr s1 s2 -> s1.(st_code)!n = Some i -> s2.(st_code)!n = Some i.
-Proof.
-  intros. inv H.
-  destruct (H4 n); congruence. 
-Qed.
-
-Hint Resolve instr_at_incr: dessa.
 Hint Resolve state_incr_refl: dessa.
 Hint Resolve state_incr_trans : dessa.
 
@@ -533,13 +447,6 @@ Proof.
   unfold copy_ins in H.
   flatten H; auto.
 Qed.
-
-Lemma forallb_forall_1 : forall (A : Type) (f : A -> bool) (l : list A),
-   forallb f l = true -> (forall x : A, In x l -> f x = true).
-Proof.
-  intros.
-  eapply forallb_forall ; eauto.
-Qed.  
 
 Lemma add_reach_moves : forall opc pc parcb s1 s2 incr,
   add_moves opc pc parcb s1 = OK tt s2 incr ->
@@ -1000,21 +907,6 @@ Section PRESERVATION.
       - inv H. auto.
     Qed.
 
-    Lemma find_function_preserved_same : forall r rs rs' (f:fundef) (f':RTL.fundef), 
-        find_function ge (inl ident r) rs = Some f ->
-        RTL.find_function tge (inl ident r) rs' = Some f' ->
-        rs# r = rs'# r ->
-        funsig f = RTL.funsig f'.
-    Proof.
-      intros. simpl in *. 
-      exploit (functions_translated rs# r) ; eauto.
-      intros.
-      destruct H2 as [tf [Htf Oktf]].
-      symmetry.
-      eapply sig_fundef_translated; eauto.
-      rewrite H1 in Htf. rewrite Htf in H0. inv H0; auto.
-    Qed.
-
     Lemma sig_function_translated:
       forall f tf,
         transl_function f = Errors.OK tf ->
@@ -1067,7 +959,6 @@ Section PRESERVATION.
     Qed.
 
 Create HintDb valagree.
-Hint Resolve find_function_preserved_same: valagree.
 Hint Resolve symbols_preserved : valagree.
 Hint Resolve eval_addressing_preserved : valagree.
 Hint Resolve eval_operation_preserved : valagree.
@@ -1131,7 +1022,7 @@ Proof.
 Qed.
 
 (** ** Simulation relation *)
-Inductive match_regset (f: function) : SSA.regset -> RTL.regset -> Prop := 
+Variant match_regset (f: function) : SSA.regset -> RTL.regset -> Prop := 
 | mrg_intro : forall rs rs', 
   (forall r, 
     no_fresh f r ->
@@ -1167,7 +1058,7 @@ Hint Constructors match_stackframes: core.
 
 Set Implicit Arguments.
 
-Inductive match_states: RTLpar.state -> RTL.state -> Prop :=
+Variant match_states: RTLpar.state -> RTL.state -> Prop :=
   | match_states_intro:
     forall s ts sp pc rs rs' m f tf
      (WF: wf_function f)
@@ -1187,7 +1078,6 @@ Inductive match_states: RTLpar.state -> RTL.state -> Prop :=
       forall s ts v m 
      (STACK: match_stackframes s ts ),
         match_states (Returnstate s v m) (RTL.Returnstate ts v m).
-
 Hint Constructors match_states: core.
 
 Lemma transf_initial_states:

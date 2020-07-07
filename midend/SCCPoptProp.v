@@ -5,12 +5,11 @@ Require Import AST.
 Require Import Op.
 Require Import Registers.
 Require Import Utils.
-Require Import Integers.
-Require Import Floats.
 Require Import Classical.
 Require Import Lattice.
 Require Import Iteration.
 Require Import DLib.
+Require Import Integers.
 Require Import Kildall.
 Require Import KildallComp.
 Require Import SSA.
@@ -20,10 +19,10 @@ Require Values.
 Require Import SCCPopt.
 Require Opt.
 Require Import Dsd.
+Unset Allow StrictProp.
 
 (** * Proof obligations from [OptInv] *)
 Module DS := DataflowSolver.
-
 Require Import OptInv ValueDomainSSA ValueAOpSSA.
 Require Import Globalenvs.
 
@@ -104,13 +103,13 @@ Section DSD_ANALYSIS.
       end.
 
     unfold DS.not_defined. split.
-    + intros lv r' nv i pc H1. unfold DS.cfg in *.
+    + intros lv r' nv i pc H1. 
       unfold handle_instr in *.
       intro contra; subst.
       flatten H1; assert (assigned_code_spec (fn_code f) pc r'); eauto;
       try (invh ext_params; [ ssa_params ; [intro; subst; intuition; eauto | eauto]
                   | intro; subst; unfold not in *; eauto]).
-    + intros. unfold DS.phicode in *.
+    + intros. 
       intro contra; subst.
       assert (assigned_phi_spec (fn_phicode f) pc r'); try (econstructor; eauto).
       invh ext_params.
@@ -189,7 +188,7 @@ End DSD_ANALYSIS.
 
 Section AuxResults.
 
-Inductive single_succ_instr f : node -> Prop :=
+Variant single_succ_instr f : node -> Prop :=
 | SSnop: forall pc s,
    (fn_code f) !pc = Some (Inop s) -> single_succ_instr f pc
 | SSop: forall pc op args dst s,
@@ -205,7 +204,7 @@ Inductive single_succ_instr f : node -> Prop :=
 
 Lemma exec_single_succ: forall (f:function) lv es pc pc' i,
   wf_ssa_function f ->
-  DataflowSolver.fixpoint f handle_instr (initial f) f = (lv, es) ->
+  DataflowSolver.fixpoint f handle_instr (initial f) = (lv, es) ->
   (fn_code f) ! pc = Some i ->
   single_succ_instr f pc ->
   successors_instr i = pc'::nil ->
@@ -239,7 +238,7 @@ Qed.
 
 Lemma exec_node_single_succ: forall (f:function) lv es pc pc' i,
    wf_ssa_function f ->
-   DataflowSolver.fixpoint f handle_instr (initial f) f = (lv, es) ->
+   DS.fixpoint f handle_instr (initial f) = (lv, es) ->
    (fn_code f) ! pc = Some i ->
    single_succ_instr f pc ->
    successors_instr i = pc'::nil ->
@@ -278,7 +277,7 @@ Proof.
     destruct (nth_error x k) eqn:eq.
     * erewrite phi_store_copy2; eauto.
       assert (AVal.ge (A_r SCCP f r) (A_r SCCP f r0)).
-      { case_eq (DataflowSolver.fixpoint f handle_instr (initial f) f). intros lv es Hfp.
+      { case_eq (DataflowSolver.fixpoint f handle_instr (initial f)). intros lv es Hfp.
         exploit DS.post_fixpoint; eauto.
         intros [Hc [Hp He]].
         exploit Hp; eauto.
@@ -323,7 +322,7 @@ Qed.
 Lemma exec_exec_helper : forall f pc es,
  exec f pc ->
  es = (A_e SCCP f) ->
- DataflowSolver.executable_node f pc es.
+ DS.executable_node f pc es.
 Proof.
   unfold SCCP, A_e ; simpl in *.
   intros. rewrite H0.
@@ -340,7 +339,7 @@ Lemma same_fn_code1 : forall (f:function) pc res,
     is_at_Top (A_r SCCP f) res.
 Proof.
   intros.
-  case_eq (DataflowSolver.fixpoint f handle_instr (initial f) f); intros lv es FIX.
+  case_eq (DS.fixpoint f handle_instr (initial f)); intros lv es FIX.
   generalize FIX; intros FIX'.
   eapply DS.post_fixpoint in FIX as [Hc [Hp _]].
   unfold DS.code_post_fixpoint in *.
@@ -357,7 +356,7 @@ Qed.
 
 Lemma G_list_val_list_match_approx : forall f ge sp lv es args rs,
   G_list SCCP ge sp rs (map (A_r SCCP f) args) rs ## args ->
-  DS.fixpoint f handle_instr (initial f) f = (lv, es) ->
+  DS.fixpoint f handle_instr (initial f) = (lv, es) ->
   list_forall2 (vmatch (bctop ge)) rs ## args lv ## args.
 Proof.
   induction args ; intros; go.
@@ -385,7 +384,7 @@ Proof.
   destruct (peq x res).
   - subst.
     rewrite PMap.gss.
-    case_eq (DataflowSolver.fixpoint f handle_instr (initial f) f).
+    case_eq (DS.fixpoint f handle_instr (initial f)).
     intros lv es FIX.
     assert (AVal.ge (lv !! res) (eval_static_operation op lv ## args)).
     { generalize FIX ; intros FIX'.
@@ -458,7 +457,7 @@ Lemma exec_step : forall prog0 ,
    end.
 Proof.
  intros.
-    case_eq (DS.fixpoint f0 handle_instr (initial f0) f0); intros lv es FIX.
+    case_eq (DS.fixpoint f0 handle_instr (initial f0)); intros lv es FIX.
     generalize H3 ; intros STEP.
     inv H3; try solve [exploit exec_node_single_succ; go]; auto.
     + destruct sf; auto.
@@ -576,15 +575,6 @@ Proof.
   eapply new_code_same_or_Iop; eauto.
 Qed.
 
-Lemma successors_transf_function:
-  forall (f:function) (Hwf: wf_ssa_function f) pc,
-    (successors (transf_function f))!pc = (successors f)!pc.
-Proof.
-  intros.
-  eapply Opt.successors_transf_function; eauto.
-  eapply new_code_same_or_Iop; eauto.
-Qed.
-
 Lemma make_predecessors_transf_function: forall (f:function) (Hwf: wf_ssa_function f),
   (Kildall.make_predecessors (fn_code (transf_function f)) successors_instr) =
   (Kildall.make_predecessors (fn_code f) successors_instr).
@@ -593,7 +583,5 @@ Proof.
   eapply Opt.make_predecessors_transf_function; eauto.
   eapply new_code_same_or_Iop; eauto.
 Qed.
-
-
 
 End AuxResults.

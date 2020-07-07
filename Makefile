@@ -112,7 +112,7 @@ MIDEND=\
   Utilsvalidproof.v SSAvalidproof.v SSAvalidprop.v SSAvalidator_proof.v \
   RTLnorm.v RTLnormspec.v RTLnormproof.v \
   RTLutils.v LightLive.v KildallComp.v \
-  Path.v Dom.v DomCompute.v DomTest.v \
+  Dom.v DomCompute.v DomTest.v \
   SSAinv.v Dsd.v \
   Opt.v OptInv.v \
   GVNopt.v  GVNoptproof.v GVNoptProp.v \

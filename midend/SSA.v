@@ -30,6 +30,8 @@ Require Import Relations.Relation_Definitions.
 Require Import DLib.
 Require Import Dom.
 
+Unset Allow StrictProp.
+
 (** * Abstract syntax *)
 
 (** Instructions are organized as a control-flow graph: a function is
@@ -38,7 +40,7 @@ Require Import Dom.
 
 Definition node := positive.
 
-Inductive instruction: Type :=
+Variant instruction: Type :=
   | Inop: node -> instruction
       (** No operation -- just branch to the successor. *)
   | Iop: operation -> list reg -> reg -> node -> instruction
@@ -82,7 +84,7 @@ Inductive instruction: Type :=
           (it has no successor).  It returns the value of the given
           register, or [Vundef] if none is given. *)
 
-Inductive phiinstruction: Type :=
+Variant phiinstruction: Type :=
 | Iphi: list reg -> reg -> phiinstruction.
 (** [Iphi args dst] copies the value of the k-th register of [args], 
    where k is the index of the predecessor of the current point. *)
@@ -104,11 +106,6 @@ Definition phiblock:= list phiinstruction.
     bound to the values of arguments at call time.  [fn_entrypoint] is
     the node of the first instruction of the function in the CFG.
     
-    XXX [fn_max_indice] is a meta information (i.e. it doesn't influence
-    the semantics of the program), representing the maximum index used
-    for temporary variables. This information is used when destructing
-    the SSA form back to RTL.
-
     [fn_ext_params] is a list of all SSA registers that are used in
     the function but not defined in it. It includes all the function's
     parameters.
@@ -158,18 +155,14 @@ Definition successors_instr (i: instruction) : list node :=
   | Ireturn optarg => nil
   end.
 
-Definition successors_map (f: function) : PTree.t (list node) :=
-  PTree.map1 successors_instr f.(fn_code).
-
-Notation preds := 
+Notation preds :=
   (fun f pc => (make_predecessors (fn_code f) successors_instr) !!! pc).
 
 Inductive join_point (jp: node) (f:function) : Prop :=
   | jp_cons : forall l,
-              forall (Hpreds: (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
-                     (Hl: (length l > 1)%nat), 
-                join_point jp f.
-
+      forall (Hpreds: (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
+             (Hl: (length l > 1)%nat), 
+        join_point jp f.
 
 Fixpoint get_index_acc (l:list node) (a:node) acc : option nat :=
   match l with 
@@ -210,19 +203,12 @@ Inductive assigned_code_spec (code:code) (pc:node) : reg -> Prop :=
     assigned_code_spec code pc dst.
 
 (** [assigned_phi_spec phicode pc r] holds if the register [r] is
-assigned at point [pc] in the phi-code [phicode] *)
-Inductive assigned_phi_spec (phicode: phicode) (pc: node): reg -> Prop :=
+    assigned at point [pc] in the phi-code [phicode] *)
+Variant assigned_phi_spec (phicode: phicode) (pc: node): reg -> Prop :=
   APhi: forall phiinstr dst, 
     (phicode!pc) = Some phiinstr ->
     (exists args, List.In (Iphi args dst) phiinstr) -> 
     assigned_phi_spec phicode pc dst.
-
-Inductive assigned_phi_spec_with_args (phicode: phicode) (pc: node): reg -> list reg -> Prop :=
- | APhiA: forall phiinstr dst args, 
-    (phicode!pc) = Some phiinstr ->
-    List.In (Iphi args dst) phiinstr -> 
-    assigned_phi_spec_with_args phicode pc dst args.
-
 
 Variable f : function.
   
@@ -252,7 +238,7 @@ Inductive use_code : reg -> node -> Prop :=
   (fn_code f) !pc = Some (Ireturn (Some arg)) -> use_code arg pc.
 
 (** [use_phicode f r pc] holds whenever register [r] is used at [pc] in the phi-code of [f] *)
-Inductive use_phicode : reg -> node -> Prop := 
+Variant use_phicode : reg -> node -> Prop := 
 | upc_intro : forall pc pred k arg args dst phib
   (PHIB: (fn_phicode f) ! pc = Some phib)
   (ASSIG : In (Iphi args dst) phib)
@@ -261,12 +247,14 @@ Inductive use_phicode : reg -> node -> Prop :=
   use_phicode arg pred.
 
 (** A register is used either in the code or in the phicode of a function *)  
-Inductive use : reg -> node -> Prop := 
+Variant use : reg -> node -> Prop := 
 | u_code : forall x pc, use_code x pc -> use x pc
 | u_phicode : forall x pc, use_phicode x pc -> use x pc.
 
-(** Special definition point for function parameters and registers that are used in the function without having been defined anywhere in the function *)
-Inductive ext_params (x: reg) : Prop :=
+(** Special definition point for function parameters and registers
+    that are used in the function without having been defined anywhere
+    in the function *)
+Variant ext_params (x: reg) : Prop :=
 | ext_params_params : 
   In x (fn_params f) -> ext_params x
 | ext_params_undef : 
@@ -277,7 +265,7 @@ Inductive ext_params (x: reg) : Prop :=
 Hint Constructors ext_params: core.
 
 (** [def r pc] holds if register [r] is defined at node [pc] *)
-Inductive def : reg -> node -> Prop := 
+Variant def : reg -> node -> Prop := 
 | def_params : forall x,
   ext_params x -> def x (fn_entrypoint f)
 | def_code : forall x pc, assigned_code_spec (fn_code f) pc x -> def x pc
@@ -296,12 +284,12 @@ Section DOMINATORS.
   Notation code := (fn_code f).
   
   (** [cfg i j] holds if [j] is a successor of [i] in the code of [f] *)
-  Inductive _cfg (i j:node) : Prop :=
+  Variant _cfg (i j:node) : Prop :=
   | CFG : forall ins
     (HCFG_ins: code !i = Some ins)
     (HCFG_in : In j (successors_instr ins)),
     _cfg i j.
-
+  
   Definition exit (pc: node) : Prop :=
   match code ! pc with
   | Some (Itailcall _ _ _) => True
@@ -401,19 +389,6 @@ Record wf_ssa_function (f:function) : Prop := {
     reached f n -> fn_dom_test f d n = true -> dom f d n
 }.
 
-Lemma assigned_phi_spec_same_with_args : forall f pc pc' x args,
-  wf_ssa_function f ->
-  assigned_phi_spec (fn_phicode f) pc x ->
-  assigned_phi_spec_with_args (fn_phicode f) pc' x args -> pc=pc'.
-Proof.
-  intros.
-  inv H.
-  destruct fn_ssa0 as [HH1 HH2].
-  generalize (HH1 x pc pc') ;eauto.
-  intros. intuition.
-  inv H1 ; eauto.
-Qed.  
-
 Require Import KildallComp.
 
 Lemma no_assigned_phi_spec_fn_entrypoint: forall f,
@@ -495,7 +470,7 @@ a function call in progress.
 
 Definition regset := Regmap.t val.
 
-Inductive stackframe : Type :=
+Variant stackframe : Type :=
   | Stackframe:
       forall (res: reg)        (**r where to store the result *)
              (f: function)     (**r calling function *)
@@ -504,7 +479,7 @@ Inductive stackframe : Type :=
              (rs: regset),     (**r register state in calling function *)
       stackframe.
 
-Inductive state : Type :=
+Variant state : Type :=
   | State:
       forall (stack: list stackframe) (**r call stack *)
              (f: function)            (**r current function *)
@@ -671,13 +646,12 @@ Hint Constructors step: core.
 
 End RELSEM.
 
-
 (** Execution of whole programs are described as sequences of transitions
   from an initial state to a final state.  An initial state is a [Callstate]
   corresponding to the invocation of the ``main'' function of the program
   without arguments and with an empty call stack. *)
 
-Inductive initial_state (p: program): state -> Prop :=
+Variant initial_state (p: program): state -> Prop :=
   | initial_state_intro: forall b f m0,
       let ge := Genv.globalenv p in
       Genv.init_mem p = Some m0 ->
@@ -688,7 +662,7 @@ Inductive initial_state (p: program): state -> Prop :=
 
 (** A final state is a [Returnstate] with an empty call stack. *)
 
-Inductive final_state: state -> int -> Prop :=
+Variant final_state: state -> int -> Prop :=
   | final_state_intro: forall r m, final_state (Returnstate nil (Vint r) m) r.
 
 (** The small-step semantics for a program. *)

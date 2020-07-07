@@ -110,60 +110,7 @@ Proof.
       }
 Qed.
 
-(* Lemma make_predecessors_some_2 : forall s l,                    
-  make_preds ! s = Some l ->
-  exists i, code ! s = Some i.
-Proof. 
-  unfold make_preds, make_predecessors.
-  apply PTree_Properties.fold_rec; intros.
-  - rewrite <- H. eapply H0; eauto. 
-  - rewrite PTree.gempty in H. inv H.
-  - destruct (peq k s).
-    * subst. rewrite PTree.gss. eauto. 
-    * rewrite PTree.gso; auto.
-      destruct (classic (In s a !!! s \/ s = k /\ In s (successors v))).
-      {
-        destruct H3 as [Hcase1 | Hcase2].
-        - unfold successors_list in *.
-          case_eq (a ! s) ; intros.
-          * rewrite H3 in *. eapply (H1 s); eauto.
-          * rewrite H3 in *. inv Hcase1.
-        - inv Hcase2. congruence.
-      }
-      { 
-        
-        assert ((~ In s (a !!!s)) /\ ((s <> k) \/ ~ In s (successors v))).
-        { split; auto.}
-        
-        eelim add_successors_correct2 with (tolist := (successors v)); eauto.
-        
-        unfold successors_list. rewrite H2.
-        
-        auto.
-      }
-Qed.
-*)
-
 End CORRECTNESS.
-
-Section FOLD_EQ. 
-
-Section fold_eq.
-  Variable A B: Type.
-  Variable f: B -> positive -> A -> B.
-  Variable b0: B.
-  Variable m1 m2: PTree.t A.
-  Variable Heq: forall i, m1!i = m2!i.
-
-  Lemma fold_eq: PTree.fold f m1 b0 = PTree.fold f m2 b0.
-  Proof.
-    repeat rewrite PTree.fold_spec.
-    rewrite (PTree.elements_extensional _ _ Heq); auto.
-  Qed.
-
-End fold_eq.
-
-End FOLD_EQ.
 
 Section Pred_Succs.
 

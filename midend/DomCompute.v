@@ -12,6 +12,8 @@ Require Import Kildall.
 Require Import Lattice.
 Require Import DLib.
 
+Unset Allow StrictProp.
+
 (** * The Semilattice of node sets *)
 Module L <: SEMILATTICE.
 
@@ -20,21 +22,17 @@ Module L <: SEMILATTICE.
   Definition eq_refl: forall x, eq x x := @refl_equal _.
   Definition eq_sym: forall x y, eq x y -> eq y x := @sym_eq _.
   Definition eq_trans: forall x y z, eq x y -> eq y z -> eq x z := @trans_eq _.
-  Lemma eq_dec_unit : forall (x y: unit), {x=y} + {x<>y}.
-  Proof.
-    decide equality.
-  Qed. 
    
   Fixpoint eqtu (a b: PTree.t unit) : bool := 
     match a, b with 
-        | PTree.Leaf , PTree.Leaf  => true
-        | PTree.Node l1 o1 r1, PTree.Node l2 o2 r2 => 
-                         match o1, o2 with 
-                             | Some _, Some _ => eqtu l1 l2 && eqtu r1 r2
-                             | None , None => eqtu l1 l2 && eqtu r1 r2
-                             | _ , _ => false
-                         end
-        | _ , _ => false
+    | PTree.Leaf , PTree.Leaf  => true
+    | PTree.Node l1 o1 r1, PTree.Node l2 o2 r2 => 
+      match o1, o2 with 
+      | Some _, Some _ => eqtu l1 l2 && eqtu r1 r2
+      | None , None => eqtu l1 l2 && eqtu r1 r2
+      | _ , _ => false
+      end
+    | _ , _ => false
     end.
  
   Lemma eqtu_correct : forall x y, eqtu x y = true -> @Logic.eq _ x y.
@@ -68,12 +66,13 @@ Module L <: SEMILATTICE.
     apply eqtu_correct in H.
     congruence.
   Qed.
-            
-  Inductive ge_ : t -> t -> Prop :=
+
+  Variant ge_ : t -> t -> Prop :=
   | ge0 : forall x, ge_ x None
   | ge1 : forall x y,
-    (forall n t, PTree.get n x = Some t -> PTree.get n y = Some t) ->
-    ge_ (Some x) (Some y).
+      (forall n t, PTree.get n x = Some t -> PTree.get n y = Some t) ->
+      ge_ (Some x) (Some y).
+  
   Lemma ge_refl: forall x y, eq x y -> ge_ x y.
   Proof. 
     unfold eq; intros; subst.
@@ -85,11 +84,6 @@ Module L <: SEMILATTICE.
     unfold eq; intros; subst.
     inv H; inv H0; constructor.
     auto. 
-  Qed.
-
-  Lemma ge_compat: forall x x' y y', eq x x' -> eq y y' -> ge_ x y -> ge_ x' y'.
-  Proof. 
-    unfold eq; intros; subst; auto.
   Qed.
 
   Definition bot: t := None.
@@ -130,7 +124,7 @@ Module L <: SEMILATTICE.
 End L.
 
 (** * Dataflow analysis for computing the dominance relation *)
-Function in_set (n:node) (s:L.t) : bool :=
+Definition in_set (n:node) (s:L.t) : bool :=
   match s with
     | None => true
     | Some s => 

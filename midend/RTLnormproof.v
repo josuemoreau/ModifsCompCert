@@ -21,6 +21,7 @@ Require Import Conventions.
 Require Import Utils.
 Require Import Events.
 Require Import Linking.
+Unset Allow StrictProp.
 
 Section PRESERVATION.
 
@@ -80,20 +81,6 @@ Section PRESERVATION.
       unfold transl_function in EQ;
         flatten EQ; boolInv; go.
       inv H. auto.
-    Qed.
-
-    Lemma find_function_preserved_same : forall r rs f f', 
-        find_function ge (inl ident r) rs = Some f ->
-        find_function tge (inl ident r) rs = Some f' ->
-        funsig f = funsig f'.
-    Proof.
-      intros. simpl in *.
-      exploit (functions_translated rs#r) ; eauto.
-      intros.
-      destruct H1 as [tf [Htf Oktf]].
-      symmetry.
-      eapply sig_fundef_translated; eauto.
-      rewrite Htf in H0. inv H0; auto.
     Qed.
 
     Lemma sig_function_translated:
@@ -163,7 +150,7 @@ Section PRESERVATION.
     Hint Constructors match_stackframes: core.
     Set Implicit Arguments.
 
-    Inductive match_states: RTL.state -> RTL.state -> Prop :=
+    Variant match_states: RTL.state -> RTL.state -> Prop :=
     | match_states_intro:
         forall s ts sp pc rs m f tf
                (SPEC: transl_function f = Errors.OK tf)
@@ -179,7 +166,7 @@ Section PRESERVATION.
                (STACK: match_stackframes s ts),
           match_states (Returnstate s v m) (Returnstate ts v m).
     Hint Constructors match_states: core.
-
+    
     Lemma transf_initial_states:
       forall st1, RTL.initial_state prog st1 ->
                   exists st2, RTL.initial_state tprog st2 /\ match_states st1 st2.
@@ -207,7 +194,6 @@ Section PRESERVATION.
     Qed.
 
     Create HintDb valagree.
-    Hint Resolve find_function_preserved_same: valagree.
     Hint Resolve symbols_preserved : valagree.
     Hint Resolve eval_addressing_preserved : valagree.
     Hint Resolve eval_operation_preserved : valagree.
@@ -215,22 +201,6 @@ Section PRESERVATION.
     Hint Resolve sig_fundef_translated : valagree.
     Hint Resolve senv_preserved : valagree.
     Hint Resolve stacksize_preserved: valagree.
-
-    Lemma reach_nop_plus :  forall ts pt regs m aux x pcx pc,
-        reach_nops (fn_code x) pcx pc aux ->
-        plus step tge (RTL.State ts x pt pcx regs m) E0 (RTL.State ts x pt pc regs m).
-    Proof.
-      induction aux; intros.
-      - eapply plus_one ; eauto. 
-        inv H. 
-        econstructor ; eauto. 
-      - inv H.    
-        econstructor ; eauto.
-        econstructor; eauto.
-        exploit IHaux ; eauto.
-        intros. eapply plus_star; eauto.
-        simpl; auto.
-    Qed.  
 
     Lemma reach_nop_star :  forall ts pt regs m aux x pcx pc,
         reach_nops (fn_code x) pcx pc aux ->
@@ -254,8 +224,8 @@ Section PRESERVATION.
           rewrite H1 in H2; inv H2
         | _ => idtac
         end.
-  
-    Inductive ch_succ : instruction -> instruction -> Prop :=
+
+    Variant ch_succ : instruction -> instruction -> Prop :=
     |cs_inop : forall s1 s2, ch_succ (Inop s1) (Inop s2)
     |cs_iop: forall s1 s2 op args dst, ch_succ (Iop op args dst s1) (Iop op args dst s2)
     |cs_iload: forall s1 s2 chunk addr args dst, ch_succ (Iload chunk addr args dst s1) (Iload chunk addr args dst s2)
@@ -266,7 +236,6 @@ Section PRESERVATION.
     |cs_icond : forall cond args i1 i2 n1 n2, ch_succ (Icond cond args i1 n1) (Icond cond args i2 n2)
     |cs_ijump: forall arg tbl1 tbl2, List.length tbl1 = List.length tbl2 -> ch_succ (Ijumptable arg tbl1) (Ijumptable arg tbl2)
     |cs_iret : forall ret, ch_succ (Ireturn ret) (Ireturn ret).
-
 
     Lemma ch_succ_dec_spec : forall i1 i2, 
         ch_succ_dec i1 i2 = true -> ch_succ i1 i2.

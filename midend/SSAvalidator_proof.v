@@ -19,7 +19,6 @@ Require Import KildallComp.
 Require Import Utils.
 Require Import RTLt.
 Require Import RTLutils.
-Require Import Path.
 Require RTLdfs.
 Require Import SSA.
 Require Import SSAutils.
@@ -127,16 +126,6 @@ Proof.
   destruct l; simpl in *; try omega.
   destruct l; simpl in *; try omega.
   congruence.
-Qed.
-
-Lemma check_function_inv_correct1 : forall (f: RTLt.function), 
-  check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) = true -> 
-  (exists instr, (RTLt.fn_code f) ! (RTLt.fn_entrypoint f) = Some instr)
-  /\  ~ RTLutils.join_point (RTLt.fn_entrypoint f) f.
-Proof.
-  intros. split.
-  apply check_function_inv_correct11; eauto.
-  apply check_function_inv_correct12; auto.
 Qed.
 
 Lemma check_function_inv_correct3 : forall f: RTLt.function, 
@@ -332,20 +321,13 @@ Ltac in_succ_case :=
 Hint Extern 4 (In _ (successors_instr _)) => simpl: core.
 Hint Extern 4 (In _ (RTLt.successors_instr _)) => simpl: core.
 
-Definition get_dft {A B:Type} (dft:B) (f:A->B) (x:option A) :=
-  match x with
-    | None => dft
-    | Some x => f x
-  end.
-
-Inductive is_out_instr : instruction -> Prop:=
+Variant is_out_instr : instruction -> Prop:=
 | Out_jumptable: forall arg, 
   is_out_instr (Ijumptable arg nil)
 | Out_tailcall: forall sig fn args, 
   is_out_instr (Itailcall sig fn args)
 | Out_return : forall or,
   is_out_instr (Ireturn or).
-
 
 Lemma build_phi_block_correct: forall size preds live def_phi G phicode pc phicode'
   (EQ:build_phi_block size preds live def_phi G (OK phicode) pc = OK phicode'),
@@ -2431,14 +2413,6 @@ Qed.
 
 
 Require Import RTLdfsproof.
-
-Lemma typecheck_function_dft_valid : forall f size def def_phi live f_ssa,
-    typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK f_ssa ->
-    Bij.valid_index size dft_pos = true.
-Proof.
-  unfold typecheck_function; intros f size def def_phi live f_ssa.
-  case_eq (Bij.valid_index size dft_pos); intros HVALID; try congruence.
-Qed.
   
 (** * The typechercker [typecheck_function] satisfies its specification *)
 Theorem typecheck_function_correct : forall f size def def_phi live f_ssa,

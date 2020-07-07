@@ -29,15 +29,16 @@ Require Import Utilsvalidproof.
 Require Import LightLive.
 Require Import Utils.
 Require Import Classical.
-Require Import Path.
 Require Import Bijection.
+
+Unset Allow StrictProp.
 
 (** * Typing phi-blocks *)
 Section WT_PHI.
 Variable funct: SSA.function.
 Variable size: nat.
 
-Inductive wt_phid (block:phiblock) (γ1 γ2: Registers.reg -> index) (live:Regset.t) : Prop :=
+Variant wt_phid (block:phiblock) (γ1 γ2: Registers.reg -> index) (live:Regset.t) : Prop :=
   | wt_phid_intro : forall
     (ASSIG: forall ri r i, assigned ri block -> Bij.rmap size ri = (r,i) ->  γ2 r = i)
     (VALIDI: forall ri r i, assigned ri block -> Bij.rmap size ri = (r,i) ->  Bij.valid_index size i = true)
@@ -71,7 +72,7 @@ Proof.
   inv H ; eauto.
 Qed.
 
-Inductive wt_phiu (preds: list node) (block:phiblock) (Γ: tgamma) :=
+Variant wt_phiu (preds: list node) (block:phiblock) (Γ: tgamma) :=
 | wt_phiu_intro: forall
     (USES: (forall args dst r i, In (Iphi args dst) block ->
                                  Bij.rmap size dst = (r,i) -> phiu r args (map Γ preds))), 
@@ -84,7 +85,7 @@ Section WT_EDGE.
 Variable funct: SSA.function.
 Variable size: nat.
 
-Inductive wt_edge (live: Regset.t) : tgamma -> node -> node -> Prop :=
+Variant wt_edge (live: Regset.t) : tgamma -> node -> node -> Prop :=
 | wt_edge_not_jp:  forall (Γ:tgamma) (i j :node) (ins: instruction)
       (EDGE: is_edge funct i j)
       (INS: (fn_code funct)!i = Some ins)
@@ -108,7 +109,7 @@ End WT_EDGE.
 Arguments Lout [A].
 
 (** * Well-typed functions *)
-Inductive wt_function (size: nat) (f: RTLt.function) (tf: function) (live: PMap.t Regset.t) (Γ:tgamma): Prop :=
+Variant wt_function (size: nat) (f: RTLt.function) (tf: function) (live: PMap.t Regset.t) (Γ:tgamma): Prop :=
 | wt_fun_intro : forall
     (WTE: forall i j, is_edge tf i j -> wt_edge tf size (Lin f j (Lout live)) Γ i j)
     (WTO: forall i, is_out_node tf i -> wt_out size tf Γ i), 

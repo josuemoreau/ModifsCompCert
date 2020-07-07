@@ -23,7 +23,6 @@ Require Import OrderedType.
 Require Import Ordered.
 Require Import FSets.
 Require FSetAVL.
-Require Import Bijection.
 Require Import Dsd.
 Require Import OptInv.
 Require Import GVNopt.
@@ -34,6 +33,8 @@ Require Import Linking.
 
 Require Opt.
 Require OptInv.
+
+Unset Allow StrictProp.
 
 (** * Correctness of the optimization *)
 Section PRESERVATION.
@@ -105,13 +106,6 @@ Section PRESERVATION.
   Proof.
     destruct f;  simpl ; try reflexivity.
   Qed.
-
-  Lemma sig_function_translated:
-    forall f,
-      fn_sig (transf_function f) = fn_sig f.
-  Proof.
-    destruct f;  simpl ; try reflexivity.
-  Qed.
     
   Lemma find_function_translated:
     forall ros rs f,
@@ -155,7 +149,7 @@ Section PRESERVATION.
       ((Stackframe res f sp pc rs) :: s)
       ((Stackframe res (transf_function f) sp pc rs) :: st).
 
-  Inductive match_states: state -> state -> Prop :=
+  Variant match_states: state -> state -> Prop :=
   | match_states_intro:
       forall s st sp b pc rs m f
         (SP: sp = (Vptr b Ptrofs.zero))     
@@ -174,7 +168,7 @@ Section PRESERVATION.
         (SINV:s_inv ge (Returnstate s v m))
         (STACK: match_stackframes s st),
         match_states (Returnstate s v m) (Returnstate st v m).
-
+  
   Lemma transf_initial_states:
     forall st1, initial_state prog st1 ->
                 exists st2, initial_state tprog st2 /\ match_states st1 st2.
@@ -253,14 +247,6 @@ Section PRESERVATION.
     eapply Opt.join_point_transf_function; eauto.
     eapply new_code_same_or_Iop; eauto.    
   Qed.   
-
-  Lemma successors_transf_function: forall f (WF: wf_ssa_function f) pc,
-      (successors (transf_function f))!pc = (successors f)!pc.
-  Proof.
-    intros.
-    eapply Opt.successors_transf_function; eauto.
-    eapply new_code_same_or_Iop; eauto.
-  Qed.
   
   Lemma make_predecessors_transf_function: forall f (WF: wf_ssa_function f),
       (Kildall.make_predecessors (fn_code (transf_function f)) successors_instr) =
@@ -270,7 +256,6 @@ Section PRESERVATION.
     eapply Opt.make_predecessors_transf_function; eauto.
     eapply new_code_same_or_Iop; eauto.
   Qed. 
-
 
   Lemma eval_iop_correct : forall f (WF: wf_ssa_function f) m res rs sp v pc pc' args op s,
       exec f pc ->
@@ -333,10 +318,9 @@ Section PRESERVATION.
   Proof.
     intros. 
     eapply subj_red_gamma; eauto.
-    - intros. 
-      eapply same_fn_code1; eauto.
+    - intros; eapply same_fn_code1; eauto.
     - intros; eapply G_upd_diff; eauto.
-    - intros; eapply approx_Iop_correct; eauto.
+    - intros; eapply Iop_correct; eauto.
     - intros; eapply gamma_step_phi; eauto.    
     - intros; flatten ; go.
   Qed. 
@@ -373,7 +357,7 @@ Section PRESERVATION.
       rewrite make_predecessors_transf_function; auto. 
       invh s_inv ; eauto.
       
-    - (* Iop *)
+    - (* Iop *) 
       exists (State st (transf_function f) (Vptr b Ptrofs.zero) pc' rs# res<-v  m); split;
         [idtac| econstructor; [reflexivity|eapply SSAinv.subj_red; eauto|eauto|eauto|eauto]];
         try solve [eapply subj_red_gamma; eauto].

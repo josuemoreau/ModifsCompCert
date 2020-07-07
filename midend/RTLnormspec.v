@@ -16,9 +16,9 @@ Require Import RTLnorm.
 Require Import Kildall.
 Require Import Utils.
 Require Import DLib. 
+Unset Allow StrictProp.
 
 (** * Specification of a normalized program point *)
-
 Inductive reach_nops (code : code) : node -> node -> list node -> Prop :=
 | rp_nil : forall pc pc', 
   code ! pc = Some (Inop pc') -> 
@@ -28,7 +28,7 @@ Inductive reach_nops (code : code) : node -> node -> list node -> Prop :=
   code ! pc0 = Some (Inop pc1) -> 
   reach_nops code pc0 pc2 (pc1::l).  
   
-Inductive norm (code code' : code) (pc: node) : Prop :=
+Variant norm (code code' : code) (pc: node) : Prop :=
 | norm_unch : forall ins1 ins2,
       code ! pc = Some ins1 -> 
       code' ! pc = Some ins2 -> 
@@ -40,8 +40,7 @@ Inductive norm (code code' : code) (pc: node) : Prop :=
       norm code code' pc.
 
 (** ** Specification of the translation *)
-
-Inductive transl_function_spec: RTL.function -> RTL.function -> Prop :=
+Variant transl_function_spec: RTL.function -> RTL.function -> Prop :=
   | transl_function_spec_intro: forall f tf aux,
     forall (NORM: forall pc ins, (fn_code f) ! pc = Some ins -> norm (fn_code f) (fn_code tf) pc)
            (ENTRY: reach_nops (fn_code tf) (fn_entrypoint tf) (fn_entrypoint f) aux),

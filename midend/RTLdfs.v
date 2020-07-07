@@ -20,6 +20,8 @@ Require Import Relation_Operators.
 
 Local Open Scope error_monad_scope.
 
+Unset Allow StrictProp.
+
 (** * Utility functions *)
 Definition not_seen_sons (code:code) (pc : node) (seen: PTree.t unit) : (list positive) * PTree.t unit := 
   match code ! pc with 
@@ -94,12 +96,12 @@ Record wf_dfs_function (f: RTLt.function) : Prop := {
   fn_dfs_norep : list_norepet (fn_dfs f)
 }.
 
-Inductive wf_dfs_fundef: RTLt.fundef -> Prop :=
-  | wf_dfs_fundef_external: forall ef,
-      wf_dfs_fundef (External ef)
-  | wf_dfs_function_internal: forall f,
-      wf_dfs_function f ->
-      wf_dfs_fundef (Internal f).
+Variant wf_dfs_fundef: RTLt.fundef -> Prop :=
+| wf_dfs_fundef_external: forall ef,
+    wf_dfs_fundef (External ef)
+| wf_dfs_function_internal: forall f,
+    wf_dfs_function f ->
+    wf_dfs_fundef (Internal f).
 
 Definition wf_dfs_program (p: RTLt.program) : Prop := 
   forall f id, In (id,Gfun f) (prog_defs p) -> wf_dfs_fundef f.

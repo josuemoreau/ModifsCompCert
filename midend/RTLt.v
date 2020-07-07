@@ -28,6 +28,8 @@ Require Import Coqlib Maps.
 Require Import AST Integers Values Events Memory Globalenvs Smallstep.
 Require Import Op Registers.
 Require Import RTL.
+Require Import Relation_Operators Utils Dom.
+Unset Allow StrictProp.
 
 (** * Abstract syntax *)
 
@@ -113,7 +115,7 @@ a function call in progress.
 [rs] is the state of registers in the calling function.
 *)
 
-Inductive stackframe : Type :=
+Variant stackframe : Type :=
   | Stackframe:
       forall (res: reg)            (**r where to store the result *)
              (f: function)         (**r calling function *)
@@ -122,7 +124,7 @@ Inductive stackframe : Type :=
              (rs: regset),         (**r register state in calling function *)
       stackframe.
 
-Inductive state : Type :=
+Variant state : Type :=
   | State:
       forall (stack: list stackframe) (**r call stack *)
              (f: function)            (**r current function *)
@@ -251,29 +253,6 @@ Inductive step: state -> trace -> state -> Prop :=
       step (Returnstate (Stackframe res f sp pc rs :: s) vres m)
         E0 (State s f sp pc (rs#res <- vres) m).
 
-Lemma exec_Iop':
-  forall s f sp pc rs m op args res pc' rs' v,
-  (fn_code f)!pc = Some(Iop op args res pc') ->
-  eval_operation ge sp op rs##args m = Some v ->
-  rs' = (rs#res <- v) ->
-  step (State s f sp pc rs m)
-    E0 (State s f sp pc' rs' m).
-Proof.
-  intros. subst rs'. eapply exec_Iop; eauto.
-Qed.
-
-Lemma exec_Iload':
-  forall s f sp pc rs m chunk addr args dst pc' rs' a v,
-  (fn_code f)!pc = Some(Iload chunk addr args dst pc') ->
-  eval_addressing ge sp addr rs##args = Some a ->
-  Mem.loadv chunk m a = Some v ->
-  rs' = (rs#dst <- v) ->
-  step (State s f sp pc rs m)
-    E0 (State s f sp pc' rs' m).
-Proof.
-  intros. subst rs'. eapply exec_Iload; eauto.
-Qed.
-
 End RELSEM.
 
 (** Execution of whole programs are described as sequences of transitions
@@ -281,7 +260,7 @@ End RELSEM.
   corresponding to the invocation of the ``main'' function of the program
   without arguments and with an empty call stack. *)
 
-Inductive initial_state (p: program): state -> Prop :=
+Variant initial_state (p: program): state -> Prop :=
   | initial_state_intro: forall b f m0,
       let ge := Genv.globalenv p in
       Genv.init_mem p = Some m0 ->
@@ -292,7 +271,7 @@ Inductive initial_state (p: program): state -> Prop :=
 
 (** A final state is a [Returnstate] with an empty call stack. *)
 
-Inductive final_state: state -> int -> Prop :=
+Variant final_state: state -> int -> Prop :=
   | final_state_intro: forall r m,
       final_state (Returnstate nil (Vint r) m) r.
 
@@ -300,46 +279,6 @@ Inductive final_state: state -> int -> Prop :=
 
 Definition semantics (p: program) :=
   Semantics step (initial_state p) final_state (Genv.globalenv p).
-
-(** This semantics is receptive to changes in events. *)
-
-Lemma semantics_receptive:
-  forall (p: program), receptive (semantics p).
-Proof.
-  intros. constructor; simpl; intros.
-(* receptiveness *)
-  assert (t1 = E0 -> exists s2, step (Genv.globalenv p) s t2 s2).
-    intros. subst. inv H0. exists s1; auto.
-  inversion H; subst; auto.
-  exploit external_call_receptive; eauto. intros [vres2 [m2 EC2]].
-  exists (State s0 f sp pc' (regmap_setres res vres2 rs) m2). eapply exec_Ibuiltin; eauto.
-  exploit external_call_receptive; eauto. intros [vres2 [m2 EC2]].
-  exists (Returnstate s0 vres2 m2). econstructor; eauto.
-(* trace length *)
-  red; intros; inv H; simpl; try omega.
-  eapply external_call_trace_length; eauto.
-  eapply external_call_trace_length; eauto.
-Qed.
-
-(** * Operations on RTL abstract syntax *)
-
-(* (** Transformation of a RTL function instruction by instruction. *)
-(*   This applies a given transformation function to all instructions *)
-(*   of a function and constructs a transformed function from that. *) *)
-
-(* Section TRANSF. *)
-
-(* Variable transf: node -> instruction -> instruction. *)
-
-(* Definition transf_function (f: function) : function := *)
-(*   mkfunction *)
-(*     f.(fn_sig) *)
-(*     f.(fn_params) *)
-(*     f.(fn_stacksize) *)
-(*     (PTree.map transf f.(fn_code)) *)
-(*     f.(fn_entrypoint). *)
-
-(* End TRANSF. *)
 
 (** Computation of the possible successors of an instruction.
   This is used in particular for dataflow analyses. *)
@@ -361,178 +300,10 @@ Definition successors_instr (i: instruction) : list node :=
 Definition successors_map (f: function) : PTree.t (list node) :=
   PTree.map1 successors_instr f.(fn_code).
 
-(** The registers used by an instruction *)
 
-Definition instr_uses (i: instruction) : list reg :=
-  match i with
-  | Inop s => nil
-  | Iop op args res s => args
-  | Iload chunk addr args dst s => args
-  | Istore chunk addr args src s => src :: args
-  | Icall sig (inl r) args res s => r :: args
-  | Icall sig (inr id) args res s => args
-  | Itailcall sig (inl r) args => r :: args
-  | Itailcall sig (inr id) args => args
-  | Ibuiltin ef args res s => params_of_builtin_args args
-  | Icond cond args ifso ifnot => args
-  | Ijumptable arg tbl => arg :: nil
-  | Ireturn None => nil
-  | Ireturn (Some arg) => arg :: nil
-  end.
+Variant rtl_cfg (f: function) (i j:node) : Prop :=
+  | rtl_CFG : forall ins,
+      forall (HCFG_ins: (fn_code f) !i = Some ins)
+             (HCFG_in : In j (successors_instr ins)),
+        rtl_cfg f i j.
 
-(** The register defined by an instruction, if any *)
-
-Definition instr_defs (i: instruction) : option reg :=
-  match i with
-  | Inop s => None
-  | Iop op args res s => Some res
-  | Iload chunk addr args dst s => Some dst
-  | Istore chunk addr args src s => None
-  | Icall sig ros args res s => Some res
-  | Itailcall sig ros args => None
-  | Ibuiltin ef args res s =>
-      match res with BR r => Some r | _ => None end
-  | Icond cond args ifso ifnot => None
-  | Ijumptable arg tbl => None
-  | Ireturn optarg => None
-  end.
-
-(** Maximum PC (node number) in the CFG of a function.  All nodes of
-  the CFG of [f] are between 1 and [max_pc_function f] (inclusive). *)
-
-Definition max_pc_function (f: function) :=
-  PTree.fold (fun m pc i => Pos.max m pc) f.(fn_code) 1%positive.
-
-Lemma max_pc_function_sound:
-  forall f pc i, f.(fn_code)!pc = Some i -> Ple pc (max_pc_function f).
-Proof.
-  intros until i. unfold max_pc_function.
-  apply PTree_Properties.fold_rec with (P := fun c m => c!pc = Some i -> Ple pc m).
-  (* extensionality *)
-  intros. apply H0. rewrite H; auto.
-  (* base case *)
-  rewrite PTree.gempty. congruence.
-  (* inductive case *)
-  intros. rewrite PTree.gsspec in H2. destruct (peq pc k).
-  inv H2. xomega.
-  apply Ple_trans with a. auto. xomega.
-Qed.
-
-(** Maximum pseudo-register mentioned in a function.  All results or arguments
-  of an instruction of [f], as well as all parameters of [f], are between
-  1 and [max_reg_function] (inclusive). *)
-
-Definition max_reg_instr (m: positive) (pc: node) (i: instruction) :=
-  match i with
-  | Inop s => m
-  | Iop op args res s => fold_left Pos.max args (Pos.max res m)
-  | Iload chunk addr args dst s => fold_left Pos.max args (Pos.max dst m)
-  | Istore chunk addr args src s => fold_left Pos.max args (Pos.max src m)
-  | Icall sig (inl r) args res s => fold_left Pos.max args (Pos.max r (Pos.max res m))
-  | Icall sig (inr id) args res s => fold_left Pos.max args (Pos.max res m)
-  | Itailcall sig (inl r) args => fold_left Pos.max args (Pos.max r m)
-  | Itailcall sig (inr id) args => fold_left Pos.max args m
-  | Ibuiltin ef args res s =>
-      fold_left Pos.max (params_of_builtin_args args)
-        (fold_left Pos.max (params_of_builtin_res res) m)
-  | Icond cond args ifso ifnot => fold_left Pos.max args m
-  | Ijumptable arg tbl => Pos.max arg m
-  | Ireturn None => m
-  | Ireturn (Some arg) => Pos.max arg m
-  end.
-
-Definition max_reg_function (f: function) :=
-  Pos.max
-    (PTree.fold max_reg_instr f.(fn_code) 1%positive)
-    (fold_left Pos.max f.(fn_params) 1%positive).
-
-Remark max_reg_instr_ge:
-  forall m pc i, Ple m (max_reg_instr m pc i).
-Proof.
-  intros.
-  assert (X: forall l n, Ple m n -> Ple m (fold_left Pos.max l n)).
-  { induction l; simpl; intros.
-    auto.
-    apply IHl. xomega. }
-  destruct i; simpl; try (destruct s0); repeat (apply X); try xomega.
-  destruct o; xomega.
-Qed.
-
-Remark max_reg_instr_def:
-  forall m pc i r, instr_defs i = Some r -> Ple r (max_reg_instr m pc i).
-Proof.
-  intros.
-  assert (X: forall l n, Ple r n -> Ple r (fold_left Pos.max l n)).
-  { induction l; simpl; intros. xomega. apply IHl. xomega. }
-  destruct i; simpl in *; inv H.
-- apply X. xomega.
-- apply X. xomega.
-- destruct s0; apply X; xomega.
-- destruct b; inv H1. apply X. simpl. xomega.
-Qed.
-
-Remark max_reg_instr_uses:
-  forall m pc i r, In r (instr_uses i) -> Ple r (max_reg_instr m pc i).
-Proof.
-  intros.
-  assert (X: forall l n, In r l \/ Ple r n -> Ple r (fold_left Pos.max l n)).
-  { induction l; simpl; intros.
-    tauto.
-    apply IHl. destruct H0 as [[A|A]|A]. right; subst; xomega. auto. right; xomega. }
-  destruct i; simpl in *; try (destruct s0); try (apply X; auto).
-- contradiction.
-- destruct H. right; subst; xomega. auto.
-- destruct H. right; subst; xomega. auto.
-- destruct H. right; subst; xomega. auto.
-- intuition. subst; xomega.
-- destruct o; simpl in H; intuition. subst; xomega.
-Qed.
-
-Lemma max_reg_function_def:
-  forall f pc i r,
-  f.(fn_code)!pc = Some i -> instr_defs i = Some r -> Ple r (max_reg_function f).
-Proof.
-  intros.
-  assert (Ple r (PTree.fold max_reg_instr f.(fn_code) 1%positive)).
-  {  revert H.
-     apply PTree_Properties.fold_rec with
-       (P := fun c m => c!pc = Some i -> Ple r m).
-   - intros. rewrite H in H1; auto.
-   - rewrite PTree.gempty; congruence.
-   - intros. rewrite PTree.gsspec in H3. destruct (peq pc k).
-     + inv H3. eapply max_reg_instr_def; eauto.
-     + apply Ple_trans with a. auto. apply max_reg_instr_ge.
-  }
-  unfold max_reg_function. xomega.
-Qed.
-
-Lemma max_reg_function_use:
-  forall f pc i r,
-  f.(fn_code)!pc = Some i -> In r (instr_uses i) -> Ple r (max_reg_function f).
-Proof.
-  intros.
-  assert (Ple r (PTree.fold max_reg_instr f.(fn_code) 1%positive)).
-  {  revert H.
-     apply PTree_Properties.fold_rec with
-       (P := fun c m => c!pc = Some i -> Ple r m).
-   - intros. rewrite H in H1; auto.
-   - rewrite PTree.gempty; congruence.
-   - intros. rewrite PTree.gsspec in H3. destruct (peq pc k).
-     + inv H3. eapply max_reg_instr_uses; eauto.
-     + apply Ple_trans with a. auto. apply max_reg_instr_ge.
-  }
-  unfold max_reg_function. xomega.
-Qed.
-
-Lemma max_reg_function_params:
-  forall f r, In r f.(fn_params) -> Ple r (max_reg_function f).
-Proof.
-  intros.
-  assert (X: forall l n, In r l \/ Ple r n -> Ple r (fold_left Pos.max l n)).
-  { induction l; simpl; intros.
-    tauto.
-    apply IHl. destruct H0 as [[A|A]|A]. right; subst; xomega. auto. right; xomega. }
-  assert (Y: Ple r (fold_left Pos.max f.(fn_params) 1%positive)).
-  { apply X; auto. }
-  unfold max_reg_function. xomega.
-Qed.

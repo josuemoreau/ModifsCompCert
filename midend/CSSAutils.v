@@ -15,6 +15,7 @@ Require Import KildallComp.
 Require Import DLib.
 Require Import Classical.
 Require Import Registers.
+Unset Allow StrictProp.
 
 Section WF_CSSA.
 
@@ -131,28 +132,6 @@ Proof.
     apply Hcont.
     unfold successors_list, KildallComp.make_preds.
     rewrite Hpreds; auto.
-Qed.
-
-Lemma fn_phicode_code : 
-  forall pc block,
-    (fn_phicode f) ! pc = Some block ->
-    exists ins, (fn_code f) ! pc = Some ins.
-Proof.
-  intros.
-  generalize (fn_phicode_inv f WF pc) ; eauto.
-  intros [HH1 HH2].
-  exploit HH2; eauto. congruence.
-  intros. invh join_point.
-  
-  assert ((make_predecessors (fn_code f) successors_instr) !!! pc = l).
-  { unfold successors_list. rewrite Hpreds. auto. }
-  assert (exists pred, In pred l). destruct l. simpl in *. omega.
-  exists p ; eauto. invh ex. 
-  exploit @KildallComp.make_predecessors_some; eauto. intros [i Hi].
-  assert (In pc (successors_instr i)).
-  { eapply KildallComp.make_predecessors_correct2 ; eauto.
-  }    
-  exploit fn_code_closed ; eauto.
 Qed.
 
 Lemma ext_params_1: forall x n, 
@@ -573,19 +552,6 @@ Proof.
   go. simpl in *. flatten H; go.
 Qed.
 
-Lemma In_reg_correct_false :
-  forall r l,
-  In_reg r l = false ->
-  ~ In r l.
-Proof.
-  induction l; intros.
-  go. simpl in *. flatten H.
-  unfold not; intros.
-  destruct H0; go.
-  apply IHl in H.
-  auto.
-Qed.
-
 Lemma phi_store_other :
   forall k rs r phib,
   (forall args dst, In (Iphi args dst) phib ->
@@ -724,7 +690,7 @@ Proof.
 Qed.
 
 (** ** The [is_edge] predicate *)
-Inductive is_edge (code : code) : node -> node -> Prop :=
+Variant is_edge (code : code) : node -> node -> Prop :=
     Edge : forall (i : positive) (j : node) (instr : instruction),
            code ! i = Some instr ->
            In j (successors_instr instr) -> is_edge code i j.
@@ -946,27 +912,6 @@ Proof.
   + right; eauto.
 Qed.
 
-Lemma in_parcb_dst_simul :
-  forall rs (r : reg) (parcb : parcopyblock) src,
-  NoDup (map parc_dst parcb) ->
-  In (Iparcopy src r) parcb ->
-  (parcopy_store parcb rs) !! r = rs !! src.
-Proof.
-  induction parcb; intros.
-  { simpl in H. contradiction. }
-  simpl in *.
-  destruct a.
-  destruct H0.
-  + assert (EQ1: r0 = src) by congruence.
-    assert (EQ2: r1 = r) by congruence.
-    rewrite EQ1 in *. rewrite EQ2 in *.
-    inv H.
-    apply PMap.gss.
-  + inv H.
-    rewrite PMap.gso; auto.
-    unfold not in *; intros. go.
-Qed.
-
 (* use and def *)
 
 Require Import Classical.
@@ -990,16 +935,7 @@ Qed.
 (* decision procedure for "used" *)
 Notation reg_use := SSARegSet.add.
 
-Definition reg_option_use (or: option reg)
-    (lv: SSARegSet.t) :=
-  match or with
-  | None => lv
-  | Some r => reg_use r lv
-  end.
-
-Fixpoint reg_list_use
-    (rl: list reg) (ruse: SSARegSet.t) {struct rl}
-      : SSARegSet.t :=
+Fixpoint reg_list_use (rl: list reg) (ruse: SSARegSet.t) : SSARegSet.t :=
   match rl with
   | nil => ruse
   | r1 :: rest => reg_list_use rest (reg_use r1 ruse)
@@ -1452,30 +1388,6 @@ Proof.
   inv H0. go.
 Qed.
 
-Lemma search_phicode_correct_aux2 :
-  forall (elems : list (node * phiblock)) r ruse,
-  SSARegSet.In r ruse ->
-  SSARegSet.In r
-    (fold_right
-      (fun pcins acc =>
-        search_phib acc (snd pcins))
-      ruse elems).
-Proof.
-  induction elems; intros; simpl; auto.
-  eapply search_phib_correct_2; eauto.
-Qed.
-
-Lemma search_phicode_correct_2 :
-  forall f r ruse,
-  SSARegSet.In r ruse ->
-  SSARegSet.In r (search_phicode ruse (fn_phicode f)).
-Proof.
-  intros.
-  unfold search_phicode.
-  rewrite <- fold_left_rev_right.
-  apply search_phicode_correct_aux2; auto.
-Qed.
-
 Lemma search_used_correct :
   forall f pc r,
   wf_cssa_function f ->
@@ -1495,13 +1407,6 @@ Qed.
 
 Definition param_set (f:function) : SSARegSet.t :=
   List.fold_right SSARegSet.add SSARegSet.empty (fn_params f).  
-
-Lemma In_param_set : forall f x, SSARegSet.In x (param_set f) -> In x (fn_params f).
-Proof.
-  unfold param_set; intros.
-  elim In_fold_right_add3 with (1:=H); auto; intros.
-  elim SSARegSet.empty_1 with (1:=H0).
-Qed.
 
 Lemma nodup_in_parcb_dst_aux:
   forall parcb,

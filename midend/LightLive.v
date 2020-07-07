@@ -20,8 +20,8 @@ Require Import Kildall.
 Require Import Locations.
 Require Import Conventions.
 Require Import RTLutils.
-Require Import Path.
 
+Unset Allow StrictProp.
 
 (** * Liveness analysis over RTL *)
 
@@ -39,13 +39,6 @@ Fixpoint reg_list_live
   match rl with
   | nil => lv
   | r1 :: rs => reg_list_live rs (reg_live r1 lv)
-  end.
-
-Fixpoint reg_list_dead
-             (rl: list reg) (lv: Regset.t) {struct rl} : Regset.t :=
-  match rl with
-  | nil => lv
-  | r1 :: rs => reg_list_dead rs (reg_dead r1 lv)
   end.
 
 Definition transfer
@@ -88,7 +81,6 @@ Definition transfer
 Module RegsetLat := LFSet(Regset).
 Module DS := Backward_Dataflow_Solver(RegsetLat)(NodeSetBackward).
 
-
 Definition analyze (f: function): option (PMap.t Regset.t) :=
   DS.fixpoint f.(fn_code) successors_instr (transfer f).
 
@@ -130,20 +122,6 @@ Section WF_LIVE.
     eapply reg_list_live_incl ; eauto.
     eapply Regset.add_1 ; eauto.
     eapply IHl ; eauto.
-  Qed.
-
-  Lemma reg_list_live_cases : forall x l s, 
-    Regset.In x (reg_list_live l s) ->
-    (Regset.In x s) \/ In x l.
-  Proof.
-    induction l ; intros ; simpl ; auto.
-    exploit IHl ; eauto.
-    intros [Hcase1 | Hcase2].
-    destruct (peq a x). 
-    inv e; auto. 
-    left. 
-    eapply Regset.add_3 ; eauto.
-    auto.
   Qed.
     
   Hint Constructors RTLutils.assigned_code_spec: core.

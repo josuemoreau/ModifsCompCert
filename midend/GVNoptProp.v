@@ -30,6 +30,8 @@ Require Import DLib.
 Require Import GVNopt.
 Require Import Dsd.
 
+Unset Allow StrictProp.
+
 (** Instantiating the generic analysis in [Opt] to the GVN-CSE case *)
 
 (** * The dominance based analysis *)
@@ -38,17 +40,17 @@ Section DsdAnalysis.
   Definition approx := reg.
   Definition result := reg -> approx.
 
-  Inductive G : genv -> val -> regset -> approx -> val -> Prop :=
+  Variant G : genv -> val -> regset -> approx -> val -> Prop :=
   | G_intro : forall ge sp rs r v, 
               forall (EQ: v = rs# r),
                 G ge sp rs r v.
 
-  Inductive is_at_Top : result -> reg -> Prop :=
+  Variant is_at_Top : result -> reg -> Prop :=
   | is_at_Top_intro : forall R r,
                         R r = r ->
                         (forall r', R r' = r -> r' = r) ->
                         is_at_Top R r.
- 
+  
   Definition A f := ((fun x => fst (get_extern_gvn f x)),
                      P2Map.init true).
 
@@ -115,39 +117,14 @@ Section DsdAnalysis.
                        is_at_Top_eq_is_at_Top params_Top G_top).
 
 
-  (** ** Auxiliary properties about the GVN checker *)
+  (** ** Auxiliary properties about the GVN checker *)  
   Inductive same_repr (repr : reg -> reg) : list reg -> list reg -> Prop :=
   | same_repr_nil: same_repr repr nil nil
   | same_repr_cons: forall x1 l1 x2 l2,
     same_repr repr l1 l2 -> 
     repr x1 = repr x2 -> 
     same_repr repr (x1::l1) (x2::l2).
-
-  Lemma same_repr_sym : forall repr l1 l2,
-    same_repr repr l1 l2 -> same_repr repr l2 l1.
-  Proof.
-    induction 1; constructor; auto.
-  Qed.
   
-  Lemma same_repr_trans : forall repr l1 l2,
-    same_repr repr l1 l2 -> 
-    forall l3, same_repr repr l2 l3 -> same_repr repr l1 l3.
-  Proof.
-    induction 1; intros l3 T3; inv T3; constructor; eauto.
-    congruence.
-  Qed.
-
-  Lemma same_repr_trans_phi1 : forall repr a args_x args_y,
-    same_repr repr args_x args_y ->    
-    (forall z : reg, In z args_y -> a = repr z) ->
-    (forall z : reg, In z args_x -> a = repr z).
-  Proof.
-    induction 1; simpl; intros.
-    intuition.
-    destruct H2; subst; eauto.
-    rewrite H0; auto.
-  Qed.
-
   Lemma same_repr_nth_error : forall repr args args',
     same_repr repr args args' -> 
     forall  k x x',
@@ -207,12 +184,6 @@ Section DsdAnalysis.
    unfold repr_spec_code; intros; flatten; go.
  Qed.
  Hint Resolve repr_spec_code_id: core.
-
- Lemma same_repr_refl: forall R args,
-   same_repr R args args.
- Proof.
-   induction args; go.
- Qed.
 
  Lemma repr_spec_phicode_id : forall f pc, repr_spec_phicode f pc (fun x : reg => x).
  Proof.
@@ -420,7 +391,8 @@ Proof.
   exists n0; split.
   - eapply check_def_correct; eauto.
   - split.
-    + destruct (GVN_spec_True f) as [Hc _ _ ]; auto.
+    + generalize (GVN_spec_code f (GVN_spec_True f WF)) ; eauto.
+      intros Hc.
       specialize Hc with pc.
       unfold repr_spec_code in Hc; flatten Hc.
       destruct Hc.
@@ -453,7 +425,8 @@ Lemma same_fn_code3 : forall (f:function) (WF: wf_ssa_function f) res,
                         forall x dx, def f x dx -> A_r f x = res -> x = res.
 Proof.
   intros.
-  destruct (GVN_spec_True f WF) as [Hcode Hphicode _].
+  generalize (GVN_spec_code f (GVN_spec_True f WF)) ; eauto. intros Hcode.
+  generalize (GVN_spec_phicode f (GVN_spec_True f WF)) ; eauto. intros Hphicode.
   specialize Hcode with dx.
   specialize Hphicode with dx.
   subst.
@@ -494,40 +467,6 @@ Proof.
         intros [args' [Hin Hsame]]. 
         eelim H3; eauto. 
 Qed.
-
-Lemma G_phi_notassigned : forall ge sp rs phib k r v,
-                            G ge sp rs r v ->
-                            (forall args, ~ In (Iphi args r) phib) ->
-                            G ge sp (phi_store k phib rs) r v.
-Proof.
-  intros until v. intros G NOPHI.
-  econstructor; eauto. 
-  erewrite phi_store_notin_preserved; eauto.
-  inv G. auto. 
-Qed. 
-
-Lemma exec_true : forall f pc pc', 
-   (A_e f) !!2 (pc, pc') = true.
-Proof.
-  intros.
-  unfold A; simpl.
-  eapply P2Map.gi; eauto.
-Qed.
-
-Lemma exec_step : forall (f:function) ge t sf sp pc rs m f s',
-                   exec f pc ->
-                   step ge (State sf f sp pc rs m) t s' ->
-                   match s' with 
-                     | (State _ _ _ pc' _ _) => exec  f pc'
-                     | _ => True
-                   end.
-Proof.
-  intros. invh step; try solve [invh exec]; auto;
-          try solve [econstructor 2; eauto;
-                     econstructor; split; eauto using exec_true].
-Qed.    
-  
-Hint Resolve exec_true: core.
 
 Lemma gamma_step_phi: forall (f:function) (WFF: wf_ssa_function f) ge sp pc pc' phib k rs,
   reached f pc ->
@@ -804,89 +743,5 @@ Proof.
     rewrite PMap.gso; auto.
     invh G; auto.
 Qed.
-
-Lemma approx_Iop_correct : forall f (WF: wf_ssa_function f) pc sf op args res pc' v rs ge sp m x, 
-   s_inv ge (State sf f sp pc rs m) ->
-   (fn_code f) ! pc = Some (Iop op args res pc') ->
-   eval_operation ge sp op rs ## args m = Some v ->
-   gamma GVN f ge sp pc rs ->
-   exec f pc ->
-   dsd f x pc' ->
-   G ge sp rs # res <- v (A_r f x) (rs # res <- v) !! x.
-Proof.
-  intros until x. intros SINV CODE EVAL GAMMA EXE DSD.
-  destruct (peq x res).
-  - subst. rewrite PMap.gss.
-    destruct (peq res (A_r f res)).
-    * rewrite <- e. econstructor; eauto.
-      rewrite PMap.gss; eauto.
-    * destruct (GVN_spec_True f WF) as [Hcode _]. 
-      specialize Hcode with pc.
-      unfold repr_spec_code in Hcode.
-      rewrite CODE in Hcode. 
-      { destruct Hcode as [Htop | Hntop].
-        - inv Htop. congruence.
-        - repeat invh ex ; repeat invh and.
-          econstructor; eauto.
-          rewrite PMap.gso; auto.
-          assert (HE:[f,ge,sp,rs]|=(A_r f res)==(Iop op x1 (A_r f res) x0))
-            by (inv SINV; eapply SINV0 ; eauto). 
-          inv HE. invh SSAinv.eval.
-          rewrite op_depends_on_memory_correct with (m2:= m) in EVAL0; auto.
-          
-          assert (Heval : eval_operation ge sp op rs ## args m = 
-                          eval_operation ge sp op rs ## x1 m).
-          { eapply G_list_eval_op; eauto.
-            eapply gamma_v_args; eauto.
-            assert (gamma GVN f ge sp x rs) by (eapply  gamma_sdom_gamma; eauto).
-            assert (Heq : map (OptInv.A_r GVN f) args = map (OptInv.A_r GVN f) x1) 
-              by (eapply same_repr_map; eauto).
-            rewrite Heq at 1.
-            eapply gamma_v_args in H0; eauto. 
-          }             
-          congruence.
-      }                
-  - exploit (dsd_pred_not_join_point f WF pc pc' x); eauto.
-    go.
-    + intro contra. eapply fn_normalized with (pc := pc) in contra; eauto. 
-      * unfold fn_code in *; congruence. 
-      * unfold successors, Kildall.successors_list. 
-        rewrite PTree.gmap1. unfold option_map.
-        unfold fn_code in *.
-        rewrite CODE. auto. 
-    + intros [Hcase1 | [ Hcase2 | Hcase3]]; invh and; try congruence.
-      * exploit params_Top; go. intros.
-        eapply G_top; eauto.
-      * assert (HX: exists def_x, def f x def_x) by (invh dsd; go).
-        destruct HX as [dx Dx].
-        exploit (GAMMA x); eauto. intros HGx.
-        assert ((A_r f x) <> res). 
-        { intro Hcont. subst. 
-          assert (assigned_code_spec (fn_code f) pc (A_r f x)) by go.
-          assert (Hrx: dsd f (A_r f x) dx).
-          { eapply def_not_top_dsd; eauto. 
-            inv Dx; auto.
-            - exploit params_Top; eauto ; intros; invh is_at_Top; congruence.
-            - destruct (GVN_spec_True f WF) as [_ Hpcode].
-              specialize Hpcode with dx.
-              inv H2. unfold repr_spec_phicode in *.
-              rewrite H3 in *. invh ex.
-              eelim  (Hpcode x x0); eauto.
-              * intros; congruence.
-              * intros.
-                repeat invh ex ; repeat invh and.
-                eelim assigned_code_and_phi; eauto. 
-          }
-          inv Hrx.
-          * ssa_def. inv H; repeat ssa_def.
-            eelim (elim_sdom_sdom peq); eauto.
-            inv H3; congruence. 
-          * eelim assigned_code_and_phi; eauto.
-        } 
-        econstructor; eauto.
-        repeat rewrite PMap.gso; auto. inv HGx; auto.
-      * unfold fn_code in *.
-        invh assigned_code_spec; try congruence.
-Qed.  
 
 

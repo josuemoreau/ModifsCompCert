@@ -1,11 +1,11 @@
 (* Specification of CSSApargen.v transformation *)
-
 Require Import Coqlib.
 Require Import Maps.
 Require Import CSSApar.
 Require Import SSA.
 Require Import CSSApargen.
 Require Import Kildall.
+Unset Allow StrictProp.
 
 Inductive unique_def_phib_spec : phiblock -> Prop :=
 | unique_def_phib_spec_nil:
@@ -95,7 +95,7 @@ Inductive equiv_phib (maxreg: positive) (k : nat) :
       (Iphi args dst :: phib) (Iparcopy arg arg' :: parcb)
       (Iphi args' dst' :: phib') (Iparcopy dst' dst :: parcb').
 
-Inductive cssa_spec
+Variant cssa_spec
     (maxreg : positive)
     (preds : (PTree.t (list node)))
     (ssa_code: code)
@@ -143,7 +143,7 @@ Definition inop_in_jp (f : SSA.function) :=
   exists succ,
   (fn_code f) ! pc = Some (Inop succ).
 
-Inductive tr_function: SSA.function -> CSSApar.function -> Prop :=
+Variant tr_function: SSA.function -> CSSApar.function -> Prop :=
 | tr_function_intro:
     forall f init lp s incr preds,
     (init,lp) = init_state f ->
@@ -165,8 +165,7 @@ Inductive tr_function: SSA.function -> CSSApar.function -> Prop :=
         s.(st_parcopycode)
         f.(SSA.fn_entrypoint)).
 
-Inductive transl_function_spec:
-    SSA.function -> CSSApar.function -> Prop :=
+Variant transl_function_spec: SSA.function -> CSSApar.function -> Prop :=
 | transl_function_spec_intro:
     forall f tf preds,
     normalized_jp f ->
@@ -184,4 +183,3 @@ Inductive transl_function_spec:
     (CSSApar.fn_parcopycode tf) ! (fn_entrypoint f) = None ->
     inop_in_jp f ->
     transl_function_spec f tf.
-

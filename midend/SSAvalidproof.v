@@ -23,7 +23,6 @@ Require Import KildallComp.
 Require Import Conventions.
 Require Import Utils.
 Require Import RTLutils.
-Require Import Path.
 Require RTLdfs.
 Require Import SSA.
 Require Import SSAutils.
@@ -33,6 +32,8 @@ Require Import SSAvalidator_proof.
 Require Import Utilsvalidproof.
 Require Import LightLive.
 Require Import Bijection.
+
+Unset Allow StrictProp.
 
 (** * Some hints and tactics *)
 Ltac elimAndb :=
@@ -85,17 +86,6 @@ Proof.
   exploit live_wf_live ; eauto.
 Qed.  
 
-Lemma STRUCT :
-  exists size, structural_checks_spec size f tf.
-Proof.
-  intros.
-  unfold transf_function in  TRANSF_OK.
-  monadInv TRANSF_OK.
-  destruct (extern_gen_ssa f (fun pc => Lin f pc (Lout x))) as [[size def] def_phi]. 
-  exists size.
-  eapply typecheck_function_correct_structural_checks  ; eauto.
-Qed.
-
 Lemma HWF : wf_ssa_function tf.
 Proof.
   eapply transf_function_wf_ssa_function ; eauto.
@@ -128,33 +118,7 @@ Section PRESERVATION.
   Let tge : SSA.genv := Genv.globalenv tprog.
 
   Import RTLdfsproof.
-  
-  Lemma transf_function_correct_aux:
-    forall f tf, 
-      (normalised_function f) ->
-       RTLdfs.wf_dfs_function f ->
-      transf_function f = OK tf ->
-      exists size live Γ,  
-        (wf_live f (Lout live))
-        /\ (wf_init size tf Γ) 
-        /\ (wt_function size f tf live Γ).
-  Proof.
-    intros.
-    unfold transf_function in H0. monadInv H1.
-    case_eq (extern_gen_ssa f (fun pc => Lin f pc (Lout x))) ;
-      intros [size def] def_phi Hssa ; rewrite Hssa in *.
-    exploit typecheck_function_correct; eauto.
-    eapply RTLdfs.fn_dfs_comp ; eauto.
-    eapply RTLdfs.fn_dfs_norep ; eauto.
-    intros [G [WFIG WTFG]].
-    exists size; exists x; exists G.
-    split; [idtac | split ;intuition].
-    exploit live_wf_live; eauto.
-    unfold get_option in EQ; inv EQ.
-    destruct (analyze f) eqn: HEQ; allinv.
-    inv H2; auto. congruence.
-  Qed.
-  
+    
   Lemma symbols_preserved:
     forall (s: ident), Genv.find_symbol tge s = Genv.find_symbol ge s.
   Proof.
@@ -375,7 +339,7 @@ Section PRESERVATION.
   Reserved Notation "s ≃ s'" (at level 40).
   
   (** Matching relation for states *)
-  Inductive match_states : RTLt.state -> SSA.state -> Prop :=
+  Variant match_states : RTLt.state -> SSA.state -> Prop :=
   | match_states_reg: 
     forall s f sp pc rs m ts tf  rs'  Γ live size
       (STACKS: match_stackframes s ts)
@@ -397,10 +361,10 @@ Section PRESERVATION.
       (RTLt.Callstate s f args m) ≃ (SSA.Callstate ts tf args m)
    where "s ≃ t" := (match_states s t).
   Hint Constructors match_states: core.  
-  
+
   (** ** Auxiliary lemmas about [agree] preservation *)
   
-Import DLib.  
+  Import DLib.  
 
   Lemma phistore_preserve_agree: 
     forall (tf: function) rs rs' k pc0 pc block G (v:positive) live size f

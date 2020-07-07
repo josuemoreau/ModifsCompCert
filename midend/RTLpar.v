@@ -25,6 +25,7 @@ Require Import CSSApar.
 Require Parmov.
 Require Import Dom.
 Require Import Registers.
+Unset Allow StrictProp.
 
 (** * Abstract syntax *)
 
@@ -61,68 +62,47 @@ Definition successors (f: function) : PTree.t (list positive) :=
   PTree.map1 successors_instr (fn_code f).
 Notation succs := (fun f pc => (successors f) !!! pc).
 
-Section CFG.
-
-  Variable f : function.
-
-  Definition entry := (fn_entrypoint f).
-  Notation code := (fn_code f).
-
-  (** [cfg i j] holds if [j] is a successor of [i] in the code of [f] *)
-  Inductive _cfg (i j:node) : Prop :=
-  | CFG : forall ins
-    (HCFG_ins: code !i = Some ins)
-    (HCFG_in : In j (successors_instr ins)),
-    _cfg i j.
-
-  Definition exit (pc: node) : Prop :=
-  match code ! pc with
-  | Some (SSA.Itailcall _ _ _)
-  | Some (SSA.Ireturn _) => True
-  | Some (SSA.Ijumptable _ succs) => succs = nil
-  | _ => False
-  end.
-
-  Definition cfg := _cfg.
-
-End CFG.
-
-Notation reached := (fun f => (reached (cfg f) (entry f))).
-
+(** [cfg f i j] holds if [j] is a successor of [i] in the code of [f] *)
+Variant cfg  (f : function) (i j:node) : Prop :=
+| CFG : forall ins
+               (HCFG_ins: (fn_code f) !i = Some ins)
+               (HCFG_in : In j (successors_instr ins)),
+    cfg f i j.
+  
 (** Well formed functions *)
 Record wf_function (f:function) : Prop := {
 
-(* Code normalization *)
+  (* Code normalization *)
   fn_entry : exists s, (fn_code f) ! (fn_entrypoint f) = Some (Inop s);
   fn_entry_pred: forall pc, ~ cfg f pc (fn_entrypoint f);
   
   fn_normalized : forall jp pc, (* Only nop can lead to a jp *)
-                   join_point jp f ->
-                   In jp (succs f pc) -> (fn_code f) ! pc = Some (Inop jp);
+      join_point jp f ->
+      In jp (succs f pc) -> (fn_code f) ! pc = Some (Inop jp);
   
   fn_normalized_jp : forall pc pc',  (* No two successive join points *)
-                       join_point pc' f ->
-                       cfg f pc pc' -> 
-                       ~ join_point pc f ;
+      join_point pc' f ->
+      cfg f pc pc' -> 
+      ~ join_point pc f ;
 
   fn_parcb_jp: forall pc pc' parcb, (* Parcopy blocks before or at join_point *)
-            (fn_code f) ! pc = Some (Inop pc') ->
-            (fn_parcopycode f) ! pc = Some parcb ->
-            ~ join_point pc' f ->
-            join_point pc f;
+      (fn_code f) ! pc = Some (Inop pc') ->
+      (fn_parcopycode f) ! pc = Some parcb ->
+      ~ join_point pc' f ->
+      join_point pc f;
 
   fn_parcb_inop: forall pc,
-            (fn_parcopycode f) ! pc <> None ->
-            exists s, (fn_code f) ! pc = Some (Inop s);
+      (fn_parcopycode f) ! pc <> None ->
+      exists s, (fn_code f) ! pc = Some (Inop s);
 
-(* Statements containment and reachability *)
- fn_code_closed: forall pc pc' instr, (fn_code f) ! pc = Some instr ->
+  (* Statements containment and reachability *)
+  fn_code_closed: forall pc pc' instr, (fn_code f) ! pc = Some instr ->
                                        In pc' (successors_instr instr) ->
                                        exists instr', (fn_code f) ! pc' = Some instr'
 }.
 
 (** Well-formed function definitions *)
-Inductive wf_fundef: fundef -> Prop :=
+Variant wf_fundef: fundef -> Prop :=
   | wf_fundef_external: forall ef,
       wf_fundef (External ef)
   | wf_function_internal: forall f,
@@ -143,7 +123,7 @@ Definition mill_function (f: function) : Prop :=
     (fn_parcopycode f) ! pc = Some parcb ->
     Parmov.is_mill _ (parcb_to_moves parcb).
 
-Inductive mill_fundef: fundef -> Prop :=
+Variant mill_fundef: fundef -> Prop :=
   | mill_fundef_external: forall ef,
       mill_fundef (External ef)
   | mill_function_internal: forall f,
@@ -158,8 +138,7 @@ Definition mill_program (p: program) : Prop :=
 Definition genv := Genv.t fundef unit.
 
 (** The same as CSSApar, but without phi-blocks *)
-
-Inductive stackframe : Type :=
+Variant stackframe : Type :=
   | Stackframe:
       forall (res: reg)        (**r where to store the result *)
              (f: function)     (**r calling function *)
@@ -168,7 +147,7 @@ Inductive stackframe : Type :=
              (rs: regset),     (**r register state in calling function *)
       stackframe.
 
-Inductive state : Type :=
+Variant state : Type :=
   | State:
       forall (stack: list stackframe) (**r call stack *)
              (f: function)            (**r current function *)
@@ -324,8 +303,7 @@ End RELSEM.
   from an initial state to a final state.  An initial state is a [Callstate]
   corresponding to the invocation of the ``main'' function of the program
   without arguments and with an empty call stack. *)
-
-Inductive initial_state (p: program): state -> Prop :=
+Variant initial_state (p: program): state -> Prop :=
   | initial_state_intro: forall b f m0,
       let ge := Genv.globalenv p in
       Genv.init_mem p = Some m0 ->
@@ -336,12 +314,10 @@ Inductive initial_state (p: program): state -> Prop :=
 
 (** A final state is a [Returnstate] with an empty call stack. *)
 
-Inductive final_state: state -> int -> Prop :=
+Variant final_state: state -> int -> Prop :=
   | final_state_intro: forall r m, final_state (Returnstate nil (Vint r) m) r.
 
 (** The small-step semantics for a program. *)
 
 Definition semantics (p: program) :=
   Semantics step (initial_state p) final_state (Genv.globalenv p).
-
-Notation RTLpath := (fun f => Dom.path (cfg f) (exit f) (entry f)).

@@ -15,7 +15,6 @@ Require Import RTLutils.
 Require Import Dom.
 Require Import SSA. 
 Require Import SSAutils. 
-Require Import Path.
 Require Import Conventions1.
 
 Require Import SSAvalidspec.
@@ -26,6 +25,8 @@ Require Import Relation_Operators.
 Require Import LightLive.
 Require DomCompute.
 Require Import Bijection.
+
+Unset Allow StrictProp.
 
 Notation path_step := (fun f => path_step (cfg f) (exit f) (entry f)).
 
@@ -74,21 +75,8 @@ Hypothesis fn_phicode_inv2: forall jp i,
 Notation ui := (erase_reg size).
 Notation gi := (get_index size).
 Notation entry := fn_entrypoint.
-Hint Constructors rtl_path_step rtl_path: core.
 
 (** * Utility lemmas about indexed registers. *)
-Lemma rmap_fst_snd : forall dst x,
-    Bij.valid_reg_ssa size dst = true ->
-    Bij.valid_reg_ssa size x = true -> 
-    Bij.rmap size dst = (ui x, gi x) ->
-    dst = x.
-Proof.
-  intros.
-  unfold erase_reg, get_index in *.
-  rewrite <- surjective_pairing in H1.
-  eapply Bij.INJ; eauto.
-Qed.  
-
 Lemma rmap_uigi : forall x,
     Bij.rmap size x = (ui x, gi x).
 Proof.
@@ -237,31 +225,9 @@ Proof.
   inv H0. 
 Qed.
 
-(** * Utility lemmas about [cfg] [edge], and [path] *)
-Lemma cfg_edge_aux : forall pc pc',
-  pc <> pc' ->
-  (cfg f) ** pc pc' ->
-  exists pred, is_edge f pred pc'.
-Proof.
-  induction 2 ; intros.
-  inv H0. exists x. econstructor ; eauto.
-  congruence.
-  destruct (peq z y).
-  inv e. exploit IHclos_refl_trans1 ; eauto.
-  exploit IHclos_refl_trans2 ; eauto.
-Qed.
-    
-Lemma cfg_edge : forall pc i,
-  pc <> (entry f)  ->
-  reached f pc ->
-  (fn_code f) ! pc = Some i ->
-  exists pred, is_edge f pred pc.
-Proof.
-  intros.
-  exploit (cfg_edge_aux (entry f)) ; eauto.
-Qed.
-
+(** * Utility lemmas about [cfg] [edge], and [path] *)    
 Hint Constructors rtl_cfg: core.
+
 Lemma cfg_rtl_cfg : forall size f tf pc1 pc2,
   check_erased_spec size f tf ->
   cfg tf pc1 pc2 -> 
@@ -283,111 +249,9 @@ Proof.
   intuition.
 Qed.  
 
-Lemma cfg_star_rtl_cfg_star : forall size f tf, 
-  check_erased_spec size f tf ->
-  forall pc pc', (cfg tf)** pc pc' -> (rtl_cfg f)** pc pc'.
-Proof.
-  clear.
-  intros size f tf Her. 
-  eapply (clos_refl_trans_ind node) ; eauto.
-  intros. inv H.
-  exploit erased_funct_erased_instr_2 ; eauto.
-  intros [pinstr [Hcode Hins]]. inv Hins.
-  destruct ins; simpl in * ; eauto.
-  (destruct s0; allinv; (inv HCFG_in; eauto)).
-  constructor.
-  econstructor; eauto; simpl; auto.
-  intuition.
-  constructor.
-  econstructor; eauto; simpl; auto.
-  intuition.
-  econstructor; eauto; simpl; auto.
-  intuition.
-  econstructor; eauto; simpl; auto.
-  intuition.
-Qed.
-
-Lemma reached_rtl_reached : forall size f tf, 
-  check_erased_spec size f tf ->
-  forall pc , reached tf pc -> 
-  rtl_reached f pc.
-Proof.
-  clear. intros. unfold rtl_reached.
-  eapply cfg_star_rtl_cfg_star ; eauto. 
-  replace (RTLt.fn_entrypoint f) with (fn_entrypoint tf); auto.
-  inv H; auto.
-Qed.  
-
 Import DLib.
-
-Lemma path_step_rtl_path_step : forall size f tf s1 s2 pc, 
-  check_erased_spec size f tf ->
-  path_step tf s1 pc s2 -> 
-  rtl_path_step f s1 pc s2.
-Proof.
-  clear. intros. 
-  inv H0.
-  - inv STEP;
-    ((exploit erased_funct_erased_instr_2 ; eauto);
-     intros [pinstr [Hcode Hins]]; subst;
-     econstructor ; eauto; 
-     [ eapply reached_rtl_reached ; eauto
-     | destruct ins ; (simpl ; auto);
-       [(destruct s0; allinv; auto)
-       | (destruct s0; allinv; auto)
-       | (destruct o; allinv; auto)]]).
-  - destruct ((fn_code tf) ! pc) eqn: Heq;
-    unfold exit in * ; rewrite Heq in *; flatten NOSTEP; go;
-    ((exploit erased_funct_erased_instr_2 ; eauto); 
-     intros [pinstr [Hcode Hins]]; subst;
-     econstructor ; eauto;
-     first [ eapply reached_rtl_reached ; eauto
-           | simpl; flatten; simpl; eauto
-           ]; 
-    simpl; flatten; eauto).
-Qed.
     
 Notation path := (fun f => path (cfg f) (exit f) (entry f)).
-
-Lemma path_rtl_path : forall size f tf p s1 s2,
-  check_erased_spec size f tf ->
-  path tf s1 p s2 -> 
-  rtl_path f s1 p s2.
-Proof.
-  clear.
-  induction p ; intros; (inv H0; econstructor ; eauto).
-  eapply path_step_rtl_path_step ; eauto.
-Qed.
-Hint Resolve path_rtl_path: core.
-
-Lemma path_cfg : forall f p s1 s2, 
-  path f s1 p s2 ->
-  match s1, s2 with
-    | (PState pc1), (PState pc2) => (cfg f **) pc1 pc2
-      | _, _ => True
-  end.
-Proof.
-  clear.
-  induction 1 ; intros.
-  destruct s; auto.
-  destruct s1; destruct s3; auto.
-  destruct s2.
-  apply rt_trans with pc2; eauto.
-  apply rt_step. 
-  inv STEP. auto.
-  econstructor ; eauto.
-  exploit (@path_from_ret_nil node) ; eauto.
-  intro Heq. inv Heq. inv H.
-Qed.
-
-Lemma path_reached : forall f p pc, 
-  path f (PState (entry f)) p (PState pc) ->
-  reached f pc.
-Proof.
-  intros. 
-  simpl in H.
-  eapply path_cfg in H ; eauto.
-Qed.  
 
 Lemma path_first : forall p pc pc', 
   path f (PState pc) p (PState pc') ->
@@ -592,16 +456,6 @@ Proof.
     | exploit H4 ; eauto; intuition
     |   (eelim (Hssa1 x d1 d2) ; eauto; intuition subst; eauto)].
 Qed.
-
-Lemma def_def_eq : forall x d1 d2,
-  def f x d1 ->
-  def f x d2 ->
-  d1 = d2.
-Proof.
-  intros.
-  destruct (peq d1 d2) ; auto.
-  eelim (unique_def_spec_def x d1 d2) ; eauto.
-Qed.  
 
 Lemma use_code_gamma : forall u x
   (USE : use_code f x u),
@@ -1167,21 +1021,6 @@ Proof.
   intros [HH1 | [HH21 HH22]].
   right ; auto. 
   inv HH21. left ; auto.
-Qed.
-
-Lemma gamma_path_sdef : forall p pc,
-  DomCompute.path f p (PState pc) ->
-  forall xi x d i,
-    Bij.rmap size xi = (x,i) ->
-    def f xi d ->
-    G pc x = i ->
-    Regset.In x (Lin f_rtl pc (Lout live)) -> 
-    (In d p
-      \/ (d = pc /\ 
-        ~ ( use_code f xi pc /\ 
-          assigned_code_spec (fn_code f) pc xi))).
-Proof.
-  intros. exploit gamma_path_def ; eauto.
 Qed.
 
 Lemma phiu_same_length : forall r args gammas, 

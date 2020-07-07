@@ -31,6 +31,8 @@ Require Import Utils.
 Require Import Classical.
 Require Import Bijection.
 
+Unset Allow StrictProp.
+
 (** * Tactics *)
 Ltac allinv := 
   repeat 
@@ -71,8 +73,8 @@ Definition update (rindex: Registers.reg -> index) (r:Registers.reg) (i:index):R
 
 (** ** The erasure function *)
 (** This explains the correspondance between an SSA form candidate and
-its initial RTL version: the latter should be recover by unindexing
-registers, and removing phi-block. *)
+    its initial RTL version: the latter should be recover by unindexing
+    registers, and removing phi-block. *)
 
 Definition erase_reg (size: nat) (r: reg) := fst (Bij.rmap size r).
 Definition get_index (size: nat) (r: reg) := snd (Bij.rmap size r).
@@ -115,7 +117,7 @@ Definition erase_instr (size: nat) instr : RTL.instruction :=
 Definition erase_code (size: nat) (rtlphi:function) : RTL.code :=
   PTree.map (fun pc i => erase_instr size i) (fn_code rtlphi).
 
-Inductive check_erased_spec (size: nat) (rtl: RTLt.function) (rtlphi:SSA.function) :=
+Variant check_erased_spec (size: nat) (rtl: RTLt.function) (rtlphi:SSA.function) :=
 | ces_intros: forall
   (HSIG : (RTLt.fn_sig rtl) = (SSA.fn_sig rtlphi))
   (HPARAMS: (RTLt.fn_params rtl) = (map (erase_reg size) (SSA.fn_params rtlphi)))
@@ -123,20 +125,6 @@ Inductive check_erased_spec (size: nat) (rtl: RTLt.function) (rtlphi:SSA.functio
   (HENTRY : (RTLt.fn_entrypoint rtl) = (SSA.fn_entrypoint rtlphi))
   (HCODE: forall p, (RTLt.fn_code rtl) ! p = (erase_code size rtlphi) ! p),
   check_erased_spec size rtl rtlphi.
-
-Lemma check_erase_entrypoint : forall size f tf, 
-check_erased_spec size f tf ->
-(RTLt.fn_entrypoint f) = (fn_entrypoint tf).
-Proof.
-  intros. inv H; auto. 
-Qed.
-
-Lemma check_erase_params : forall size f tf, 
-check_erased_spec size f tf ->
-(RTLt.fn_params f) = (map (erase_reg size) (fn_params tf)).
-Proof.
-  intros. inv H. auto.
-Qed.
    
 Lemma extensional_assigned_code_spec :  forall m m' pc r, 
   m ! pc = m' ! pc -> 
@@ -190,7 +178,7 @@ Inductive check_ros_spec (size: nat) :  Registers.reg + ident -> reg + ident -> 
   | check_ros_ident: forall id, 
     check_ros_spec size (inr _ id) (inr reg id).
 
-Inductive check_instrs_spec (size: nat) (rtlphi:function)  : RTL.instruction -> instruction -> Prop :=
+Variant check_instrs_spec (size: nat) (rtlphi:function)  : RTL.instruction -> instruction -> Prop :=
 | MInop: forall n, 
   check_instrs_spec size rtlphi (RTL.Inop n) (Inop n)
 | MIop: forall op args args' dst  succ, 
@@ -268,21 +256,6 @@ Qed.
     
 Set Printing Notations.
 
-Lemma in_params_in_erased: forall size params ri r i,
-    In ri params ->
-    Bij.rmap size ri = (r, i) ->
-    In r (map (erase_reg size) params).
-Proof.
-  induction params ; intros; inv H0.
-  - simpl; auto.
-  - simpl.
-    inv H.
-    + left. unfold erase_reg.
-      rewrite H2. auto.
-    + right.
-      eapply IHparams; eauto.    
-Qed.
-
 Lemma erase_funct_no_add: forall size tf f pc rinstr,
   check_erased_spec size f tf ->
   ((RTLt.fn_code f)!pc = Some rinstr) ->
@@ -314,11 +287,7 @@ Proof.
   rewrite Hpinstr in H0. 
   inv H0 ; auto.
 Qed.
-  
-Inductive spec_ros (size: nat) : Registers.reg + ident -> reg + ident ->  Prop :=
-  | spec_ros_l: forall r, spec_ros size (inl _ (erase_reg size r)) (inl _ r) 
-  | spec_ros_r: forall id, spec_ros size (inr _ id) (inr _ id).
-  
+
 Definition assigned (ri: reg) (block:phiblock) := 
   exists args, In (Iphi args ri) block.
 
@@ -387,7 +356,7 @@ Proof.
 Qed.
 
 (** ** Well-typed instructions *)
-Inductive wt_eidx (size: nat) (g : Registers.reg -> index) : instruction -> Prop :=
+Variant wt_eidx (size: nat) (g : Registers.reg -> index) : instruction -> Prop :=
 | wt_eidx_nop: forall s, wt_eidx size g (Inop s)
 | wt_eidx_istore: forall chk adr args src succ, wt_eidx size g (Istore chk adr args src succ)
 | wt_eidx_itailcall: forall sig fn args, wt_eidx size g (Itailcall sig fn args)
@@ -411,7 +380,8 @@ Inductive wt_eidx (size: nat) (g : Registers.reg -> index) : instruction -> Prop
     wt_eidx size g (Ibuiltin ef args dst succ)
 .
 
-Inductive wt_ephi (size: nat) (g: Registers.reg -> index) : phiblock -> Prop := 
+
+Variant wt_ephi (size: nat) (g: Registers.reg -> index) : phiblock -> Prop := 
 | wt_ephi_intro : forall block, 
     (forall ri r i, assigned ri block -> Bij.rmap size ri = (r,i) ->  g r <> i) ->
     wt_ephi size g block.
@@ -430,8 +400,7 @@ Notation valid_reg_ok :=
   (fun (size: nat) (args: list reg) =>
      (forall x, In x args -> Bij.valid_reg_ssa size x = true) : Prop).
 
-
-Inductive wt_instr (size: nat): (Registers.reg -> index) -> instruction -> (Registers.reg -> index) -> Prop :=
+Variant wt_instr (size: nat): (Registers.reg -> index) -> instruction -> (Registers.reg -> index) -> Prop :=
 | wt_Inop: forall γ s,
     wt_instr size γ (Inop s) γ
              
@@ -517,7 +486,7 @@ Inductive wt_instr (size: nat): (Registers.reg -> index) -> instruction -> (Regi
     wt_instr size γ (Ibuiltin ef args dst s) γ
 .
      
-Inductive is_out_node (f: function) : node -> Prop:=
+Variant is_out_node (f: function) : node -> Prop:=
 | Out_tailcall: forall i sig fn args, 
   (fn_code f)!i = Some (Itailcall sig fn args) ->
   is_out_node f i
@@ -528,13 +497,13 @@ Inductive is_out_node (f: function) : node -> Prop:=
   (fn_code f)!i = Some (Ijumptable arg nil) ->
   is_out_node f i.
 
-Inductive wt_out (size: nat) (f: function) : tgamma  -> node -> Prop :=
+Variant wt_out (size: nat) (f: function) : tgamma  -> node -> Prop :=
   | wt_out_node: forall (Γ:tgamma) (i :node) instr, 
     (fn_code f)!i = Some instr ->
     (wt_instr size (Γ i) instr (Γ i)) ->
     (wt_out size f Γ i).
 
-Inductive wf_init (size: nat) (f: function) (Γ:tgamma): Prop :=
+Variant wf_init (size: nat) (f: function) (Γ:tgamma): Prop :=
 | wf_init_gamma:  
     (forall p, In p (fn_params f) ->
                Bij.valid_reg_ssa size p = true
@@ -569,24 +538,6 @@ Definition structural_checks_spec (size: nat) (rtl: RTLt.function) (rtlphi: SSA.
   /\ (unique_def_spec rtlphi)
   /\ (check_phi_params_spec rtlphi)
   /\ (check_no_duplicates_spec size rtlphi).
-
-Lemma no_duplicates_erased: forall size r1 r2 tf block pc r,
-  unique_def_spec tf ->
-  check_no_duplicates_spec size tf ->
-  (fn_phicode tf)! pc = Some block ->
-  assigned r1 block ->  assigned r2 block ->
-  erase_reg size r1 = r ->  erase_reg size r2 = r ->
-  r1 = r2.
-Proof.
-  intros.
-  destruct H2 as [args Hargs]; destruct H3 as [args' Hargs'].
-  rewrite <- H5 in H4.
-  unfold check_no_duplicates_spec in H0.
-  destruct (peq r1 r2) ; auto.
-  exploit (H0 pc block args args'); eauto; intuition. 
-  destruct H as [_ Hdup]. 
-  exploit Hdup ; eauto ; intuition. 
-Qed.
 
 (** * Utility lemmas about junction points *)
 Lemma is_joinpoint_iff_join_point_ssa : forall f jp,
@@ -705,16 +656,6 @@ Proof.
    destruct H1 as [l' [Hal' Hinl']]. 
    eapply record_assigned_reg_phi_preserve ; eauto.   
  Qed.
-
-Lemma assigned_phi_noteq_init: forall k v m pc r, 
-  assigned_phi_spec (PTree.set k v m) pc r ->
-  pc <> k -> 
-  assigned_phi_spec m pc r.
-Proof.
-  intros.
-  inv H. rewrite PTree.gso in H1; auto.
-  eauto.
-Qed.
  
 Lemma record_assigned_reg_phi_in_block : forall phib x r a k l,
   In (Iphi x r) phib ->
@@ -760,27 +701,6 @@ Proof.
   rewrite PTree.gso; auto. 
 Qed.
   
-Lemma fold_record_preserve2: forall t l r,
-    t ! r = Some l ->
-    forall code, exists l', (PTree.fold record_assigned_reg_phi code t) ! r = Some l'.
-Proof.
-  intros t l r Hl code.
-  set (P := fun (code:phicode) (c : PTree.t (list positive))  => exists l', c ! r = Some l').
-  apply PTree_Properties.fold_rec with (P:= P) (f:= record_assigned_reg_phi) (init:= t).
-  
-  (* extensionality *)
-  unfold P; intros.
-  apply H0; eauto.
-  
-  (* base case *)
-  red. intros. eauto.
-  
-  (* inductive case *)
-   unfold P; intros.
-   destruct H1 as [l' Hl']. 
-   exploit record_assigned_reg_phi_preserve2 ; eauto.   
-Qed.
-
 Lemma record_assigned_reg_phi_in_block2 : forall phib x r a k,
   In (Iphi x r) phib ->
   exists l, (record_assigned_reg_phi a k phib) ! r = Some l.
@@ -1221,81 +1141,7 @@ Proof.
   destruct (m ! r');  rewrite PTree.gso; auto.
 Qed.
 
-Lemma record_assigned_reg_phi_inlist4_stronger : forall r pc phiinstr m,
-  m ! r = None ->
-  (forall x, In (Iphi x r) phiinstr ->
-    exists l', (record_assigned_reg_phi m pc phiinstr) ! r = Some (pc::l'))
-  /\
-  ((forall x, ~ In (Iphi x r) phiinstr) ->
-    (record_assigned_reg_phi m pc phiinstr) ! r = None)
-.
-Proof.
-  induction phiinstr.
-  
-  (* nil *)
-  simpl. intros; split. intros. 
-  elim H0. 
-  auto. 
-
-  (* a::phiiinstr *)
-  intros. split ; intros.
-  inv H0. simpl. rewrite H.
-  elim record_assigned_reg_phi_inlist2_stronger with 
-    r pc phiinstr (pc::nil) (PTree.set r (pc::nil) m)  ; eauto.
-  intros IH1 IH2.
-  destruct (classic (exists x, In (Iphi x r) phiinstr)).
-  destruct H0 as [x' H0].
-  elim IH1 with (1:=H0); intros l' H'.
-  eauto.
-  rewrite IH2.
-  exists nil; auto.
-  intros. intro. elim H0; eauto.
-  rewrite PTree.gss; auto.
-
-  destruct a as [x' r'].
-  destruct (peq r' r); subst.
-  simpl.
-  rewrite H.
-  elim record_assigned_reg_phi_inlist2_stronger with 
-    r pc phiinstr (pc::nil) (PTree.set r (pc::nil) m)  ; eauto.
-  intros IH1 IH2.
-  destruct (classic (exists x, In (Iphi x r) phiinstr)).
-  destruct H0 as [x'' H0].
-  elim IH1 with (1:=H0); intros l' H'.
-  exists (l'++pc::nil). auto.
-  rewrite IH2.
-  exists nil; auto.
-  intros; elim H0; eauto.
-  rewrite PTree.gss; auto.
-  
-  simpl.
-  destruct m! r'.
-  elim IHphiinstr with (PTree.set r' (pc :: l) m); auto.
-  intros IH1 IH2.
-  elim IH1 with (1:=H1); intros l' H'.
-  exists (l'); auto. rewrite PTree.gso ; auto.
-  elim IHphiinstr with (PTree.set r' (pc :: nil) m); auto.
-  intros IH1 IH2.
-  elim IH1 with (1:=H1); intros l' H'.
-  exists (l'); auto. rewrite PTree.gso ; auto.
-
-  destruct a as [x' r'].
-  destruct (peq r' r); subst.
-  elim H0 with x'; auto.
-  simpl. destruct m! r'.
-  elim IHphiinstr with (PTree.set r' (pc::l) m).
-  intros IH1 IH2. simpl.
-  rewrite IH2; eauto.
-  rewrite PTree.gso; auto.
-
-  elim IHphiinstr with (PTree.set r' (pc::nil) m).
-  intros IH1 IH2. simpl.
-  rewrite IH2; eauto.
-  rewrite PTree.gso; auto.
-Qed.
-
-
-Inductive assigned_phi_spec_twice (phicode: phicode) (pc: node): reg -> Prop :=
+Variant assigned_phi_spec_twice (phicode: phicode) (pc: node): reg -> Prop :=
   APhi2: forall phi dst, 
     (phicode!pc) = Some phi ->
     (∃args : list reg, exists args', 
@@ -1327,232 +1173,14 @@ Proof.
   eauto. rewrite PTree.gso ; auto.
 Qed.
 
-Inductive assigned_phi_spec_once (phicode: phicode) (pc: node): reg -> Prop :=
+
+Variant assigned_phi_spec_once (phicode: phicode) (pc: node): reg -> Prop :=
   APhi1: forall phi dst, 
     (phicode!pc) = Some phi ->
     (∃args : list reg, In (Iphi args dst) phi /\ 
       forall args', In (Iphi args' dst) phi -> args' = args) ->
     (NoDup phi) ->
     assigned_phi_spec_once phicode pc dst.
-
-Lemma assigned_phi_spec_stronger : forall r l code t,
-  t !  r = Some l ->
-  (forall pc phi, code ! pc = Some phi -> NoDup phi) ->
-  (forall pc phi, code ! pc = Some phi -> NoDup phi) ->
-  (forall pc, (assigned_phi_spec_once code pc r) ->
-    exists l', 
-      exists l'', (PTree.fold record_assigned_reg_phi code t) !  r = Some (l'++pc::l''++l))
-  /\
-  (forall pc, (assigned_phi_spec_twice code pc r) ->
-    exists l', 
-      exists l'', 
-        exists l''', (PTree.fold record_assigned_reg_phi code t) !  r = Some (l'++pc::l''++pc::l'''++l))
-  /\
-  ((forall pc, ~ (assigned_phi_spec code pc r)) ->
-      (PTree.fold record_assigned_reg_phi code t) !  r = Some l).
-Proof.
-  intros r l.
-  intros code t Ha Hcode.
-  set (P := fun (code : phicode)  (t : PTree.t (list positive))  =>
-    (forall pc phi, code ! pc = Some phi -> NoDup phi) ->
-    (forall pc, assigned_phi_spec_once code pc r
-    → (∃l', ∃l'',
-       t !  r = Some (l'++pc :: l'' ++ l)))
-    /\
-    (forall pc, assigned_phi_spec_twice code pc r
-    → (∃l', ∃l'', exists l''',
-       t !  r = Some (l'++pc :: l'' ++ pc::l''' ++l)))
-    /\ ((forall pc, ~ assigned_phi_spec code pc r)
-      → t !  r = Some l)).
-  apply PTree_Properties.fold_rec with (P:= P); unfold P in *; clear P; intros.
-
-   (* extensionality *)
-  split ; intros.
-  elim H0. intros IH1 [IH2 IH3].
-  elim IH1 with pc. intros.  eauto. 
-  inv H2. rewrite <- (H pc) in H3 ; destruct H4. exists phi ; eauto. 
-  intros. rewrite (H pc0) in H3. eapply H1 ; eauto.
-  
-  split ; intros.
-  elim H0. intros IH1 [IH2 IH3].
-  elim IH2 with  pc. intros. 
-  eauto. 
-  inv H2. rewrite <- (H pc) in H3 ; destruct H4. exists phi ; eauto. 
-  intros.  eapply (H1 pc0) ; eauto. rewrite (H pc0) in H3; auto.
-  
-  elim H0. intros IH1 [IH2 IH3].  
-  rewrite IH3. auto. 
-  intros. intro. elim H2 with pc.
-  inv H3. rewrite (H pc) in H4. eauto. 
-  
-  intros. rewrite (H pc) in H3. eapply H1 ; eauto.
-
-  (* base case *)
-  split; intros; auto. 
-  inv H0. rewrite PTree.gempty in H1; congruence.
-  split ; intros.
-  inv H0. rewrite PTree.gempty in H1; congruence.
-  auto.
-
-   (* inductive case *)
-  
-  assert (HNodup: forall pc phi, m ! pc = Some phi -> NoDup phi).
-  intros.
-  destruct (peq k pc). inv e. congruence.
-  eapply (H2 pc) ; eauto. rewrite PTree.gso; auto.
-  assert (HH := H1 HNodup) ; eauto. clear H1.
-  destruct HH as [IH1 [IH2 IH3]].
-
-  intuition; intros.  
-   
-  (* assigned once set k v m *)
-  destruct (peq pc k) as [eq| neq] ; inv H1.
-  
-  (* eq *)
-  rewrite PTree.gss in H3.  inv H3. inv H4.
-  destruct (classic (exists pc, assigned_phi_spec m pc r)) as [EM1|EM2].
-  destruct EM1 as [pc EM1].
-
-  (* EM1 *)
-  generalize EM1 ; inv EM1 ; intros EM1.
-  destruct H4.
-  destruct (classic (exists args', In (Iphi args' r) phiinstr /\ x0 <> args')) as [EM11|EM12].
-
-      (* EM11 *)
-      destruct EM11 as [args' EM11].
-      elim IH2 with pc; auto. intros l' [l'' [l''' H']].
-      elim record_assigned_reg_phi_inlist2_stronger with r k phi (l' ++ pc :: l'' ++ pc::l'''++l) a; auto.
-      intros. elim H6 with x; auto. intros l'''' H''.
-      exists nil. exists (l''''++ l' ++ pc :: l''++pc::l'''). simpl. 
-      repeat (rewrite app_ass ; (repeat rewrite <- app_comm_cons)). eauto.
-      intuition ; auto. 
-      destruct EM11. exists phiinstr; eauto. 
-  
-      (* EM12 *)      
-      elim IH1 with pc; auto. intros l''' H''. 
-      destruct H''.
-      elim record_assigned_reg_phi_inlist2_stronger with r k phi (l'''++pc::x1++l) a; auto.
-      intros. elim H7 with x; auto. intros l'' H''.
-      exists nil; simpl; eauto. exists (l''++l'''++pc::x1).
-      repeat (rewrite app_ass ; (repeat rewrite <- app_comm_cons)). eauto.
-      intuition; auto.
-      exists phiinstr; eauto. exists x0 ; eauto. split ; auto.
-      intros. destruct (list_eq_dec peq args' x0); auto. 
-      elim EM12; auto.  exists args'. split ; auto.
-  
-  (* EM2 *)
-   elim record_assigned_reg_phi_inlist2_stronger  with r k phi l a.
-   intros.  elim H3 with x. intros.
-   exists nil. simpl. exists x0 ; auto. destruct H1 ; auto.
-   rewrite IH3. auto. 
-   intros. elim EM2. eauto. 
-
-   (* neq k pc *)
-   rewrite PTree.gso in H3 ; auto.
-   destruct H4. destruct H1.
-   elim IH1 with pc. intros. destruct H6.
-   elim record_assigned_reg_phi_inlist2_stronger  with r k v (x0++pc::x1++l) a ; auto.
-   intros.
-   destruct (classic (exists x, In (Iphi x r) v)) as [EM1 | EM2].
-   destruct EM1 as [args Hargs].
-   elim H7 with args; auto. intros.
-   exists (k::x2++x0).  exists x1.
-   repeat rewrite ass_app in H9.
-   repeat rewrite app_ass. rewrite app_comm_cons in H9. auto.
-   
-   rewrite H8. eauto. intros. intro. elim EM2 ; eauto.
-   exists phi ; eauto.
-
-   (* assigned twice set k v m *)
-   destruct (peq pc k) as [eq | neq] ; inv H1 .
-   
-   (* eq *)
-   rewrite PTree.gss in H3. inv H3.
-   destruct (classic (exists pc, assigned_phi_spec m pc r)) as [EM1|EM2].
-   destruct EM1 as [pc EM1].
-
-   (* EM1 *)
-   generalize EM1 ; inv EM1 ; intros EM1.
-   destruct H3.
-   
-       (* EM11 *)
-       destruct (classic (exists args', In (Iphi args' r) phiinstr /\ x <> args')) as [EM11|EM12].
-       destruct EM11 as [args' EM11].
-       
-       elim IH2 with pc; auto. intros l' [l'' [l''' H']].
-       elim record_assigned_reg_phi_inlist3_stronger with r k phi (l' ++ pc :: l'' ++ pc::l'''++l) a; auto.
-       intros. elim H6 ; auto. intros.  destruct H4. destruct H4.
-       elim H7 with x0. intros.
-       exists nil. simpl.  
-       exists x2. destruct H9.
-       exists (x3++ l' ++ pc :: l''++pc::l'''). simpl.
-       repeat (rewrite app_ass ; (repeat rewrite <- app_comm_cons)). eauto.
-
-       intuition. auto. exists x1 ; intuition ; eauto.
-       eapply Hcode ; eauto.       
-       exists phiinstr; eauto. exists args' ; exists x    ; intuition ; eauto.
-  
-      (* EM12 *)      
-       elim IH1 with pc; auto. intros l' [l'' H''].
-       elim record_assigned_reg_phi_inlist3_stronger with r k phi (l' ++ pc :: l'' ++ l) a; auto.
-       intros. elim H6 ; auto. intros.  destruct H4. destruct H4.
-       elim H7 with x0. intros.
-       exists nil. simpl.  
-       exists x2. destruct H9.
-       exists (x3++ l' ++ pc :: l''). simpl. 
-       repeat (rewrite app_ass ; (repeat rewrite <- app_comm_cons)). eauto.
-       intuition ; auto. intuition ; eauto. 
-       eapply Hcode ; eauto.
-       exists phiinstr; eauto. exists x ; intuition; eauto. 
-       destruct (list_eq_dec peq args' x); auto. elim EM12 ; eauto.
-  
-  (* EM2 *)
-   elim record_assigned_reg_phi_inlist3_stronger  with r k phi l a.
-   intros.  destruct H4. destruct H4. elim H3. intros. elim H5 with x. intros.
-   exists nil. simpl. eauto. intuition; eauto.  intuition; eauto. 
-   rewrite IH3. auto. 
-   intros. elim EM2. eauto. 
-   eapply Hcode ; eauto.
-
-   (* neq k pc *) 
-   rewrite PTree.gso in H3 ; auto.
-   destruct H4 as [x [x0 Hx]].
-
-   elim IH2 with pc. intros. destruct H1 as [l'' [l''' H''']].
-   elim record_assigned_reg_phi_inlist2_stronger  with r k v (x1++pc::l''++pc::l'''++l) a ; auto.
-   intros.
-   destruct (classic (exists x, In (Iphi x r) v)) as [EM1 | EM2].
-   destruct EM1 as [args Hargs].
-   elim H1 with args; auto. intros.
-   exists (k::x2++x1).  exists l''. exists l'''. 
-   repeat rewrite ass_app in H5.
-   repeat rewrite app_ass.  rewrite app_comm_cons in H5. auto.
-   
-   rewrite H4. eauto. intros. intro. elim EM2 ; eauto.
-   exists phi ; eauto.
-   
-   (* not assigned set k v m *)
-   destruct (classic (exists pc, assigned_phi_spec m pc r)) as [EM1|EM2].
-
-   (* EM1 *)
-   generalize EM1 ; inv EM1 ; intros EM1.
-   destruct H3.
-   
-   elim record_assigned_reg_phi_inlist2_stronger  with dst k v l a ; auto.
-   intros. rewrite H6; auto. 
-   intros. intro. elim (H1 k). exists v; eauto. rewrite PTree.gss ; auto.
-   rewrite IH3; auto.
-   intros. elim H1 with x. exists phiinstr ; eauto.
-   rewrite PTree.gso; auto. intro. inv H6. congruence.
-   
-   (* EM2 *)
-   elim record_assigned_reg_phi_inlist2_stronger  with r k v l a ; auto.
-   intros. rewrite H4; auto. 
-   intros. intro. elim (H1 k). exists v; eauto. rewrite PTree.gss ; auto.
-   rewrite IH3; auto.
-   intros. elim EM2. eauto. 
-Qed. 
- 
 
 Lemma assigned_phi_spec_none_stronger : forall r code t,
   t !  r = None ->
@@ -1866,91 +1494,6 @@ Proof.
    rewrite PTree.gso; auto.
 Qed.
 
-Lemma assigned_phi_spec_inlist3_stronger : forall r code t,
-  t !  r = None ->
-  (forall pc, (assigned_phi_spec code pc r) ->
-    exists l', 
-      exists l'', (PTree.fold record_assigned_reg_phi code t) !  r = Some (l'++pc::l''))
-  /\
-  ((forall pc, ~ (assigned_phi_spec code pc r)) ->
-      (PTree.fold record_assigned_reg_phi code t) !  r = None).
-Proof.
-  intros r code t Ha.
-  set (P := fun (code : phicode)  (t : PTree.t (list positive))  =>
-    (forall pc, assigned_phi_spec code pc r
-    → (∃l', ∃l'',
-       t !  r = Some (l'++pc :: l'')))
-   ∧ ((forall pc, ~ assigned_phi_spec code pc r)
-      → t !  r = None)).
-  apply PTree_Properties.fold_rec with (P:= P); unfold P in *; clear P; intros.
-
-   (* extensionality *)
-   destruct H0; split; intros.
-   apply H0; eauto.
-   inv H2; rewrite <- (H pc) in H3 ; eauto.
-   apply H1; eauto.
-   intros pc T; elim H2 with pc; inv T; rewrite (H pc) in H3 ; eauto.
-      
-   (* base case *)
-   split; intros; auto.
-   inv H; rewrite PTree.gempty in H0; congruence.
-
-   (* inductive case *)
-   split; intros; destruct H1.
-
-   destruct (peq pc k) ; inv H2.
-   rewrite PTree.gss in H4.  inv H4. inv H5.
-   destruct (classic (exists pc, assigned_phi_spec m pc r)) as [EM1|EM2].
-
-   destruct EM1 as [pc EM1].
-   elim H1 with pc; auto; intros l' [l'' H'].
-   elim record_assigned_reg_phi_inlist2_stronger with r k phiinstr (l' ++ pc :: l'') a; auto.
-   intros.
-   elim H4 with x; auto; intros l''' H''.
-   exists nil. simpl.
-   exists (l'''++ l' ++ pc :: l'').
-   auto. 
-   elim record_assigned_reg_phi_inlist4_stronger with r k phiinstr a; eauto.
-   intros.
-   elim H4 with x; auto; intros l'' H''.
-   exists nil; simpl; eauto.
-   rewrite PTree.gso in * ; auto.
-   destruct H5 as [x H5].
-   destruct (classic (exists pc, assigned_phi_spec m pc r)) as [EM1|EM2].
-   destruct EM1 as [pc' EM1].
-   elim H1 with pc; auto.
-   intros l' [l'' H'].
-   elim record_assigned_reg_phi_inlist2_stronger with r k v (l' ++ pc :: l'') a; auto.
-   intros.
-   destruct (classic (exists x, In (Iphi x r) v)) as [EMM1|EMM2].
-   destruct EMM1 as [x' EMM1].
-   elim H2 with x'; auto; intros l''' H''.
-   exists ((k :: l''') ++ l').
-   exists l''.
-   rewrite app_ass; auto.
-   rewrite H6; eauto.
-   exists phiinstr; eauto.
-   
-   clear H1.
-   elim EM2; exists pc; exists phiinstr; eauto.
-
-   elim record_assigned_reg_phi_inlist4_stronger with r k v a; auto.
-   intros _ H5.
-   rewrite H5; auto.
-   red; intros.
-   elim H2 with k.
-   exists v.
-   rewrite PTree.gss; auto.
-   eauto.
-   apply H3.
-   intros.
-   intro.
-   elim H2 with pc; clear H2.   
-   destruct (peq k pc); inv H4.
-   congruence.
-   exists phiinstr; eauto.
-   rewrite PTree.gso; auto.
-Qed.
 
 Lemma ex_nodup {A: Type} :
   (forall x y:A, {x = y}+{x <> y}) ->
@@ -2402,42 +1945,7 @@ Proof.
   intros. split. eapply check_unique_def_correct42; eauto.
   intros. eapply check_unique_def_correct41 ; eauto. intros. eapply check_unique_def_correct42 with tf pc0 ; auto.
 Qed.  
-    
-Lemma phiblock_unique_dst: forall args dst a block
-  (SPEC: NoDup (a::block)
-    /\ (forall (r : reg) (args args' : list reg),
-         (In (Iphi args r) (a::block) → In (Iphi args' r) (a::block))
-         → args = args'))
-  (IN: In (Iphi args dst) (a::block)),
-  (a = (Iphi args dst) /\ forall argss, (In (Iphi argss dst) block) -> argss = args)
-    \/ (In (Iphi args dst) block).
-Proof.
-  intros; destruct SPEC as [_ Hphi].
-  inversion IN.
-  left; intuition; exploit (Hphi dst args argss); eauto.
-  right; auto.
-Qed.
-  
-Lemma unique_def_spec_correct: forall tf pc dst block args
-  (UDEF: unique_def_spec tf)
-  (BLOCK: (fn_phicode tf)! pc = Some ((Iphi args dst)::block)),
-  (forall args' dst', 
-    In (Iphi args' dst') ((Iphi args dst)::block) ->
-    In (Iphi args' dst') block
-    -> dst' <> dst).
-Proof.
-  intros.
-  intro. rewrite H1 in *.
-  destruct UDEF as [_ UDEF].
-  exploit UDEF; eauto. 
-  intros. 
-  destruct H2 as [Hnodup Hargs'].
-  case (list_eq_dec peq args' args); intro.
-  inv e. 
-  inv Hnodup.  elim H3; auto. 
-  elim n. exploit (Hargs' dst args args'); eauto.
-Qed.
-  
+        
 Lemma phi_store_copy: forall k block rs dst arg args
   (NODUP: NoDup block)
   (NODUP': (forall r args args', 
@@ -2493,31 +2001,6 @@ Proof.
   destruct (fn_ssa f) as [_ Hssa]; eauto.
   exploit Hssa ; eauto. intuition.
   exploit H8 ; eauto.
-Qed.  
-
-Lemma unique_def_elim2: forall f pc pc' x, 
-  unique_def_spec f ->
-  assigned_code_spec (fn_code f) pc x ->
-  assigned_code_spec (fn_code f) pc' x -> 
-  pc = pc'.
-Proof.
-  intros.
-  inv H.  
-  generalize (H2 x pc pc') ; intros Hcont.  
-  intuition.
-Qed.
-
-Lemma unique_def_elim3: forall f pc pc' x, 
-  unique_def_spec f ->
-  assigned_phi_spec (fn_phicode f) pc x ->
-  assigned_phi_spec (fn_phicode f) pc' x -> 
-  pc <> pc' ->
-  False.
-Proof.
-  intros.
-  inv H.  
-  generalize (H3 x pc pc') ; intros Hcont.  
-  intuition.
 Qed.
 
 Lemma phi_store_notin_preserved_map: forall k block rs  args,

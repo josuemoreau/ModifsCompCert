@@ -17,6 +17,8 @@ Require Import SSA.
 Require Import SSAutils.
 Require Import Bijection.
 
+Unset Allow StrictProp.
+
 Local Open Scope string_scope.
 
 (** * Monad state for the transformation *)
@@ -26,8 +28,7 @@ Record state : Type := mkstate {
   st_parcopycode: CSSApar.parcopycode     (** parcopycode being constructed *)
 }.
 
-(* For now, state increases always… *)
-Inductive state_incr: state -> state -> Prop :=
+Variant state_incr: state -> state -> Prop :=
   state_incr_intro:
     forall (s1 s2: state),
     (Ple (next_fresh_reg s1) (next_fresh_reg s2)) ->
@@ -51,7 +52,7 @@ Proof.
 Qed.
 
 (** ** Monadic machinery *)
-Inductive res (A: Type) (s: state): Type :=
+Variant res (A: Type) (s: state): Type :=
   | Error: Errors.errmsg -> res A s
   | OK: A -> forall (s': state), state_incr s s' -> res A s.
 
@@ -83,28 +84,13 @@ Definition bind (A B: Type) (f: mon A) (g: A -> mon B) : mon B :=
 
 Arguments bind [A B].
 
-Definition bind2 (A B C: Type) (f: mon (A * B)) (g: A -> B -> mon C) : mon C :=
-  bind f (fun xy => g (fst xy) (snd xy)).
-
-Arguments bind2 [A B C].
-
 Notation "'do' X <- A ; B" := (bind A (fun X => B))
    (at level 200, X ident, A at level 100, B at level 200).
-Notation "'do' ( X , Y ) <- A ; B" := (bind2 A (fun X Y => B))
-   (at level 200, X ident, Y ident, A at level 100, B at level 200).
 
 Fixpoint mfold_unit {A: Type} (f: A -> mon unit) (l: list A) : mon unit :=
   match l with
     | nil => ret tt
     | hd :: tl => (do rhd <- f hd ; mfold_unit f tl)
-  end.
-
-Fixpoint mfold {A B: Type} (f: A -> B -> mon B) (l: list A) (b: B) : mon B :=
-  match l with
-    | nil => ret b
-    | hd :: tl =>
-      do rhd <- f hd b;
-      mfold f tl rhd
   end.
 
 (** * The transformation *)

@@ -26,8 +26,8 @@ Require Import OptInv.
 Require Import SCCPopt.
 Require Import SCCPoptProp.
 Require Import Registers.
-
 Require Import Linking.
+Unset Allow StrictProp.
 
 (** Correctness proof of the SCCP optimization *)
 
@@ -143,18 +143,6 @@ Section PRESERVATION.
         end.
     Qed.
 
-    Lemma fn_params_translated : forall (f:function), 
-        fn_params f = fn_params (transf_function f).
-    Proof.
-      intros ; unfold transf_function ; simpl; auto.
-    Qed.
-
-    Lemma fn_entrypoint_translated : forall (f:function),
-        fn_entrypoint f = fn_entrypoint (transf_function f).
-    Proof.
-      intros ; unfold transf_function ; simpl; auto.
-    Qed.
-
     Lemma senv_equiv : Senv.equiv ge tge.
     Proof.
       apply (Genv.senv_transf TRANSL).
@@ -174,7 +162,7 @@ Section PRESERVATION.
             ((Stackframe res f sp pc rs) :: s)
             ((Stackframe res (transf_function f) sp pc rs) :: st).
 
-    Inductive match_states: SSA.state -> SSA.state -> Prop :=
+    Variant match_states: SSA.state -> SSA.state -> Prop :=
     | match_states_intro:
         forall s st sp pc rs m f b
                (SP: sp = (Vptr b Ptrofs.zero))
@@ -193,10 +181,9 @@ Section PRESERVATION.
                (SINV:s_inv ge (Returnstate s v m))
                (STACK: match_stackframes s st),
           match_states (Returnstate s v m) (Returnstate st v m).
-
-    Hint Resolve sdom_dom_pred
-         fn_code_reached fn_entry_pred fn_phicode_inv
-         list_nth_z_in: core.
+    
+    Hint Resolve sdom_dom_pred fn_code_reached fn_entry_pred
+         fn_phicode_inv list_nth_z_in: core.
     Hint Constructors clos_refl_trans SSA.step: core.
     
     Lemma match_stackframes_sfg_inv : forall s st,
@@ -271,7 +258,7 @@ Section PRESERVATION.
       match goal with
       | f : function,
             id: (fn_code _)! ?pc = Some ?instr |- _ =>
-        case_eq (DS.fixpoint f handle_instr (initial f) f) ;
+        case_eq (DS.fixpoint f handle_instr (initial f)) ;
         intros lv es FIX;
         set (lv' := fun reg => PMap.get reg lv) in * ;
         try assert ((fn_code (transf_function f)) !pc = Some(transf_instr lv' pc instr))
@@ -318,10 +305,11 @@ Section PRESERVATION.
 
         assert ((fn_code (transf_function f)) !pc = Some(transf_instr lv' pc (Iop op args res pc'))).
         { unfold transf_function, transf_instr, Opt.transf_function.
-          simpl; rewrite PTree.gmap; try rewrite FIX.
+          simpl; rewrite PTree.gmap; try rewrite FIX. simpl.
           unfold option_map; unfold transf_instr ; destruct f ; simpl in *; flatten;
-            (replace (lv## args) with (map (fun r : reg => lv' r) args)
-              in Eq1 at 1 by (induction args; go)); try congruence.
+            (replace (lv## args) with (map lv' args)
+              in Eq1 at 1 by (induction args; go));
+            rewrite Eq1 in Eq2 at 1; congruence.
         }
         simpl transf_instr in *.
         flatten H2; try ( eapply exec_Iop; eauto; rewrite same_eval; auto).

@@ -22,54 +22,7 @@ Require Import Ordered.
 Require Import FSets.
 Require Import DLib.
 Require FSetAVL.
-
-(** * Decidable equalities over various types *)
-Lemma zeq : forall (x y:Z), {x = y} + {x <> y}.
-Proof. 
-  decide equality; decide equality.
-Qed.
-
-Lemma eq_memory_chunk:
-  forall (x y: memory_chunk), {x=y} + {x<>y}.
-Proof.
-  decide equality.
-Qed.
-
-Lemma eq_addressing:
-  forall (x y: addressing), {x=y} + {x<>y}.
-Proof.
-  eapply eq_addressing.
-Qed.  
-
-Lemma eq_comparison:
-  forall (x y: comparison), {x = y} + {x <> y}.
-Proof.
-  decide equality.
-Qed.
-
-Lemma eq_condition:
-  forall (x y: condition), {x=y} + {x<>y}.
-Proof.
-  apply eq_condition.
-Qed.
-
-Lemma eq_typ:
-  forall (x y:typ), {x=y} + {x<>y}.
-Proof.
-  decide equality. 
-Qed.
-
-Lemma eq_signature:
-  forall (x y: signature), {x=y} + {x<>y}.
-Proof.
-  apply signature_eq.
-Qed.
-
-Lemma eq_external_function:
-  forall (x y: external_function), {x = y} + {x <> y}.
-Proof.
-  apply external_function_eq. 
-Qed.
+Unset Allow StrictProp.
 
 (** * Utility lemmas about [get_index_acc] and [get_index] *)
 
@@ -88,7 +41,6 @@ Proof.
   elim H ; auto.
   auto. 
 Qed.
-
 
 Lemma get_index_acc_ge_acc: forall l e acc k, 
   get_index_acc l e acc = Some k ->
@@ -181,21 +133,6 @@ Proof.
   eapply get_index_acc_inv with (acc:= O); eauto.
 Qed.  
 
-Lemma get_index_progress: forall l p pc0 k, 
-  (p <> pc0) ->
-  get_index (p::l) pc0 = Some (Datatypes.S k) ->
-  get_index l pc0 = Some k.
-Proof.
-  induction l; intros.
-  unfold get_index in *.
-  simpl in *. rewrite peq_false in *; auto; congruence. 
-  unfold get_index in *; simpl in *.
-  rewrite peq_false in H0; auto. 
-  destruct (peq a pc0). inv e. congruence.
-  eapply get_index_acc_inv2 with (acc':= 1%nat); eauto.
-  replace (k+1)%nat with (Datatypes.S k); auto. omega.
-Qed.
-
 Lemma get_index_some : forall l pc k, 
   get_index l pc = Some k ->
   (k < length l)%nat.
@@ -282,17 +219,6 @@ Proof.
   exists (successors_instr instr) ; auto.
 Qed.
 
-Lemma succ_code_instr_succs : forall f pc pc' instr, 
-(fn_code f) ! pc = Some instr ->
-In pc' (successors_instr instr) ->
-exists succs, (successors f) ! pc = Some succs /\ In pc' succs .
-Proof.
-  intros.
-  unfold successors.
-  rewrite PTree.gmap1. rewrite H. simpl.
-  exists (successors_instr instr) ; auto.
-Qed.
-
 Lemma index_pred_instr_some : 
   forall instr pc' f pc  , 
     (fn_code f)!pc = Some instr -> 
@@ -328,17 +254,6 @@ Proof.
   intros. eapply nth_error_some_same_length ; eauto.
 Qed.
   
-Lemma fn_parablock: forall f, 
-  wf_ssa_function f -> 
-  forall pc block, 
-    (fn_phicode f) ! pc = Some block -> 
-    NoDup block /\ True. 
-Proof.
-  intros. exploit fn_ssa ; eauto.
-  intros. split ; auto.
-  eapply H1 ; eauto.
-Qed.
-
 Lemma  fn_phicode_code : forall f, 
   wf_ssa_function f ->
   forall pc block, 
@@ -388,21 +303,6 @@ Proof.
   unfold successors_list, make_preds. 
   rewrite Hpreds; auto.
 Qed.  
-
-Lemma def_at_entry_ext_params: forall f r,
-  wf_ssa_function f ->
-  def f r (fn_entrypoint f) -> ext_params f r.
-Proof.
-  intros.
-  destruct (fn_entry f) as [pc' Hentry]; eauto.
-  invh def; eauto.
-  invh assigned_code_spec; congruence; auto.
-  invh assigned_phi_spec.
-  assert ((fn_phicode f) ! (fn_entrypoint f) <> None) as Habs. 
-  congruence.
-  apply fn_phicode_inv in Habs; auto. 
-  destruct (fn_entrypoint_inv f); auto. contradiction.
-Qed.
   
 Lemma fn_code_inv2: forall f, 
   wf_ssa_function f -> 
@@ -439,19 +339,6 @@ Proof.
   congruence.
 Qed.  
 
-
-Lemma ssa_def_unique2 : forall  f,
-  wf_ssa_function f ->
-  forall  x pc1 pc2,
-  assigned_code_spec (fn_code f) pc1 x ->
-  assigned_phi_spec (fn_phicode f) pc2 x -> False.
-Proof.
-  intros.
-  inv H. inv fn_ssa. 
-  generalize (H x pc1 pc2).
-  intuition.
-Qed.
-
 Lemma not_jnp_not_assigned_phi_spec: forall f pc y,
   wf_ssa_function f ->
   ~ join_point pc f ->
@@ -462,18 +349,6 @@ Proof.
   inv Hcont.
   exploit fn_phicode_code ; eauto. intros. inv H3.
   exploit fn_phicode_inv1 ; eauto.
-Qed.
-
-Lemma param_spec : forall f,
-  wf_ssa_function f ->
-  forall pc pc' k x args phiinstr,
-  index_pred (make_predecessors (fn_code f) successors_instr) pc pc' = Some k ->
-  In (Iphi args x) phiinstr ->
-  (fn_phicode f) ! pc' = Some phiinstr ->
-  exists arg, nth_error args k = Some arg.
-Proof.
-  intros.
-  eapply (fn_phiargs f H); eauto. 
 Qed.
 
 Lemma ssa_def_dom_use : forall f,
@@ -627,16 +502,6 @@ Proof.
   destruct (T r pc pc'); intuition.
 Qed.
 
-Lemma assigned_phi_unique : forall f,
-  wf_ssa_function f -> forall r pc pc',
-    assigned_phi_spec (fn_phicode f) pc r ->
-    assigned_phi_spec (fn_phicode f) pc' r -> pc=pc'.
-Proof.
-  intros f WFF r pc pc' H1 H2.
-  destruct (fn_ssa _ WFF) as [T _].
-  destruct (T r pc pc'); intuition.
-Qed.
-
 Lemma assigned_phi_spec_join_point : forall f x pc,
   wf_ssa_function f -> 
   assigned_phi_spec (fn_phicode f) pc x ->
@@ -648,7 +513,6 @@ Proof.
   intros [ins Hi].
   eapply fn_phicode_inv1; eauto.
 Qed.
-
 
 Lemma wf_ssa_use_and_def_same_pc : forall f x pc,
   wf_ssa_function f ->
@@ -767,19 +631,6 @@ End WF_SSA_PROP.
 
 (** * Auxiliary semantics for phi-blocks *)
 
-(** This semantics is sequential, and it is equivalent to the parallel one 
-whenever the block is parallelizable *)
-Definition phi_store_aux k phib (rs:regset) :=
-  List.fold_left (fun rs phi  =>
-    match phi with
-      | (Iphi args dst) => 
-        match nth_error args k with 
-          | None =>  rs (* should not happen *)
-          | Some r => rs # dst <- (rs # r)
-        end
-    end
-  ) phib rs.
-
 (** Lemmas about the sequential semantics of phiblocks *)
 Lemma notin_cons_notin : forall dst block a,
   (forall args, ~ In (Iphi args dst) (a:: block)) ->
@@ -789,19 +640,6 @@ Proof.
   intro ; exploit (H args); eauto. 
 Qed.
 Hint Resolve notin_cons_notin: core.
-
-Lemma phi_store_notin_preserved_aux: forall k block r v dst rs,
-  (forall args, ~ In (Iphi args dst) block) ->
-  r <> dst ->
-  (phi_store k block (rs# r <- v))# dst = rs# dst.
-Proof.
-  induction block; intros; simpl.
-  (* *) eapply PMap.gso; eauto. 
-  (* *) destruct a; simpl. 
-        case_eq (nth_error l k); intros ; eauto. 
-        (**) rewrite PMap.gso ; eauto. 
-        intro Hcont. inv Hcont. eelim H  ; eauto.
-Qed.
     
 Lemma phi_store_notin_preserved: forall k  block rs dst,
   (forall args, ~ (In (Iphi args dst) block)) ->
@@ -814,40 +652,6 @@ Proof.
         (* case some *)
         rewrite PMap.gso ; eauto.
         intro Hinv; subst; exploit (H l); eauto. 
-Qed.
-
-Lemma phistore_compat: forall k block (rs1 rs2: regset), 
-  (forall r, rs1# r = rs2# r) ->
-  (forall r, (phi_store k block rs1)# r = (phi_store k block rs2)# r).
-Proof.
-  induction block; intros.
-  (* *) simpl; auto.
-  (* *) destruct a; simpl.
-        destruct (nth_error l k); eauto.  
-        (* case some *) 
-        rewrite H.  
-        case_eq (peq r r0); intros ; auto. 
-           (* case eq *)
-           rewrite PMap.gsspec. rewrite H0.
-           rewrite PMap.gsspec. rewrite H0. 
-           auto.           
-           repeat (rewrite PMap.gso; eauto).
-Qed.
-
-Lemma phi_store_copy_preserved: forall k  block rs dst arg , 
-  (forall args, not (In (Iphi args dst) block)) ->
-  (phi_store k block rs # dst <- (rs # arg)) # dst = rs # arg.
-Proof.
-  intros. 
-  case (peq arg dst); intros.
-  (* case eq *) 
-  inv e.
-  assert (Hrs: (forall r, (rs# dst <- (rs# dst))# r = rs# r)) by (eapply gsregset; eauto).
-  rewrite (phistore_compat _ _ (rs# dst<- (rs# dst)) rs); eauto.
-  rewrite phi_store_notin_preserved; eauto.
-  (* case diff *)
-  rewrite phi_store_notin_preserved; eauto.
-  eapply PMap.gss ; eauto.
 Qed.
 
 (** * How to compute the list of registers of a SSA function. *)
@@ -1338,15 +1142,6 @@ Qed.
                id': def _ r ?y
                |- _ => eq_pc x y ; try clear id'
             end
-      | x : node,
-        y : node  |- _ =>
-        match goal with 
-              id: def _ ?r x,
-              id': assigned_phi_spec_with_args _ y ?r _ |- _ => 
-              assert (x = y) 
-                by (repeat invh assigned_phi_spec_with_args;
-                    eapply ssa_def_unique; eauto); subst
-        end
       | pc1: node,
         pc2: node |- _ =>
             match goal with 
@@ -1361,12 +1156,6 @@ Qed.
                 id': assigned_phi_spec _ pc2 ?r |- _ =>
                 eq_pc pc1 pc2
             end
-      | id1: assigned_phi_spec_with_args _ ?pc1 ?r _,
-        id2: In (Iphi _ ?r) ?phib,
-        id3: _ ! ?pc2 = Some ?phib |- _  =>
-        assert (pc1 = pc2) 
-          by (inv id1;
-              eapply ssa_def_unique; eauto); subst
       | id : _ ! ?pc1 = Some (Iop _ _ ?r _),
         id' : _ ! ?pc2 = Some (Iop _ _ ?r _)
         |- _ => 
@@ -1384,47 +1173,12 @@ Qed.
           eq_pc pc1 pc2
       end.
 
-  Lemma wf_ssa_phidef_args : forall f pc x args args', 
-                               wf_ssa_function f -> 
-                               assigned_phi_spec_with_args (fn_phicode f) pc x args ->
-                               assigned_phi_spec_with_args (fn_phicode f) pc x args' ->
-                               args = args'.
-  Proof.
-    intros until args'.
-    intros WF ARGS ARGS'.
-    repeat invh assigned_phi_spec_with_args; allinv.
-    exploit fn_ssa; eauto. intros UNIQ. inv UNIQ.
-    exploit H3; eauto; intros; invh and; go.
-  Qed.
-
-(** ** The [is_edge] predicate *)
-Inductive is_edge (tf:SSA.function) : node -> node -> Prop:=
+  (** ** The [is_edge] predicate *)
+Variant is_edge (tf:SSA.function) : node -> node -> Prop:=
 | Edge: forall i j instr, 
   (fn_code tf)!i = Some instr ->
   In j (successors_instr instr) ->
   is_edge tf i j.
-
-Lemma is_edge_succs_not_nil: forall tf i j, 
-  is_edge tf i j ->
-  exists succtfi, (successors tf)!i = Some succtfi.
-Proof.
-  intros. inv H.
-  unfold successors. rewrite PTree.gmap1. rewrite H0. 
-  simpl; eauto.
-Qed.
-
-Lemma is_edge_insuccs: forall tf i j, 
-  is_edge tf i j -> 
-  (exists succtfi, (successors tf) ! i = Some succtfi /\ In j succtfi).
-Proof.
-  intros. 
-  destruct (is_edge_succs_not_nil _ _ _ H) as [succtfi Hsuccs].
-  exists succtfi ; intuition.
-  inv H.
-  unfold successors in *. 
-  rewrite PTree.gmap1 in Hsuccs. rewrite H0 in Hsuccs. 
-  inv Hsuccs; auto.
-Qed.
 
 Lemma is_edge_pred: forall tf i j,
   is_edge tf i j ->
@@ -1434,23 +1188,6 @@ Proof.
   eapply index_pred_instr_some ; eauto.
 Qed.
 
-Lemma mk_pred_some_in: forall tf i j ,
-  In j (successors tf)!!! i ->
-  exists instr, (fn_code tf)!i = Some instr /\ In j (successors_instr instr) .
-Proof.  
-  intros.
-  unfold successors_list, successors in *.
-  case_eq ((PTree.map1 successors_instr (fn_code tf)) ! i) ; intros. rewrite H0 in H at 1.
-  rewrite PTree.gmap1 in H0. 
-  generalize H0 ; intros Hopt.
-  eapply option_map_some in H0.
-  unfold option_map in Hopt. 
-  destruct H0 as [instr Hinstr].
-  rewrite Hinstr in Hopt. 
-  exists instr; intuition; inv Hopt ; auto.
-  rewrite H0 in H at 1. inv H.
-Qed.
-
 Lemma pred_is_edge_help: forall tf i j k,
   index_pred  (make_predecessors (fn_code tf) successors_instr) i j = Some k -> 
   (is_edge tf i j).
@@ -1458,8 +1195,7 @@ Proof.
   intros. 
   unfold index_pred in *. 
   case_eq ((make_predecessors (fn_code tf) successors_instr) !!! j); intros ; rewrite H0 in *.
-  - (* cas absurde j sans predecesseurs *) 
-    inv H.
+  - inv H.
   - exploit get_index_some_in ; eauto ; intros.
     rewrite <- H0 in *.
     exploit (make_predecessors_some (fn_code tf) successors_instr j); eauto.
@@ -1478,11 +1214,11 @@ Proof.
   exploit_dstr pred_is_edge_help; eauto.
 Qed.
 
-Inductive ssa_def : Type := 
+Variant ssa_def : Type := 
 | SDIop (pc:node)
 | SDPhi (pc:node) (idx:nat).
 
-Inductive ssa_eq : Type := 
+Variant ssa_eq : Type := 
 | EqIop (op:operation) (args:list reg) (dst:reg)
 | EqPhi (dst:reg) (args:list reg).
 

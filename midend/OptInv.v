@@ -28,6 +28,8 @@ Require Import Dsd.
 Require Import Opt.
 Require Import DLib.
 
+Unset Allow StrictProp.
+
 (** This file defines a generic program optimization.  In our SSA
  middle-end, we instantiate this to SCCP and GVN-CSE, but in general,
  it could also be instantiated to any intra-procedural, scalar
@@ -45,15 +47,6 @@ Ltac ssa_def :=
             id': def _ r ?y
             |- _ => eq_pc x y ; try clear id'
         end
-      | x : positive, 
-        y : positive |- _ =>
-        match goal with 
-              id: def _ ?r x,
-              id': assigned_phi_spec_with_args _ y ?r _ |- _ => 
-              assert (x = y) 
-                by (repeat invh assigned_phi_spec_with_args;
-                    eapply ssa_def_unique; eauto); subst
-        end
       | pc1: positive,
         pc2: positive |- _ =>
             match goal with 
@@ -68,12 +61,6 @@ Ltac ssa_def :=
                 id': assigned_phi_spec _ pc2 ?r |- _ =>
                 eq_pc pc1 pc2
             end
-      | id1: assigned_phi_spec_with_args _ ?pc1 ?r _,
-        id2: In (Iphi _ ?r) ?phib,
-        id3: _ ! ?pc2 = Some ?phib |- _  =>
-        assert (pc1 = pc2) 
-          by (inv id1;
-              eapply ssa_def_unique; eauto); subst
       | id : _ ! ?pc1 = Some (Iop _ _ ?r _),
         id' : _ ! ?pc2 = Some (Iop _ _ ?r _)
         |- _ => 
@@ -143,7 +130,7 @@ Section Opt_ANALYSIS.
                 G AA ge sp rs a v ->
                 G_list ge sp rs al vl ->
                 G_list ge sp rs (a :: al) (v :: vl).
-
+ 
  Definition A_r f := fst (A AA f).
  Definition A_e f := snd (A AA f).
                      
@@ -282,7 +269,7 @@ Section subject_reduction.
   Let ge := Genv.globalenv prog.
 
   Hypothesis WELL_FORMED : wf_ssa_program prog.
-  
+
   Inductive sfg_inv : list stackframe -> Prop :=
   | sf_inv_nil: sfg_inv nil
   | sf_inv_cons: 
@@ -294,7 +281,7 @@ Section subject_reduction.
       sfg_inv ((Stackframe res f sp pc rs) :: s).
   Hint Constructors sfg_inv: core.
   
-  Inductive sg_inv (ge: genv): state -> Prop :=
+  Variant sg_inv (ge: genv): state -> Prop :=
   | si_State:
       forall s sp b pc rs m f
         (SP: sp = (Vptr b Ptrofs.zero))
@@ -314,7 +301,7 @@ Section subject_reduction.
         (STACK: sfg_inv s),
         sg_inv ge (Returnstate s v m).
   Hint Constructors sg_inv: core.
-
+  
   Lemma s_inv_initial : forall s, initial_state prog s -> sg_inv ge s.
   Proof.
     intros. inv H.
@@ -499,29 +486,8 @@ Section subject_reduction.
     eapply subj_red; eauto. 
 Qed.
 
-Lemma ssa_inv1_aux : forall s s' t, 
-  sg_inv ge s ->
-  star step ge s t s' ->
-  sg_inv ge s'.
-Proof.
-  induction 2 ; intros. 
-  auto.
-  eapply IHstar ; eauto.
-  eapply subj_red ; eauto.
-Qed.
-
-Theorem ssa_inv1 : forall  s s' t, 
-  initial_state prog s -> 
-  star step ge s t s' -> 
-  sg_inv ge s'.
-Proof.
-  intros.
-  eapply ssa_inv1_aux ; eauto.  
-  eapply s_inv_initial ; eauto.
-Qed.
-
 (** * Final correctness lemma. To be used in correctness proof of optimization *)
-Lemma subj_red_gamma : forall (f f':function) t m m' rs rs' sp sp' pc pc' s s', 
+Theorem subj_red_gamma : forall (f f':function) t m m' rs rs' sp sp' pc pc' s s', 
     gamma f ge (Vptr sp Ptrofs.zero) pc rs ->
     exec AA f pc ->
     sfg_inv s ->

@@ -152,12 +152,6 @@ Section Checker.
   Definition op_eq (x y:operation) : bool :=
     if eq_operation x y then true else false.
 
-  Lemma op_eq_true : forall x y, 
-    op_eq x y = true -> x = y.
-  Proof.
-    unfold op_eq; intros; destruct eq_operation; congruence.
-  Qed.
-
   Lemma op_eq_true_iff : forall x y, 
     op_eq x y = true <-> x = y.
   Proof.

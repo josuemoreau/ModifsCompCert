@@ -22,10 +22,10 @@ Require Import Utils.
 Require Import Permutation. 
 Require Import Bijection.
 Require Import DLib.
+Unset Allow StrictProp.
 
 (** * Specification of RTLdpar *)
-
-Inductive is_jp (jp: node) (code: code) : Prop :=
+Variant is_jp (jp: node) (code: code) : Prop :=
  | ijp_intro: forall l, 
                 (make_predecessors code successors_instr) ! jp = Some l -> 
                 length l > 1 ->
@@ -51,7 +51,7 @@ Proof.
   simpl. rewrite H0. go.
 Qed.
 
-Inductive rtldpar_spec (tmp: reg) (code1: code) (pcode1: parcopycode) 
+Variant rtldpar_spec (tmp: reg) (code1: code) (pcode1: parcopycode) 
           (code2: RTL.code) (R: node -> node) (pc: node): Prop :=
 | dspec_noblock : forall succ,
   code1 ! pc = Some (Inop succ) ->
@@ -105,17 +105,17 @@ Definition map_pc (pnum: PTree.t node) (pc: node) : node :=
   | None => 1%positive (* impossible case, never exercised *)
   end.
 
-Inductive transl_function_spec: RTLpar.function -> RTL.function -> (node -> node) -> Prop :=
-| transl_function_spec_intro: forall f tf preds init max pl s incr 
-  (PREDS: preds = (make_predecessors (RTLpar.fn_code f) successors_instr))
-  (INITS: (init,max,pl) = init_state f)
-  (MFOLD: mfold_unit (copy_wwo_add (fresh_init f) 
-                                   preds (RTLpar.fn_code f) (RTLpar.fn_parcopycode f) max) 
-                     (sort_pp pl) init = OK tt s incr)
-  (DPARSPEC: forall pc ins, (RTLpar.fn_code f) ! pc = Some ins -> 
-                            rtldpar_spec (fresh_init f)
-                                         (RTLpar.fn_code f)
-                                         (RTLpar.fn_parcopycode f) 
-                                         (RTL.fn_code tf) 
-                                         (map_pc (st_renum s)) pc),
-  transl_function_spec f tf (map_pc (st_renum s)).
+Variant transl_function_spec: RTLpar.function -> RTL.function -> (node -> node) -> Prop :=
+| transl_function_spec_intro: forall f tf preds init max pl s incr,
+    forall 
+      (PREDS: preds = (make_predecessors (RTLpar.fn_code f) successors_instr))
+      (INITS: (init,max,pl) = init_state f)
+      (MFOLD: mfold_unit (copy_wwo_add (fresh_init f) preds (RTLpar.fn_code f) (RTLpar.fn_parcopycode f) max) (sort_pp pl) init = OK tt s incr)
+      (DPARSPEC: forall pc ins, (RTLpar.fn_code f) ! pc = Some ins -> 
+                                rtldpar_spec (fresh_init f)
+                                             (RTLpar.fn_code f)
+                                             (RTLpar.fn_parcopycode f) 
+                                             (RTL.fn_code tf) 
+                                             (map_pc (st_renum s)) pc),
+      transl_function_spec f tf (map_pc (st_renum s)).
+

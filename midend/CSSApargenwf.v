@@ -1,35 +1,21 @@
 
-Require Recdef.
-Require Import FSets.
 Require Import Coqlib.
-Require Import Ordered.
-Require Import Errors.
 Require Import Maps.
 Require Import AST.
-Require Import Integers.
-Require Import Values.
-Require Import Globalenvs.
-Require Import Op.
 Require Import Registers.
-Require Import Smallstep.
 Require Import CSSApar.
 Require Import SSA.
 Require Import SSAutils.
 Require Import CSSApargen.
-Require Import Kildall.
-Require Import Conventions.
 Require Import Utils.
-Require Import NArith.
-Require Import Events.
-Require Import Bijection.
-Require Import Permutation.
-Require Import Utilsvalidproof.
+Require Import Kildall.
 Require Import KildallComp.
 Require Import DLib.
 Require Import CSSApargenspec.
 Require Import CSSAutils.
 Require Import CSSApargenproof.
 Require Import Classical.
+Unset Allow StrictProp.
 
 Lemma handle_phi_block_spec_plt_arg_last :
   forall maxreg preds pc block fs_init fs_last
@@ -103,32 +89,31 @@ Qed.
     entre de phi-blocs.
 *)
 
-Inductive interval_freshness (phicode : phicode)
-    (pc : node) (r1 r2 : positive) : Prop :=
+Variant interval_freshness (phicode : phicode) (pc : node) (r1 r2 : positive) : Prop :=
 | interval_freshness_intros:
     forall phib,
-    phicode ! pc = Some phib ->
-    Ple r1 r2 ->
-    (forall args dst arg,
-      In (Iphi args dst) phib ->
-      In arg (dst :: args) ->
-      Ple r1 arg /\ Ple arg r2) ->
-    interval_freshness phicode pc r1 r2.
+      phicode ! pc = Some phib ->
+      Ple r1 r2 ->
+      (forall args dst arg,
+          In (Iphi args dst) phib ->
+          In arg (dst :: args) ->
+          Ple r1 arg /\ Ple arg r2) ->
+      interval_freshness phicode pc r1 r2.
 
-Inductive disjoint_phis (phicode : phicode)
-    (pc pc' : node) : Prop :=
+Variant disjoint_phis (phicode : phicode)
+        (pc pc' : node) : Prop :=
 | disjoint_phis_intros:
     forall phib phib',
-    phicode ! pc = Some phib ->
-    phicode ! pc' = Some phib' ->
-    (forall args args' dst dst' arg arg',
-      In (Iphi args dst) phib ->
-      In arg (dst :: args) ->
-      In (Iphi args' dst') phib' ->
-      In arg' (dst' :: args') ->
-      arg <> arg') ->
-    disjoint_phis phicode pc pc'.
-
+      phicode ! pc = Some phib ->
+      phicode ! pc' = Some phib' ->
+      (forall args args' dst dst' arg arg',
+          In (Iphi args dst) phib ->
+          In arg (dst :: args) ->
+          In (Iphi args' dst') phib' ->
+          In arg' (dst' :: args') ->
+          arg <> arg') ->
+      disjoint_phis phicode pc pc'.
+  
 Lemma disjoint_interval_disjoint :
     forall r1 r2 r3 r4 pc pc' phicode,
     Plt r2 r3 ->
@@ -1776,25 +1761,26 @@ Proof.
   apply max_reg_correct_phicode.
 Qed.
 
-Lemma really_parcb'_really_phib':
-  forall maxreg k phib parcb phib' parcb',
-  equiv_phib maxreg k phib parcb phib' parcb' ->
-  forall src dst,
-  In (Iparcopy src dst) parcb' ->
-  exists args,
-  In (Iphi args src) phib'.
-Proof.
-  intros until parcb'.
-  intro H.
-  induction H; intros.
-  inv H.
-  inv H15. 
-  + exists args'.
-    go.
-  + exploit IHequiv_phib; eauto. intros Hargs.
-    destruct Hargs as [args0 Hin].
-    exists args0. go.
-Qed.
+(* XXX *)
+(* Lemma really_parcb'_really_phib': *)
+(*   forall maxreg k phib parcb phib' parcb', *)
+(*   equiv_phib maxreg k phib parcb phib' parcb' -> *)
+(*   forall src dst, *)
+(*   In (Iparcopy src dst) parcb' -> *)
+(*   exists args, *)
+(*   In (Iphi args src) phib'. *)
+(* Proof. *)
+(*   intros until parcb'. *)
+(*   intro H. *)
+(*   induction H; intros. *)
+(*   inv H. *)
+(*   inv H15.  *)
+(*   + exists args'. *)
+(*     go. *)
+(*   + exploit IHequiv_phib; eauto. intros Hargs. *)
+(*     destruct Hargs as [args0 Hin]. *)
+(*     exists args0. go. *)
+(* Qed. *)
 
 Lemma really_parcb_really_phib':
   forall maxreg k phib parcb phib' parcb',
@@ -3044,38 +3030,6 @@ Proof.
 Qed.
 Hint Resolve Hparcb'Some: core.
 
-Lemma Hparcborparcb' : check_parcborparcb' tf = true.
-Proof.
-  unfold transl_function in * ; flatten Htrans ; boolInv; go.
-Qed.
-Hint Resolve Hparcborparcb': core.
-
-Lemma Hnodupsinphib : check_phicode_for_dups_in_phib tf = true.
-Proof.
-  unfold transl_function in * ; flatten Htrans ; boolInv; go.
-Qed.
-
-Lemma Hparcb_inop : forall pc : positive,
-                 (fn_parcopycode tf) ! pc <> None ->
-                 exists s : node, (CSSApar.fn_code tf) ! pc = Some (Inop s).
-Proof. 
- intros.
- unfold transl_function in * ; flatten Htrans ; boolInv.
- simpl in *.
- case_eq ((st_parcopycode s') ! pc); intros ; subst; try congruence.
- exploit check_fn_parcb_inop_correct; eauto ; go.
-Qed. 
- 
-Lemma Hparcbjp : forall (pc : positive) (pc' : node) (parcb : parcopyblock),
-                 (fn_parcopycode tf) ! pc = Some parcb ->
-                 (CSSApar.fn_code tf) ! pc = Some (Inop pc') ->
-                 ~ CSSApar.join_point pc' tf -> CSSApar.join_point pc tf.
-Proof.
-  intros.
-  eapply check_fn_parcbjp_correct; eauto ; go.
-  unfold transl_function in * ; flatten Htrans ; boolInv; eauto.
-Qed.
-
 Lemma p_fn_entry : exists s : node,
                  (CSSApar.fn_code tf) ! (CSSApar.fn_entrypoint tf) =
                  Some (Inop s).
@@ -3198,22 +3152,6 @@ Proof.
 go.
 Qed.
   
-Lemma p_parcbSome : forall (phib : phiblock) (pc : positive),
-                (CSSApar.fn_phicode tf) ! pc = Some phib ->
-                forall pred : positive,
-                In pred (CSSApar.get_preds tf) !!! pc ->
-                (fn_parcopycode tf) ! pred <> None.
-Proof.
-  eauto. 
-Qed.
-
-Lemma p_parcb'Some : forall (phib : phiblock) (pc : positive),
-                 (CSSApar.fn_phicode tf) ! pc = Some phib ->
-                 (fn_parcopycode tf) ! pc <> None.
-Proof.
-  eauto.
-Qed.
-
 Lemma p_fn_parcbjp : forall (pc : positive) (pc' : node) (parcb : parcopyblock),
                  (fn_parcopycode tf) ! pc = Some parcb ->
                  (CSSApar.fn_code tf) ! pc = Some (Inop pc') ->

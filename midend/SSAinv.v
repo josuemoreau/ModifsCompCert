@@ -23,23 +23,24 @@ Require Import Kildall.
 Require Import KildallComp.
 Require Import Relation_Operators.
 Require Import Events.
+Unset Allow StrictProp.
 
 (** * The [rhs] (right hand side) predicate, and equational invariant *)
-Inductive rhs (f:function) (x : reg) : instruction -> Prop := 
+Variant rhs (f:function) (x : reg) : instruction -> Prop := 
 | rhs_iop : forall op args pc succ
   (RHS: (fn_code f) ! pc  = Some (Iop op args x succ))
   (MIND: op_depends_on_memory op = false),
   rhs f x (Iop op args x succ).
 Hint Constructors rhs: core.
 
-Inductive eval : genv -> val -> regset -> instruction -> val -> Prop := 
+Variant eval : genv -> val -> regset -> instruction -> val -> Prop := 
 | eval_Iop : forall ge sp rs m op args res pc' v
   (EVAL: eval_operation ge sp op rs## args m = Some v)
   (MIND: op_depends_on_memory op = false),  
   eval ge sp rs (Iop op args res pc') v.
 Hint Constructors eval: core.
 
-Inductive models : function -> genv -> val -> regset -> reg -> instruction -> Prop := 
+Variant models : function -> genv -> val -> regset -> reg -> instruction -> Prop := 
 | models_state : forall f ge x x' i sp rs v, 
   rs # x = v ->
   rhs f x' i ->
@@ -49,7 +50,7 @@ Hint Constructors models: core.
 
 Notation "[ a , b , c , d ] |= x == i" := (models a b c d x i) (at level 1, b at next level).
 
-Inductive sf_inv (ge: genv) : stackframe -> Prop := 
+Variant sf_inv (ge: genv) : stackframe -> Prop := 
   | sf_inv_intro: forall res f sp pc rs
     (WFF: wf_ssa_function f)
     (SFINV: forall x d i, 
@@ -66,7 +67,7 @@ Inductive sfl_inv (ge: genv) : list stackframe -> Prop :=
                sfl_inv ge sl ->
                sfl_inv ge (s::sl).
 
-Inductive s_inv (ge: genv) : state -> Prop := 
+Variant s_inv (ge: genv) : state -> Prop := 
   | si_State : forall s f sp pc rs m
     (WFF: wf_ssa_function f)
     (SINV: forall x d i, 
@@ -88,8 +89,7 @@ Ltac ssa_f f :=
   match goal with 
     | [Hwf: wf_ssa_function f |- _] =>
       inv Hwf ;
-      solve [eelim (unique_def_elim1 f) ; eauto
-        | eelim (unique_def_elim3 f) ; eauto]
+      solve [eelim (unique_def_elim1 f) ; eauto]
   end.
 
 Ltac wf_ssa f := 
@@ -437,7 +437,7 @@ Definition reachable (prog:program) (s:state) :=
       initial_state prog s0 
       /\  star step (Genv.globalenv prog) s0 t s.
 
-Lemma equation_lemma : 
+Theorem equation_lemma : 
   forall d op args x succ f m rs sp pc s, 
       (fn_code f) ! d  = Some (Iop op args x succ) ->
       op_depends_on_memory op = false ->
@@ -457,7 +457,7 @@ Proof.
   eapply op_depends_on_memory_correct ; eauto.
 Qed.
 
-Lemma equation_corolary : 
+Theorem equation_corollary : 
   forall d op args x succ f m rs sp pc s, 
     wf_ssa_program prog ->
       (fn_code f) ! d  = Some (Iop op args x succ) ->

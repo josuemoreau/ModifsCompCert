@@ -18,7 +18,7 @@ Require Import Kildall.
 Require Import Utils.
 Require Import DLib.
 Local Open Scope string_scope.
-
+Unset Allow StrictProp.
 (** * State monad used in the transformation *)
 
 Record state: Type := mkstate {
@@ -27,21 +27,17 @@ Record state: Type := mkstate {
   st_code: code
 }.
 
-Inductive res (A: Type) (s: state): Type :=
+Variant res (A: Type) (s: state): Type :=
   | Error: Errors.errmsg -> res A s
   | OK: A -> state -> res A s.
- Arguments OK [A s].
- Arguments Error [A s].
+Arguments OK [A s].
+Arguments Error [A s].
 
 Definition mon (A: Type) : Type := forall (s: state), res A s.
 
 Definition ret (A: Type) (x: A) : mon A :=
   fun (s: state) => OK x s.
  Arguments ret [A].
-
-Definition error (A: Type) (msg: Errors.errmsg) : mon A := 
-  fun (s: state) => Error msg.
- Arguments error [A].
 
 Definition bind (A B: Type) (f: mon A) (g: A -> mon B) : mon B :=
   fun (s: state) =>

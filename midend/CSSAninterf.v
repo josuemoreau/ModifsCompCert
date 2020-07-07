@@ -17,33 +17,18 @@ Require Import CSSAutils.
 Require Import CSSApardef.
 Require Import Registers.
 
+Unset Allow StrictProp.
+
 (** Interference *)
 
-Inductive ninterfere_spec
-    (f : function) (r1 r2 : reg) : Prop :=
+Variant ninterfere_spec (f : function) (r1 r2 : reg) : Prop :=
 | ninterfere_spec_ssaval :
     cssaval_spec f (compute_cssaval_function f) ->
-    compute_cssaval_function f r1 =
-      compute_cssaval_function f r2 ->
+    compute_cssaval_function f r1 = compute_cssaval_function f r2 ->
     ninterfere_spec f r1 r2
 | ninterfere_spec_liverange :
     ninterlive_spec f r1 r2 ->
     ninterfere_spec f r1 r2.
-
-Definition ninterfere_list_spec
-    (f : function) (l : list reg ) :=
-  forall r r',
-  In r l ->
-  In r' l ->
-  ninterfere_spec f r r'.
-
-Lemma ninterlive_ninterfere_list :
-  forall f l,
-  ninterlive_list_spec f l ->
-  ninterfere_list_spec f l.
-Proof.
-  induction l; go.
-Qed.
 
 Lemma test_ninterlive_correct :
   forall f lv r1 r2 d1 d2 def

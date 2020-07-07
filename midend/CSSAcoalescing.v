@@ -26,6 +26,8 @@ Require Import Classical.
 Require Import CSSApardef.
 Require Import Registers.
 
+Unset Allow StrictProp.
+
 (*
   (pred)  u_k = a_k
           ...
@@ -212,9 +214,8 @@ Proof.
   destruct peq in Eqr'dst; destruct peq in Eqrdst; go.
 Qed.
 
-(** ** Transformation stuff *)
-Inductive transl_function_spec:
-  CSSApar.function -> RTLpar.function -> Prop :=
+(** ** Transformation spec *)
+Variant transl_function_spec: CSSApar.function -> RTLpar.function -> Prop :=
 | transl_function_spec_intro:
     forall f tf regrepr
     (RegRepr: compute_regrepr f = Errors.OK regrepr)
@@ -234,12 +235,12 @@ Inductive transl_function_spec:
         Some (parcb_cleanup (transl_parcb regrepr parcb))),
     transl_function_spec f tf.
 
-Inductive tr_function: CSSApar.function -> RTLpar.function -> Prop :=
+Variant tr_function: CSSApar.function -> RTLpar.function -> Prop :=
 | tr_function_intro:
     forall f regrepr (Regrepr: compute_regrepr f = Errors.OK regrepr),
-    tr_function
-      f
-      (RTLpar.mkfunction
+      tr_function
+        f
+        (RTLpar.mkfunction
         f.(fn_sig)
         (map regrepr f.(fn_params))
         f.(fn_stacksize)
@@ -294,8 +295,7 @@ Definition transl_fundef (f: CSSApar.fundef) : res RTLpar.fundef :=
    en ce point.
 *)
 
-Inductive lazydef
-    (f : function) (r : reg) (pc : node) : Prop :=
+Variant lazydef (f : function) (r : reg) (pc : node) : Prop :=
 | lazydef_phi:
     assigned_phi_spec (fn_phicode f) pc r ->
     lazydef f r pc
@@ -304,19 +304,16 @@ Inductive lazydef
     join_point pc f ->
     lazydef f r pc.
 
-Inductive match_regset (f : CSSApar.function) (pc : node) :
-    SSA.regset -> SSA.regset -> Prop :=
-| mrg_intro :
-    forall rs rs' regrepr
-      (RegRepr: compute_regrepr f = Errors.OK regrepr),
-    (forall r,
-      (cssalive_spec f r pc /\ ~ lazydef f r pc)
-      \/ lazydef f r pc ->
-      rs # r = rs' # (regrepr r)) ->
-    match_regset f pc rs rs'.
+Variant match_regset (f : CSSApar.function) (pc : node) :
+  SSA.regset -> SSA.regset -> Prop :=
+| mrg_intro : forall rs rs' regrepr,
+    forall (RegRepr: compute_regrepr f = Errors.OK regrepr),
+      (forall r,  (cssalive_spec f r pc /\ ~ lazydef f r pc)
+                  \/ lazydef f r pc ->
+                  rs # r = rs' # (regrepr r)) ->
+      match_regset f pc rs rs'.
 
-Inductive match_stackframes :
-    list CSSApar.stackframe -> list RTLpar.stackframe -> Prop :=
+Inductive match_stackframes : list CSSApar.stackframe -> list RTLpar.stackframe -> Prop :=
 | match_stackframes_nil: match_stackframes nil nil
 | match_stackframes_cons:
     forall res f sp pc rs rs' s tf ts regrepr
@@ -366,7 +363,7 @@ Section PRESERVATION.
     Hypothesis TRANSF_PROG: match_prog prog tprog.
     Hypothesis WF_PROG : wf_cssa_program prog.
 
-    Inductive match_states: CSSApar.state -> RTLpar.state -> Prop :=
+    Variant match_states: CSSApar.state -> RTLpar.state -> Prop :=
     | match_states_intro:
         forall s ts sp pc rs rs' m f tf
                (REACH: reachable prog (State s f sp pc rs m))
@@ -393,9 +390,7 @@ Section PRESERVATION.
           match_states
             (Returnstate s v m)
             (RTLpar.Returnstate ts v m).
-
-Hint Constructors match_states: core.
-
+    Hint Constructors match_states: core.
 
 (* NOTE: important *)
 Lemma parcb_transl_other :
@@ -442,8 +437,7 @@ Lemma parcb_transl_store_in :
   compute_regrepr f = Errors.OK regrepr ->
   (parcopy_store 
     (parcb_cleanup (transl_parcb regrepr parcb)) rs')
-    # (regrepr r)
-    = rs' # (regrepr src).
+    # (regrepr r) = rs' # (regrepr src).
 Proof.
   induction parcb;
   intros f rs' r src regrepr Hin HNoDup Hprops Hregrepr;
@@ -581,36 +575,6 @@ Proof.
     induction WF.
     assert (~ assigned_parcopy_spec (fn_parcopycode f) pc src).
     go. congruence.
-Qed.
-
-Lemma parcb_src_live :
-  forall f pc pc' phib parcb src r,
-  wf_cssa_function f ->
-  (fn_phicode f) ! pc' = Some phib ->
-  (fn_code f) ! pc = Some (Inop pc') ->
-  (fn_parcopycode f) ! pc = Some parcb ->
-  In (Iparcopy src r) parcb ->
-  cssalive_spec f src pc.
-Proof.
-    constructor; go.
-    unfold not; intros Hdef.
-    inv Hdef.
-    + assert((fn_parcopycode f) ! (fn_entrypoint f) = None).
-      eapply fn_no_parcb_at_entry; eauto. 
-      congruence.
-    + inv H4; go. 
-    + inv H4; go.
-      assert(In pc ((get_preds f) !!! pc' )).
-      apply make_predecessors_correct_1
-        with (instr := Inop pc'); go.
-      assert((fn_phicode f) ! pc = None).
-      apply fn_normalized_jp with (pc := pc')
-        (preds := (get_preds f) !!! pc'); go.
-      unfold successors_list in *. flatten.
-      inv H4. go.
-    + contradict H4.
-      apply fn_strict_use_parcb; auto.
-      go.
 Qed.
 
 Ltac eqregreprs regrepr0 regrepr :=
@@ -1415,50 +1379,6 @@ Lemma live_implies_use :
 Proof.
   intros f pc r WF Hlive.
   induction Hlive; go.
-Qed.
-
-Lemma cssalive_path :
-  forall f r pc,
-  wf_cssa_function f ->
-  pc <> entry f ->
-  cssalive_spec f r pc ->
-  Dom.reached (cfg f) (entry f) pc ->
-  exists pc' l,
-  (CSSApath f (PState pc) l (PState pc')) /\
-  (forall pc'', In pc'' l -> ~ use f r pc'' /\ ~ def f r pc'') /\
-  use f r pc' /\ ~ def f r pc'.
-Proof.
-   intros f r pc WF Hnotentry Hlive.
-   induction Hlive; intros Hreach.
-   + exists pc. exists nil.
-     split; auto. constructor; auto.
-   + assert(Huse: use f r pc \/ ~ use f r pc).
-     apply classic. (* NOTE: tiers exclu *)
-     destruct Huse as [Huse | Hnotuse].
-     - exists pc. exists nil.
-       split; auto.
-       econstructor; eauto.
-     - exploit IHHlive; eauto.
-       {
-         (* pc' not entry point *)
-         unfold not; intros Hpc'entry.
-         unfold entry in *.
-         rewrite Hpc'entry in *.
-         induction WF.
-         exploit fn_entry_pred; eauto.
-       }
-       econstructor 3; eauto.
-       intros Hlivepath.
-       destruct Hlivepath as [pc'0 [l Hpath]].
-       destruct Hpath as [Hpath [Hnotusedef Husedef]].
-       exists pc'0. exists (pc :: l).
-       split; auto.
-       econstructor; eauto. econstructor; eauto.
-       split; auto. intros.
-       case_eq (peq pc'' pc); intros.
-       rewrite e in *. auto.
-       invh In. auto. auto.
-  + unfold entry in Hnotentry. congruence.
 Qed.
 
 Lemma cssadom_dom :

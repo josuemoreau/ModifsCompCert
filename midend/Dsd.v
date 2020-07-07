@@ -25,18 +25,21 @@ Require FSetAVL.
 Hint Extern 4 (In _ (successors_instr _)) => simpl successors_instr: core.
 Hint Unfold entry: core.
 
+Unset Allow StrictProp.
+
 (** This file gather other definitions about dominance, related to the
  [dsd] predicate, where [dsd f x pc] holds whenever the definition
  point of register [x] strictly dominates node [pc] *)
 
 Inductive dsd (f:function) (x:reg) (n:node) : Prop :=
 | dsd_def_sdom : forall def_x,
-                   def f x def_x ->
-                   sdom f def_x n ->
-                   ~ assigned_phi_spec (fn_phicode f) n x ->
-                   dsd f x n
-| dsd_def_phi : assigned_phi_spec (fn_phicode f) n x ->
-                dsd f x n.
+    def f x def_x ->
+    sdom f def_x n ->
+    ~ assigned_phi_spec (fn_phicode f) n x ->
+    dsd f x n
+| dsd_def_phi :
+    assigned_phi_spec (fn_phicode f) n x ->
+    dsd f x n.
 
 Lemma ssa_dsd_entry : forall f,
   wf_ssa_function f ->

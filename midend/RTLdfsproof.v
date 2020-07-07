@@ -28,13 +28,12 @@ Require Import Utils.
 Require Import RTLdfs.
 Require Import Events.
 
+Unset Allow StrictProp.
+
 (** * Utility lemmas *)
 Section dfs.
 Variable entry:node.
 Variable code:code.
-
-Definition cardinal {A} (m:PTree.t A) :=
-  List.length (List.map (@fst _ _) (PTree.elements m)).
 
 Lemma not_seen_sons_aux0 : forall l0 l1 l2 seen_set seen_set',
   fold_left
@@ -583,24 +582,6 @@ Proof.
   eapply dfs_prop_aux ; eauto.
 Qed.
 
-Lemma transf_function_ppoints4 : forall f tf,
-  transf_function f = OK tf ->
-  (forall j, In j (fn_dfs tf) -> (fn_code f)!j = (RTLt.fn_code tf) ! j).
-Proof.
-  intros.
-  monadInv H.
-  eapply dfs_prop_aux ; eauto.
-Qed.
-
-Lemma transf_function_ppoints5 : forall f tf,
-  transf_function f = OK tf ->
-  (forall i j, In i (fn_dfs tf) -> cfg (fn_code f) i j -> In j (fn_dfs tf)).
-Proof.
-  intros.
-  monadInv H.
-  eapply dfs_prop_aux ; eauto.
-Qed.
-
 Lemma transf_function_ppoints6 : forall f tf,
   transf_function f = OK tf ->
   (forall i, In i (fn_dfs tf) -> (cfg (RTLt.fn_code tf))** (RTLt.fn_entrypoint tf) i).
@@ -730,15 +711,6 @@ Proof.
   rewrite Htf in H0. inv H0; auto.
 Qed.
 
-Lemma sig_function_translated:
-  forall f tf,
-  transf_function f = OK tf ->
-  RTLt.fn_sig tf = RTL.fn_sig f.
-Proof.
-  intros f tf. destruct f; simpl; intros.
-  monadInv H; auto.
-Qed. 
-
 Lemma spec_ros_r_find_function:
   forall rs f r,
   RTL.find_function ge (inl _ r) rs = Some f ->
@@ -779,8 +751,7 @@ Inductive match_stackframes : list stackframe -> list RTLt.stackframe -> Prop :=
     .
 Hint Constructors match_stackframes: core.
 
-
-Inductive match_states: state -> RTLt.state -> Prop :=
+Variant match_states: state -> RTLt.state -> Prop :=
   | match_states_intro:
       forall s ts sp pc rs m f tf
         (SPEC: transf_function f = OK tf)
@@ -842,7 +813,6 @@ Hint Resolve find_function_preserved_same: valagree.
 Hint Resolve symbols_preserved : valagree.
 Hint Resolve eval_addressing_preserved : valagree.
 Hint Resolve eval_operation_preserved : valagree.
-Hint Resolve sig_function_translated : valagree.
 Hint Resolve sig_fundef_translated : valagree.
 Hint Resolve senv_preserved : valagree.
 Hint Resolve stacksize_preserved: valagree.

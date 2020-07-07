@@ -1,29 +1,14 @@
-
-Require Recdef.
-Require Import FSets.
 Require Import Coqlib.
-Require Import Ordered.
-Require Import Errors.
 Require Import Maps.
 Require Import AST.
-Require Import Integers.
-Require Import Values.
-Require Import Globalenvs.
 Require Import Op.
 Require Import Registers.
-Require Import Smallstep.
 Require Import CSSApar.
 Require Import SSA.
 Require Import SSAutils.
 Require Import CSSApargen.
 Require Import Kildall.
-Require Import Conventions.
 Require Import Utils.
-Require Import NArith.
-Require Import Events.
-Require Import Bijection.
-Require Import Permutation.
-Require Import Utilsvalidproof.
 Require Import KildallComp.
 Require Import DLib.
 Require Import CSSApargenspec.
@@ -33,7 +18,8 @@ Require Import Classical.
 Require Import Coqlib.
 Require Import CSSApar.
 Require Import CSSAcoalescing. 
-Require Import CSSApargenwf. 
+Require Import CSSApargenwf.
+Unset Allow StrictProp.
 
 Section CSSAparDefProp.
 
@@ -68,7 +54,6 @@ Variable f : SSA.function.
 Hypothesis WF: wf_ssa_function f.
 
 Variable tf : CSSApar.function.
-
 Hypothesis TRANSL: transl_function f = Errors.OK tf.
 
 Lemma STRUCT1: check_parcborparcb' tf = true.
@@ -99,8 +84,7 @@ Proof.
   unfold init_state in *.
   inv Hphi.
   inv SPEC; simpl in *.
-  assert(Hinop: exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc0
-    = Some (Inop succ))
+  assert(Hinop: exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc0 = Some (Inop succ))
     by (eapply cssa_fn_inop_in_jp; go).
   simpl in Hinop.
   destruct Hinop as [succ0 Hinop].

@@ -13,9 +13,10 @@ Require Import KildallComp.
 Require Import Utils.
 Require Import Classical.
 
+Unset Allow StrictProp.
 
 (** * The [cfg] predicate *)
-Inductive cfg (code:code) (i j:RTL.node) : Prop :=
+Variant cfg (code:code) (i j:RTL.node) : Prop :=
   | CFG : forall ins
     (HCFG_ins: code!i = Some ins)
     (HCFG_in : In j (successors_instr ins)),
@@ -62,7 +63,8 @@ Ltac simpl_succs :=
   
 (** * Registers that are used in the code of a RTL function *)
 (** This has to be cleaned out. Cf RTL.use_instr *)
-  Inductive use_rtl_code (f: function) : Registers.reg -> node -> Prop := 
+
+  Variant use_rtl_code (f: function) : Registers.reg -> node -> Prop := 
   | UIop: forall pc arg op args dst s, 
     (RTLt.fn_code f) !pc = Some (RTL.Iop op args dst s)  -> In arg args -> use_rtl_code f arg pc
   | UIload: forall pc arg chk adr args dst s,
@@ -86,94 +88,33 @@ Ltac simpl_succs :=
   | UIret: forall pc arg,
     (RTLt.fn_code f) !pc = Some (RTL.Ireturn (Some arg)) -> use_rtl_code f arg pc.
   
-  Lemma rtl_cfg_succs : forall f pc pc', 
-    cfg (fn_code f)  pc pc' ->
-    In pc' (RTLt.successors_map f) !!! pc.
-  Proof.
-    intros. inv H.
-    unfold successors_list, RTLt.successors_map.
-    rewrite PTree.gmap1. unfold option_map. 
-    rewrite HCFG_ins ; auto.
-  Qed.
-
-  Lemma rtl_cfg_succs_instr : forall f pc ins pc', 
-    cfg (fn_code f)  pc pc' ->
-    (fn_code f) ! pc = Some ins ->
-    In pc' (RTLt.successors_instr ins).
-  Proof.
-    intros. inv H.
-    congruence. 
-  Qed.
-
-  Hint Resolve rtl_cfg_succs: core.
-  Hint Resolve rtl_cfg_succs_instr: core.
   Hint Constructors use_rtl_code: core.
   Hint Extern 4 (In _ (RTL.successors_instr _)) => simpl successors_instr: core.
   Hint Constructors cfg: core.
 
-(** * Lemmas about [successors] and [make_predecessors]  *)
-Lemma succ_code_incl : forall f1 f2,
-  (forall i ins, (RTLt.fn_code f1)!i = Some ins -> (RTLt.fn_code f2)!i = Some ins) ->
-  forall i, incl ((RTLt.successors_map f1)!!!i) ((RTLt.successors_map f2)!!!i).
-Proof.
-  intros.
-  unfold successors_list.
-  unfold RTLt.successors_map.
-  repeat rewrite PTree.gmap1.
-  case_eq ((RTLt.fn_code f1) !i); simpl; intros.
-  rewrite (H _ _ H0); simpl.
-  intro; auto.
-  intro; simpl; intuition.
-Qed.
-
-Lemma add_successors_correct_inv:
-  forall tolist from pred n s,
-  In n (add_successors pred from tolist)!!!s ->
-  In n pred!!!s \/ (n = from /\ In s tolist). 
-Proof.
-  induction tolist; simpl; intros.
-  tauto.
-  elim IHtolist with (1:=H); eauto.
-  unfold successors_list at 1. rewrite PTree.gsspec. destruct (peq s a).
-  subst a. simpl. destruct 1. auto with coqlib. 
-  auto.
-  fold (successors_list pred s). intuition congruence.
-  intuition congruence.
-Qed.
-
-Lemma make_predecessors_eq : forall (A: Type) (m1 m2 : PTree.t A) succs,
-  (forall i, (m1!i) = (m2!i)) -> 
-  make_predecessors m1 succs  = make_predecessors m2 succs.
-Proof.
-  unfold make_predecessors.
-  intros.
-  apply fold_eq; auto.
-Qed.
-
-Inductive join_point (jp : node) (f : function) : Prop :=
+  Variant join_point (jp : node) (f : function) : Prop :=
   |  jp_cons : forall l,
-                 forall (Hpreds : (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
-                        (Hl : (List.length l > 1)%nat),
-                   join_point jp f.
+      forall (Hpreds : (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
+             (Hl : (List.length l > 1)%nat),
+        join_point jp f.
 
+  Section UDEF.
 
-Section UDEF.
+    Variable f : function.
 
-Variable f : function.
+    Variant assigned_code_spec (code:code) (pc:node) : reg -> Prop :=
+    | AIop: forall op args dst succ,
+        code!pc = Some (Iop op args dst succ)  ->
+        assigned_code_spec code pc dst
+    | AIload: forall chunk addr args dst succ,
+        code!pc = Some (Iload chunk addr args dst succ) ->
+        assigned_code_spec code pc dst
+    | AIcall: forall sig fn args dst succ,
+        code!pc = Some (Icall sig fn args dst succ) ->
+        assigned_code_spec code pc dst
+    | AIbuiltin: forall fn args dst succ,
+        code!pc = Some (Ibuiltin fn args (BR dst) succ) ->
+        assigned_code_spec code pc dst.
+    Hint Constructors assigned_code_spec: core.
 
-Inductive assigned_code_spec (code:code) (pc:node) : reg -> Prop :=
-| AIop: forall op args dst succ,
-  code!pc = Some (Iop op args dst succ)  ->
-  assigned_code_spec code pc dst
-| AIload: forall chunk addr args dst succ,
-  code!pc = Some (Iload chunk addr args dst succ) ->
-  assigned_code_spec code pc dst
-| AIcall: forall sig fn args dst succ,
-  code!pc = Some (Icall sig fn args dst succ) ->
-  assigned_code_spec code pc dst
-| AIbuiltin: forall fn args dst succ,
-  code!pc = Some (Ibuiltin fn args (BR dst) succ) ->
-  assigned_code_spec code pc dst.
-Hint Constructors assigned_code_spec: core.
-
-End UDEF.
+  End UDEF.

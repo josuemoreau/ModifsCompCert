@@ -8,6 +8,8 @@ Require Import Relations.Relation_Definitions.
 Require Import DLib.
 Require Import Dom.
 
+Unset Allow StrictProp.
+
 (* Will be replaced during extraction by [let rec fuel = S fuel] *)
 Axiom fuel : nat.
 
@@ -111,13 +113,6 @@ Proof.
   intuition; eauto.
   - subst. right; go.
   - right; go.
-Qed.
-
-Lemma Dstar_trans_right: forall pc d,
-  Dstar (D pc) d -> Dstar pc d.
-Proof.
-  intros.
-  apply Dstar_trans with (D pc); go.
 Qed.
   
 Inductive path' : list node -> pstate -> Prop :=
@@ -260,6 +255,7 @@ Inductive InSubTree (r:node) : node -> Prop :=
   (IS: In s (sons r)),
   InSubTree r n.
 
+Unset Elimination Schemes.
 Inductive NoRepetTreeN (r:node) : nat -> Prop :=
 | NoRepetTreeN0: NoRepetTreeN r O
 | NoRepetTreeN_sons: forall k
@@ -270,6 +266,7 @@ Inductive NoRepetTreeN (r:node) : nat -> Prop :=
            In s2 (sons r) -> InSubTree s2 n -> s1=s2)
   (NTR4: list_norepet (sons r)),
   NoRepetTreeN r (S k).
+Set Elimination Schemes.
 
 Definition itv_Incl (i1 i2:itv) : Prop :=
   int_le i2.(pre) i1.(pre) /\ int_le i1.(post) i2.(post).
@@ -475,17 +472,6 @@ Proof.
       assert (HT:int_le (next st0) (pre it) /\ int_lt (post it) (next st2)).
       { inv Hn; eapply IHl; eauto. }          
       destruct HT; split; eauto. 
-Qed.
-
-Lemma build_itv_rec_prop3 : forall k n0 st st' it,
-  build_itv_rec n0 st k = Some st' ->
-  get n0 st'.(itvm) = Some it ->
-  it.(pre) = st.(next)  /\ int_succ it.(post) = Some st'.(next).
-Proof.
-  destruct k; simpl; intros; try congruence.
-  flatten H; simpl in *.
-  rewrite gsspec in H0; flatten H0.
-  split; auto.
 Qed.
 
 (* TODO : build a nice induction principle 
@@ -925,12 +911,14 @@ Proof.
       go.
 Qed.
 
+Unset Elimination Schemes.
 Inductive topo_sorted : list (node*node) -> Prop :=
  | topo_sorted_nil: topo_sorted nil
  | topo_sorted_cons: forall n d l
    (TS1: topo_sorted l)
    (TS2: forall d', ~ In (d,d') l),
    topo_sorted ((n,d)::l).
+Set Elimination Schemes.
 
 Lemma build_succs_list_none : forall l,
   fold_left
@@ -1127,27 +1115,6 @@ Definition is_ancestor (itvm: tree itv) (n1 n2:node) : bool :=
 
 Definition tree_from_assoc (l:list (node*node)) : tree node :=
   fold_left (fun m nd => set (fst nd) (snd nd) m) l (empty _).
-
-Lemma tree_from_assoc_aux1 : forall l m (n d:node),
-  get n (fold_left (fun m nd => set (fst nd) (snd nd) m) l m) = Some d ->
-  In (n,d) l \/ get n m = Some d.
-Proof.
-  induction l; simpl; auto.
-  intros m n d Heq.
-  apply IHl in Heq.
-  destruct Heq; auto.
-  rewrite gsspec in H.
-  flatten H; auto.
-  destruct a; auto.
-Qed.
-
-Lemma tree_from_assoc_prop1 : forall l n d,
-  get n (tree_from_assoc l) = Some d -> In (n,d) l.
-Proof.
-  unfold tree_from_assoc; intros.
-  edestruct tree_from_assoc_aux1; eauto.
-  rewrite gempty in H0; congruence.
-Qed.
 
 Lemma tree_from_assoc_aux2 : forall l m (n d:node),
   get n m = Some d ->
