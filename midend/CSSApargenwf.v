@@ -1761,27 +1761,6 @@ Proof.
   apply max_reg_correct_phicode.
 Qed.
 
-(* XXX *)
-(* Lemma really_parcb'_really_phib': *)
-(*   forall maxreg k phib parcb phib' parcb', *)
-(*   equiv_phib maxreg k phib parcb phib' parcb' -> *)
-(*   forall src dst, *)
-(*   In (Iparcopy src dst) parcb' -> *)
-(*   exists args, *)
-(*   In (Iphi args src) phib'. *)
-(* Proof. *)
-(*   intros until parcb'. *)
-(*   intro H. *)
-(*   induction H; intros. *)
-(*   inv H. *)
-(*   inv H15.  *)
-(*   + exists args'. *)
-(*     go. *)
-(*   + exploit IHequiv_phib; eauto. intros Hargs. *)
-(*     destruct Hargs as [args0 Hin]. *)
-(*     exists args0. go. *)
-(* Qed. *)
-
 Lemma really_parcb_really_phib':
   forall maxreg k phib parcb phib' parcb',
   equiv_phib maxreg k phib parcb phib' parcb' ->
