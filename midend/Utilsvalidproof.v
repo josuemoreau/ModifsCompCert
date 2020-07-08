@@ -1,7 +1,5 @@
 (** This file contains utility lemmas for the correctness proof of the
-   type system.  The proof uses an auxiliary specification for the
-   type system.  The specification parts common to both type system
-   are defined in this file as well. *)
+   type system. *)
 
 Require Import Coq.Unicode.Utf8.
 Require Recdef.
@@ -66,10 +64,6 @@ Ltac elimAndb :=
   | _ =>
       idtac
   end.
-
-(** * Common part of both type systems *)
-Definition update (rindex: Registers.reg -> index) (r:Registers.reg) (i:index):Registers.reg -> index :=
-  fun reg: Registers.reg => if (peq reg r) then i else rindex reg. 
 
 (** ** The erasure function *)
 (** This explains the correspondance between an SSA form candidate and
@@ -355,161 +349,6 @@ Proof.
         intuition.
 Qed.
 
-(** ** Well-typed instructions *)
-Variant wt_eidx (size: nat) (g : Registers.reg -> index) : instruction -> Prop :=
-| wt_eidx_nop: forall s, wt_eidx size g (Inop s)
-| wt_eidx_istore: forall chk adr args src succ, wt_eidx size g (Istore chk adr args src succ)
-| wt_eidx_itailcall: forall sig fn args, wt_eidx size g (Itailcall sig fn args)
-| wt_eidx_icond: forall cond args ifso ifnot,  wt_eidx size g (Icond cond args ifso ifnot)
-| wt_eidx_ijumptable : forall arg tbl, wt_eidx size g (Ijumptable arg tbl)
-| wt_eidx_ireturn: forall optr, wt_eidx size g (Ireturn optr)
-| wt_eidx_iop : forall op args dst succ r i, 
-    Bij.rmap size dst = (r,i) ->
-    g r <> i ->  wt_eidx size g (Iop op args dst succ)    
-| wt_eidx_iload : forall chk adr args dst succ r i, 
-    Bij.rmap size dst = (r,i) ->  g r <> i ->
-    wt_eidx size g (Iload chk adr args dst succ)    
-| wt_eidx_icall : forall sig ros args dst succ r i, 
-    Bij.rmap size dst = (r,i) ->  g r <> i ->
-    wt_eidx size g (Icall sig ros args dst succ)    
-| wt_eidx_ibuiltin_res: forall ef args dst succ r i, 
-    Bij.rmap size dst = (r,i) ->  g r <> i ->
-    wt_eidx size g (Ibuiltin ef args (BR dst) succ)
-| wt_eidx_ibuiltin: forall ef args dst succ,
-    (forall x, dst <> BR x) ->
-    wt_eidx size g (Ibuiltin ef args dst succ)
-.
-
-
-Variant wt_ephi (size: nat) (g: Registers.reg -> index) : phiblock -> Prop := 
-| wt_ephi_intro : forall block, 
-    (forall ri r i, assigned ri block -> Bij.rmap size ri = (r,i) ->  g r <> i) ->
-    wt_ephi size g block.
-
-Notation "a [ x ← v ]" := (update a x v) (at level 1, v at next level).
-
-Notation use_ok :=
-  (fun (size: nat) (args: list reg) (γ: Registers.reg -> index) =>
-     (forall x, In x args -> forall r i, Bij.rmap size x = (r,i) -> γ r = i) : Prop).
-
-Notation valid_index_ok :=
-  (fun (size: nat) (args: list reg) =>
-     (forall x, In x args -> forall r i, Bij.rmap size x = (r,i) -> Bij.valid_index size i = true) : Prop).
-
-Notation valid_reg_ok :=
-  (fun (size: nat) (args: list reg) =>
-     (forall x, In x args -> Bij.valid_reg_ssa size x = true) : Prop).
-
-Variant wt_instr (size: nat): (Registers.reg -> index) -> instruction -> (Registers.reg -> index) -> Prop :=
-| wt_Inop: forall γ s,
-    wt_instr size γ (Inop s) γ
-             
-| wt_Icond: forall γ cond args s1 s2,
-    use_ok size args γ ->
-    valid_index_ok size args ->
-    valid_reg_ok size args ->
-    wt_instr size γ (Icond cond args s1 s2) γ
-             
-| wt_Ijumptable: forall γ arg tbl,
-    use_ok size (arg::nil) γ ->
-    valid_index_ok size (arg::nil) ->
-    valid_reg_ok size (arg::nil) ->
-    wt_instr size γ (Ijumptable arg tbl) γ
-             
-| wt_Ireturn_some: forall γ r,
-    use_ok size (r::nil) γ ->
-    valid_index_ok size (r::nil) ->
-    valid_reg_ok size (r::nil) ->
-    wt_instr size γ (Ireturn (Some r)) γ
-
-| wt_Ireturn_none: forall γ,
-    wt_instr size γ (Ireturn None) γ
-             
-| wt_Iop: forall γ op args s x r i,
-    use_ok size args γ  ->
-    Bij.rmap size x = (r,i) ->
-    valid_index_ok size (x::args) ->
-    valid_reg_ok size (x::args) ->    
-    wt_instr size γ (Iop op args x s) γ[r← i]
-                                 
-| wt_Iload: forall γ chunk addr args s x r i,
-    use_ok size args γ ->
-    Bij.rmap size x = (r,i) ->
-    valid_index_ok size (x::args) ->
-    valid_reg_ok size (x::args) ->
-    wt_instr size γ (Iload chunk addr args x s) γ[r←i]
-                                               
-| wt_Istore: forall γ chunk addr args s src,
-    use_ok size (src::args) γ ->
-    valid_index_ok size (src::args) ->
-    valid_reg_ok size (src::args) ->
-    wt_instr size γ (Istore chunk addr args src s) γ
-      
-| wt_Icall_id: forall γ sig args s id x r i,
-    use_ok size args γ ->
-    Bij.rmap size x = (r,i) ->
-    valid_index_ok size (x::args) ->
-    valid_reg_ok size (x::args) ->
-    wt_instr size γ (Icall sig (inr reg id) args x s) γ[r←i]
-      
-| wt_Icall_reg : forall γ sig args s x r i rfun,
-    use_ok size (rfun::args) γ ->
-    Bij.rmap size x = (r,i) ->
-    valid_index_ok size (x::rfun::args) ->
-    valid_reg_ok size (x::rfun::args) ->
-    wt_instr size γ (Icall sig (inl ident rfun) args x s) γ[r←i]
-      
-| wt_Itailcall_id: forall γ sig args id,
-    use_ok size args γ ->
-    valid_index_ok size args ->
-    valid_reg_ok size args ->
-    wt_instr size γ (Itailcall sig (inr reg id) args) γ
-      
-| wt_Itailcall_reg: forall γ sig  args rfun,
-    use_ok size (rfun::args) γ ->
-    valid_index_ok size (rfun::args) ->
-    valid_reg_ok size (rfun::args) ->
-    wt_instr size γ (Itailcall sig (inl ident rfun) args) γ
-      
-| wt_Ibuiltin_res: forall γ ef args s x r i,
-    use_ok size (params_of_builtin_args args) γ ->
-    Bij.rmap size x = (r, i) ->
-    valid_index_ok size (x::(params_of_builtin_args args)) ->
-    valid_reg_ok size (x::(params_of_builtin_args args)) ->
-    wt_instr size γ (Ibuiltin ef args (BR x) s) γ[r←i]
-
-| wt_Ibuiltin: forall γ ef args s dst,
-    (forall r, dst <> BR r) ->
-    use_ok size (params_of_builtin_args args) γ ->
-    valid_index_ok size (params_of_builtin_args args) ->
-    valid_reg_ok size (params_of_builtin_args args) ->
-    wt_instr size γ (Ibuiltin ef args dst s) γ
-.
-     
-Variant is_out_node (f: function) : node -> Prop:=
-| Out_tailcall: forall i sig fn args, 
-  (fn_code f)!i = Some (Itailcall sig fn args) ->
-  is_out_node f i
-| Out_return : forall i or,
-  (fn_code f)!i = Some (Ireturn or) ->
-  is_out_node f i
-| Out_jtable : forall i arg,
-  (fn_code f)!i = Some (Ijumptable arg nil) ->
-  is_out_node f i.
-
-Variant wt_out (size: nat) (f: function) : tgamma  -> node -> Prop :=
-  | wt_out_node: forall (Γ:tgamma) (i :node) instr, 
-    (fn_code f)!i = Some instr ->
-    (wt_instr size (Γ i) instr (Γ i)) ->
-    (wt_out size f Γ i).
-
-Variant wf_init (size: nat) (f: function) (Γ:tgamma): Prop :=
-| wf_init_gamma:  
-    (forall p, In p (fn_params f) ->
-               Bij.valid_reg_ssa size p = true
-               /\ exists r, Bij.rmap size p = (r,(Γ (fn_entrypoint f)) r)) ->
-  wf_init size f Γ.
-
 (** ** Additional structural invariants *)
 
 (** A phi-instruction is well formed when it has the right number of arguments, 
@@ -715,8 +554,6 @@ Proof.
   simpl. eapply IHphib ; eauto. 
 Qed.
 
-
-
 Lemma assigned_phi_spec_inlist2 : forall t code r pc,
   (assigned_phi_spec code pc r) ->
   exists l, ((PTree.fold record_assigned_reg_phi code t) ! r = Some l /\ In pc l).
@@ -754,7 +591,6 @@ Proof.
    exploit H1 ; eauto. intros. destruct H2 as [l [Hal Hinpc]].
    exploit record_assigned_reg_phi_preserve ; eauto. 
 Qed.
-
 
 Lemma record_assigned_reg_phi_inlist3_stronger : forall r pc phiinstr l m,
   m ! r = Some l ->
