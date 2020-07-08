@@ -46,7 +46,7 @@ let print_parcopies parcopycode (pc : P.t) pp =
   | None -> ()
   | Some parcb ->
       List.iter
-        (fun (CSSApar.Iparcopy (src,dst)) ->
+        (fun (CSSA.Iparcopy (src,dst)) ->
           fprintf pp "%a = %a (par)\n     " reg dst reg src)
         parcb
 
@@ -105,18 +105,18 @@ let print_instruction phi parcopycode pp (pc, pc_pos, i) =
 
 
 let print_function pp id f =
-  fprintf pp "%s(%a) {\n" (extern_atom id) regs f.CSSApar.fn_params;
+  fprintf pp "%s(%a) {\n" (extern_atom id) regs f.CSSA.fn_params;
   let instrs =
     List.sort
       (fun (pc1, _, _) (pc2, _, _) -> Stdlib.compare pc2 pc1)
       (List.rev_map
         (fun (pc, i) -> (P.to_int pc, pc, i))
-        (PTree.elements f.CSSApar.fn_code)) in
-  print_succ pp f.CSSApar.fn_entrypoint 
+        (PTree.elements f.CSSA.fn_code)) in
+  print_succ pp f.CSSA.fn_entrypoint 
     (match instrs with 
     |  (pc1, _, _) :: _ -> pc1 
     | [] -> -1);
-  List.iter (print_instruction f.CSSApar.fn_phicode f.CSSApar.fn_parcopycode pp) instrs;
+  List.iter (print_instruction f.CSSA.fn_phicode f.CSSA.fn_parcopycode pp) instrs;
   fprintf pp "}\n\n"
 
 let rec print_pp_list pp = function
@@ -150,7 +150,7 @@ let print_globdef pp (id, gd) =
   | Gfun(Internal f) -> print_function pp id f
   | _ -> ()
 
-let print_program pp (prog: CSSApar.program) =
+let print_program pp (prog: CSSA.program) =
   List.iter (print_globdef pp) prog.prog_defs
 
 let print_if optdest prog =

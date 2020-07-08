@@ -3,31 +3,30 @@ Require Import Maps.
 Require Import AST.
 Require Import Op.
 Require Import Registers.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import SSA.
 Require Import SSAutils.
-Require Import CSSApargen.
+Require Import CSSAgen.
 Require Import Kildall.
 Require Import Utils.
 Require Import KildallComp.
 Require Import DLib.
-Require Import CSSApargenspec.
+Require Import CSSAgenspec.
 Require Import CSSAutils.
-Require Import CSSApargenproof.
+Require Import CSSAproof.
 Require Import Classical.
 Require Import Coqlib.
-Require Import CSSApar.
-Require Import CSSAcoalescing. 
-Require Import CSSApargenwf.
+Require Import CSSA.
+Require Import CSSAgenwf.
 Unset Allow StrictProp.
 
 Section CSSAparDefProp.
 
-Variable tf : CSSApar.function.
+Variable tf : CSSA.function.
 
 Inductive phi_resources (pc : node) : list reg -> Prop :=
  pr_intro: forall phib dst args ,
-            forall (PHICODE: (CSSApar.fn_phicode tf) ! pc = Some phib)
+            forall (PHICODE: (CSSA.fn_phicode tf) ! pc = Some phib)
                    (PHI: In (Iphi args dst) phib),
               phi_resources pc (dst::args).
 
@@ -53,7 +52,7 @@ Section transl_function_Properties.
 Variable f : SSA.function.
 Hypothesis WF: wf_ssa_function f.
 
-Variable tf : CSSApar.function.
+Variable tf : CSSA.function.
 Hypothesis TRANSL: transl_function f = Errors.OK tf.
 
 Lemma STRUCT1: check_parcborparcb' tf = true.
@@ -75,7 +74,7 @@ Lemma use_phi_pltmaxreg_r:
   Plt (get_maxreg f) r.
 Proof.
   intros r pc Hphi. 
-  exploit CSSApargenproof.transl_function_charact; eauto. intros.
+  exploit CSSAproof.transl_function_charact; eauto. intros.
   exploit transl_function_spec_ok; eauto. 
   intros SPEC.
   assert(Hremembertrans: transl_function f = Errors.OK tf) by auto.
@@ -84,7 +83,7 @@ Proof.
   unfold init_state in *.
   inv Hphi.
   inv SPEC; simpl in *.
-  assert(Hinop: exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc0 = Some (Inop succ))
+  assert(Hinop: exists succ, (CSSA.fn_code (get_tf s' f)) ! pc0 = Some (Inop succ))
     by (eapply cssa_fn_inop_in_jp; go).
   simpl in Hinop.
   destruct Hinop as [succ0 Hinop].

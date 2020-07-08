@@ -9,12 +9,12 @@ Require Import Op.
 Require Import SSA.
 Require Import SSAutils.
 Require Import Utils.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import DLib.
 Require Import CSSAval.
 Require Import RTLpargen.
 Require Import CSSAutils.
-Require Import CSSApardef.
+Require Import CSSAdef.
 Require Import Registers.
 
 Unset Allow StrictProp.
@@ -35,8 +35,8 @@ Lemma test_ninterlive_correct :
          (WFF: wf_cssa_function f),
   CSSAlive.analyze f = Some lv ->
   compute_def f (get_all_def f) = def ->
-  CSSApar.def f r1 d1 ->
-  CSSApar.def f r2 d2 ->
+  CSSA.def f r1 d1 ->
+  CSSA.def f r2 d2 ->
   negb
     ((peq (def r1) (def r2)) ||
      SSARegSet.mem r1
@@ -83,8 +83,8 @@ Lemma compute_ninterfere_correct :
   compute_ninterfere f (get_all_def f)
     (get_ext_params f (get_all_def f)) = OK ninterfere ->
   ninterfere r1 r2 = true ->
-  CSSApar.def f r1 d1 ->
-  CSSApar.def f r2 d2 ->
+  CSSA.def f r1 d1 ->
+  CSSA.def f r2 d2 ->
   ninterfere_spec f r1 r2.
 Proof.
   intros.

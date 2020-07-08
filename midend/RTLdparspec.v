@@ -13,14 +13,10 @@ Require Import Op.
 Require Import Registers.
 Require Import RTLpar.
 Require Import RTL.
-Require Import SSA.
-Require Import CSSApar.
-Require Import SSAutils.
+Require Import SSA CSSA SSAutils.
 Require Import RTLdpar.
 Require Import Kildall.
 Require Import Utils.
-Require Import Permutation. 
-Require Import Bijection.
 Require Import DLib.
 Unset Allow StrictProp.
 

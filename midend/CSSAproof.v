@@ -13,10 +13,10 @@ Require Import Globalenvs.
 Require Import Op.
 Require Import Registers.
 Require Import Smallstep.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import SSA.
 Require Import SSAutils.
-Require Import CSSApargen.
+Require Import CSSAgen.
 Require Import Kildall.
 Require Import Conventions.
 Require Import Utils.
@@ -25,7 +25,7 @@ Require Import Events.
 Require Import Permutation.
 Require Import KildallComp.
 Require Import DLib.
-Require Import CSSApargenspec.
+Require Import CSSAgenspec.
 Require Import CSSAutils.
 Unset Allow StrictProp.
 
@@ -3026,7 +3026,7 @@ Require Import Linking.
 
 Section PRESERVATION.
 
-  Definition match_prog (p: SSA.program) (tp: CSSApar.program) :=
+  Definition match_prog (p: SSA.program) (tp: CSSA.program) :=
     match_program (fun cu f tf => transl_fundef f = Errors.OK tf) eq p tp.
 
   
@@ -3039,7 +3039,7 @@ Section PRESERVATION.
   Section CORRECTNESS.
 
     Variable prog: SSA.program.
-    Variable tprog: CSSApar.program.
+    Variable tprog: CSSA.program.
     Hypothesis TRANSF_PROG: match_prog prog tprog.
     Hypothesis WF_PROG : wf_ssa_program prog.
     
@@ -3058,7 +3058,7 @@ Section PRESERVATION.
         match_regset max_reg rs rs'.
 
     Inductive match_stackframes :
-      list stackframe -> list CSSApar.stackframe -> Prop :=
+      list stackframe -> list CSSA.stackframe -> Prop :=
     | match_stackframes_nil: match_stackframes nil nil
     | match_stackframes_cons:
         forall res f sp pc rs rs' s tf ts
@@ -3068,13 +3068,13 @@ Section PRESERVATION.
                (MREG: match_regset (get_maxreg f) rs rs'),
           match_stackframes
             ((Stackframe res f sp pc rs) :: s)
-            ((CSSApar.Stackframe res tf sp pc rs') :: ts).
+            ((CSSA.Stackframe res tf sp pc rs') :: ts).
 
     Hint Constructors match_stackframes: core.
 
     Set Implicit Arguments.
     
-    Variant match_states: SSA.state -> CSSApar.state -> Prop :=
+    Variant match_states: SSA.state -> CSSA.state -> Prop :=
     | match_states_intro:
         forall s ts sp pc rs rs' m f tf
                (SPEC: transl_function f = Errors.OK tf)
@@ -3082,19 +3082,19 @@ Section PRESERVATION.
                (WFF: wf_ssa_function f)
                (MREG: match_regset (get_maxreg f) rs rs'),
           match_states (State s f sp pc rs m)
-                       (CSSApar.State ts tf sp pc rs' m)
+                       (CSSA.State ts tf sp pc rs' m)
     | match_states_call:
         forall s ts f tf args m
                (SPEC: transl_fundef f = Errors.OK tf)
                (STACK: match_stackframes s ts)
                (WFF: wf_ssa_fundef f),
           match_states (Callstate s f args m)
-                       (CSSApar.Callstate ts tf args m)
+                       (CSSA.Callstate ts tf args m)
     | match_states_return:
         forall s ts v m
                (STACK: match_stackframes s ts ),
           match_states (Returnstate s v m)
-                       (CSSApar.Returnstate ts v m).
+                       (CSSA.Returnstate ts v m).
     Hint Constructors match_states: core.
 
 Lemma function_ptr_translated: forall b f,
@@ -3108,7 +3108,7 @@ Qed.
 Lemma sig_fundef_translated: forall f tf,
     wf_ssa_fundef f ->
     transl_fundef f = Errors.OK tf ->
-    CSSApar.funsig tf = SSA.funsig f.
+    CSSA.funsig tf = SSA.funsig f.
 Proof.
   intros f tf. intros.
   case_eq f; intros.
@@ -3123,7 +3123,7 @@ Qed.
 
 Lemma transf_initial_states:  forall st1,
     initial_state prog st1 ->
-    exists st2, CSSApar.initial_state tprog st2
+    exists st2, CSSA.initial_state tprog st2
                 /\ match_states st1 st2.
 Proof.
   intros. inversion H.
@@ -3145,7 +3145,7 @@ Qed.
 Lemma transf_final_states: forall st1 st2 r,
     match_states st1 st2 ->
     final_state st1 r  ->
-    CSSApar.final_state st2 r.
+    CSSA.final_state st2 r.
 Proof.
   intros. inv H0. inv H.
   inv STACK.
@@ -3154,7 +3154,7 @@ Qed.
 
 Lemma instructions_preserved:  forall f tf,
   transl_function f = Errors.OK tf ->
-  CSSApar.fn_code tf = fn_code f.
+  CSSA.fn_code tf = fn_code f.
 Proof.
   intros.
   unfold transl_function in H.
@@ -3164,7 +3164,7 @@ Qed.
 Lemma no_new_joinpoints: forall f tf,
   transl_function f = Errors.OK tf ->
   forall pc,
-    CSSApar.join_point pc tf ->
+    CSSA.join_point pc tf ->
     join_point pc f.
 Proof.
   intros.
@@ -3172,7 +3172,7 @@ Proof.
   apply jp_cons with l; auto.
   rewrite same_successors_same_predecessors
     with (f2 := successors_instr)
-         (m2 := CSSApar.fn_code tf).
+         (m2 := CSSA.fn_code tf).
   rewrite Hpreds; auto.
   intros.
   erewrite PTree.gmap1.
@@ -3182,7 +3182,7 @@ Proof.
   + rewrite instructions_preserved with f tf.
     rewrite H0; eauto.
     congruence.
-  + case_eq ((CSSApar.fn_code tf) ! i); intros; auto.
+  + case_eq ((CSSA.fn_code tf) ! i); intros; auto.
     rewrite instructions_preserved with f tf in H1.
     congruence. auto.
 Qed.
@@ -3191,12 +3191,12 @@ Lemma join_points_preserved: forall f tf,
   transl_function f = Errors.OK tf ->
   forall pc,
     join_point pc f ->
-    CSSApar.join_point pc tf.
+    CSSA.join_point pc tf.
 Proof.
   intros.
   inv H0.
   econstructor; go.
-  assert (CSSApar.fn_code tf = fn_code f).
+  assert (CSSA.fn_code tf = fn_code f).
   apply instructions_preserved; auto.
   go.
 Qed.
@@ -3226,7 +3226,7 @@ Lemma spec_ros_r_find_function: forall rs rs' f r,
   rs # r = rs' # r ->
   SSA.find_function ge (inl _ r) rs = Some f ->
   exists tf,
-     CSSApar.find_function tge (inl _ r) rs' = Some tf
+     CSSA.find_function tge (inl _ r) rs' = Some tf
   /\ transl_fundef f = Errors.OK tf.
 Proof.
   intros.
@@ -3237,7 +3237,7 @@ Qed.
 Lemma spec_ros_id_find_function: forall rs rs' f id,
   SSA.find_function ge (inr _ id) rs = Some f ->
   exists tf,
-     CSSApar.find_function tge (inr _ id) rs' = Some tf
+     CSSA.find_function tge (inr _ id) rs' = Some tf
   /\ transl_fundef f = Errors.OK tf.
 Proof.
   intros.
@@ -3251,7 +3251,7 @@ Qed.
 
 Lemma stacksize_preserved: forall f tf,
   transl_function f = Errors.OK tf ->
-  fn_stacksize f = CSSApar.fn_stacksize tf.
+  fn_stacksize f = CSSA.fn_stacksize tf.
 Proof.
   intros.
   unfold transl_function in H.
@@ -3272,8 +3272,8 @@ Qed.
 
 Lemma copy_out_of_parcb :
   forall (rs : SSA.regset) (parcb : parcopyblock) (src dst : reg),
-  (forall src' dst', In (CSSApar.Iparcopy src' dst') parcb -> src <> dst') ->
-  parcopy_store (CSSApar.Iparcopy src dst :: parcb) rs =
+  (forall src' dst', In (CSSA.Iparcopy src' dst') parcb -> src <> dst') ->
+  parcopy_store (CSSA.Iparcopy src dst :: parcb) rs =
     (parcopy_store parcb rs)# dst <- ((parcopy_store parcb rs) # src).
 Proof.
   intros.
@@ -3721,13 +3721,13 @@ Lemma transl_step_correct:
   step ge s1 t s2 ->
   forall s1' (MS: match_states s1 s1'),
   exists s2',
-  CSSApar.step tge s1' t s2' /\ match_states s2 s2'.
+  CSSA.step tge s1' t s2' /\ match_states s2 s2'.
 Proof.
   induction 1; intros; inv MS; auto;
   match goal with
   | [H : transl_fundef (Internal ?f) = _ |- _ ] => idtac
   | [H : transl_fundef (External ?f) = _ |- _ ] => idtac
-  | [  |- context [CSSApar.Returnstate ?ts ?vres ?m]] =>
+  | [  |- context [CSSA.Returnstate ?ts ?vres ?m]] =>
       idtac
   | _ =>
       (exploit transl_function_charact ; eauto; intros);
@@ -3744,7 +3744,7 @@ Proof.
   | _ => idtac
   end.
   (* inop without block *)
-  { exists (CSSApar.State ts tf sp pc' rs' m). split; auto.
+  { exists (CSSA.State ts tf sp pc' rs' m). split; auto.
     econstructor 1 ; eauto.
     - erewrite instructions_preserved; eauto.
     - intuition.
@@ -3758,7 +3758,7 @@ Proof.
       (get_maxreg f)
       preds
       (fn_code f) (fn_phicode f)
-      (CSSApar.fn_phicode tf) (fn_parcopycode tf) pc' k).
+      (CSSA.fn_phicode tf) (fn_parcopycode tf) pc' k).
     assert(codepc': exists i, (fn_code f) ! pc' = Some i).
     { induction WFF.
       eapply fn_code_closed; go. }
@@ -3776,7 +3776,7 @@ Proof.
       congruence.
     }
 
-    exists (CSSApar.State ts tf sp pc'
+    exists (CSSA.State ts tf sp pc'
       (parcopy_store parcb'
         (phi_store k phib'
           (parcopy_store parcb rs')))
@@ -3785,11 +3785,11 @@ Proof.
     + assert (EQ_PC_PRED: pc = pred).
       eapply index_preds_pc_inj; eauto.
       rewrite EQ_PC_PRED in *.
-      eapply CSSApar.exec_Inop_jp; eauto.
+      eapply CSSA.exec_Inop_jp; eauto.
       - erewrite instructions_preserved; eauto.
       - eapply join_points_preserved; eauto.
       - unfold get_preds.
-        unfold CSSApar.get_preds.
+        unfold CSSA.get_preds.
         erewrite instructions_preserved; eauto.
     + apply match_states_intro; go.
       constructor; intros.
@@ -3799,10 +3799,10 @@ Proof.
       eapply equiv_phib_spec_correct; eauto.
   }
   (* iop *)
-  { exists (CSSApar.State ts tf sp pc' (rs' # res <- v) m).
+  { exists (CSSA.State ts tf sp pc' (rs' # res <- v) m).
     split.
     + econstructor; eauto.
-      assert ((CSSApar.fn_code tf) ! pc =
+      assert ((CSSA.fn_code tf) ! pc =
         Some (Iop op args res pc')).
       erewrite instructions_preserved; eauto; simpl; eauto.
       eauto.
@@ -3825,10 +3825,10 @@ Proof.
       rewrite PMap.gsspec.  rewrite PMap.gsspec.
       destruct peq; eauto.  }
   (* iload *)
-  { exists (CSSApar.State ts tf sp pc' (rs' # dst <- v) m).
+  { exists (CSSA.State ts tf sp pc' (rs' # dst <- v) m).
     split.
-    + eapply CSSApar.exec_Iload; eauto.
-      assert ((CSSApar.fn_code tf) ! pc =
+    + eapply CSSA.exec_Iload; eauto.
+      assert ((CSSA.fn_code tf) ! pc =
         Some (Iload chunk addr args dst pc')).
       erewrite instructions_preserved; eauto; simpl; eauto.
       eauto.
@@ -3851,10 +3851,10 @@ Proof.
       rewrite PMap.gsspec. rewrite PMap.gsspec.
       destruct peq; eauto.  }
   (* istore *)
-  { exists (CSSApar.State ts tf sp pc' rs' m').
+  { exists (CSSA.State ts tf sp pc' rs' m').
     split.
-    + eapply CSSApar.exec_Istore; eauto.
-      assert ((CSSApar.fn_code tf) ! pc =
+    + eapply CSSA.exec_Istore; eauto.
+      assert ((CSSA.fn_code tf) ! pc =
         Some (Istore chunk addr args src pc')).
       { erewrite instructions_preserved; eauto; simpl; eauto. }
       eauto.
@@ -3914,7 +3914,7 @@ Proof.
 
     destruct ros.
     - assert(Htfd: exists tfd,
-        CSSApar.find_function tge (inl _ r) rs' = Some tfd
+        CSSA.find_function tge (inl _ r) rs' = Some tfd
         /\ transl_fundef fd = Errors.OK tfd).
       apply spec_ros_r_find_function
         with (rs := rs); auto.
@@ -3933,16 +3933,16 @@ Proof.
       inv MREG; auto.
 
       destruct Htfd as [tfd Hfindtfd].
-      exists (CSSApar.Callstate
-        (CSSApar.Stackframe res tf sp pc' rs' :: ts)
+      exists (CSSA.Callstate
+        (CSSA.Stackframe res tf sp pc' rs' :: ts)
         tfd (rs'## args) m).
       split.
-      + apply CSSApar.exec_Icall
-          with (sig := CSSApar.funsig tfd)
+      + apply CSSA.exec_Icall
+          with (sig := CSSA.funsig tfd)
             (ros := inl r); eauto.
         { erewrite instructions_preserved; eauto; simpl;
             eauto.
-          assert (CSSApar.funsig tfd = funsig fd).
+          assert (CSSA.funsig tfd = funsig fd).
           apply sig_fundef_translated.
           auto.
           destruct Hfindtfd. auto.
@@ -3954,20 +3954,20 @@ Proof.
         go.
         auto.
     - assert(Htfd: exists tfd,
-        CSSApar.find_function tge (inr i) rs' = Some tfd
+        CSSA.find_function tge (inr i) rs' = Some tfd
         /\ transl_fundef fd = Errors.OK tfd).
       apply spec_ros_id_find_function
         with (rs := rs); auto.
       destruct Htfd as [tfd Htfd].
-      exists (CSSApar.Callstate
-        (CSSApar.Stackframe res tf sp pc' rs' :: ts)
+      exists (CSSA.Callstate
+        (CSSA.Stackframe res tf sp pc' rs' :: ts)
         tfd (rs'## args) m).
       split.
-      + apply CSSApar.exec_Icall
-          with (sig := CSSApar.funsig tfd)
+      + apply CSSA.exec_Icall
+          with (sig := CSSA.funsig tfd)
             (ros := inr i); eauto.
         erewrite instructions_preserved; eauto.
-        assert (EQfdtfd: CSSApar.funsig tfd = funsig fd).
+        assert (EQfdtfd: CSSA.funsig tfd = funsig fd).
         apply sig_fundef_translated.
         auto.
         destruct Htfd. auto.
@@ -4011,7 +4011,7 @@ Proof.
 
     destruct ros.
     - assert(Htfd: exists tfd,
-        CSSApar.find_function tge (inl _ r) rs' = Some tfd
+        CSSA.find_function tge (inl _ r) rs' = Some tfd
         /\ transl_fundef fd = Errors.OK tfd).
       apply spec_ros_r_find_function
         with (rs := rs); auto.
@@ -4030,15 +4030,15 @@ Proof.
       inv MREG; auto.
 
       destruct Htfd as [tfd Hfindtfd].
-      exists (CSSApar.Callstate
+      exists (CSSA.Callstate
         ts tfd rs'## args m').
       split.
-      + apply CSSApar.exec_Itailcall
-          with (sig := CSSApar.funsig tfd)
+      + apply CSSA.exec_Itailcall
+          with (sig := CSSA.funsig tfd)
             (ros := inl r); eauto.
         { erewrite instructions_preserved; eauto; simpl;
             eauto.
-          assert (CSSApar.funsig tfd = funsig fd).
+          assert (CSSA.funsig tfd = funsig fd).
           apply sig_fundef_translated.
           auto.
           destruct Hfindtfd. auto.
@@ -4052,19 +4052,19 @@ Proof.
         go.
         auto.
     - assert(Htfd: exists tfd,
-        CSSApar.find_function tge (inr i) rs' = Some tfd
+        CSSA.find_function tge (inr i) rs' = Some tfd
         /\ transl_fundef fd = Errors.OK tfd).
       apply spec_ros_id_find_function
         with (rs := rs); auto.
       destruct Htfd as [tfd Htfd].
-      exists (CSSApar.Callstate
+      exists (CSSA.Callstate
         ts tfd (rs'## args) m').
       split.
-      + apply CSSApar.exec_Itailcall
-          with (sig := CSSApar.funsig tfd)
+      + apply CSSA.exec_Itailcall
+          with (sig := CSSA.funsig tfd)
             (ros := inr i); eauto.
         erewrite instructions_preserved; eauto.
-        assert (EQfdtfd: CSSApar.funsig tfd = funsig fd).
+        assert (EQfdtfd: CSSA.funsig tfd = funsig fd).
         apply sig_fundef_translated.
         auto.
         destruct Htfd. auto.
@@ -4079,10 +4079,10 @@ Proof.
         auto.
   }
   (* ibuiltin *)
-  { exists (CSSApar.State ts tf sp pc' (regmap_setres res vres rs') m').
+  { exists (CSSA.State ts tf sp pc' (regmap_setres res vres rs') m').
     split.
-    + eapply CSSApar.exec_Ibuiltin with (vargs:= vargs); eauto.
-      * assert ((CSSApar.fn_code tf) ! pc =  Some (Ibuiltin ef args res pc')).
+    + eapply CSSA.exec_Ibuiltin with (vargs:= vargs); eauto.
+      * assert ((CSSA.fn_code tf) ! pc =  Some (Ibuiltin ef args res pc')).
         { erewrite instructions_preserved; eauto; simpl; eauto. }
         eauto.
       * eapply eval_builtin_args_preserved with (ge1:= ge); eauto.
@@ -4143,10 +4143,10 @@ Proof.
   }
 
   (* ifso *)
-  { exists (CSSApar.State ts tf sp ifso rs' m).
+  { exists (CSSA.State ts tf sp ifso rs' m).
     split.
-    + eapply CSSApar.exec_Icond_true; eauto.
-      assert ((CSSApar.fn_code tf) ! pc =
+    + eapply CSSA.exec_Icond_true; eauto.
+      assert ((CSSA.fn_code tf) ! pc =
         Some (Icond cond args ifso ifnot)).
       { erewrite instructions_preserved; eauto; simpl;
         eauto. }
@@ -4166,10 +4166,10 @@ Proof.
       auto.
     + constructor; eauto. }
   (* ifnot *)
-  { exists (CSSApar.State ts tf sp ifnot rs' m).
+  { exists (CSSA.State ts tf sp ifnot rs' m).
     split.
-    + eapply CSSApar.exec_Icond_false; eauto.
-      assert ((CSSApar.fn_code tf) ! pc =
+    + eapply CSSA.exec_Icond_false; eauto.
+      assert ((CSSA.fn_code tf) ! pc =
         Some (Icond cond args ifso ifnot)).
       { erewrite instructions_preserved; eauto; simpl;
         eauto. }
@@ -4190,10 +4190,10 @@ Proof.
     + constructor; eauto.
   }
   (* ijumptable *)
-  { exists (CSSApar.State ts tf sp pc' rs' m).
+  { exists (CSSA.State ts tf sp pc' rs' m).
     split.
-    + eapply CSSApar.exec_Ijumptable; eauto.
-      assert ((CSSApar.fn_code tf) ! pc =
+    + eapply CSSA.exec_Ijumptable; eauto.
+      assert ((CSSA.fn_code tf) ! pc =
         Some (Ijumptable arg tbl)).
       { erewrite instructions_preserved; eauto; simpl;
         eauto. }
@@ -4209,11 +4209,11 @@ Proof.
       apply max_reg_correct_code.
     + constructor; eauto. }
   (* ireturn *)
-  { exists (CSSApar.Returnstate ts
+  { exists (CSSA.Returnstate ts
       (regmap_optget or Vundef rs') m').
     split.
-    + eapply CSSApar.exec_Ireturn; eauto.
-      assert ((CSSApar.fn_code tf) ! pc =
+    + eapply CSSA.exec_Ireturn; eauto.
+      assert ((CSSA.fn_code tf) ! pc =
         Some (Ireturn or)).
       { erewrite instructions_preserved; eauto; simpl; eauto. }
       eauto.
@@ -4232,12 +4232,12 @@ Proof.
   (* internal *)
   { 
     destruct tf as [tf | tf].
-    exists (CSSApar.State ts tf (Vptr stk Ptrofs.zero)
-      tf.(CSSApar.fn_entrypoint)
-      (init_regs args (CSSApar.fn_params tf))
+    exists (CSSA.State ts tf (Vptr stk Ptrofs.zero)
+      tf.(CSSA.fn_entrypoint)
+      (init_regs args (CSSA.fn_params tf))
       m').
     split.
-    + eapply CSSApar.exec_function_internal.
+    + eapply CSSA.exec_function_internal.
       erewrite <- stacksize_preserved; eauto.
       simpl in SPEC.
       unfold Errors.bind in SPEC.
@@ -4245,12 +4245,12 @@ Proof.
     + simpl in *. 
       unfold Errors.bind in SPEC.
       flatten SPEC.
-      replace (CSSApar.fn_entrypoint tf)
+      replace (CSSA.fn_entrypoint tf)
         with (fn_entrypoint f).
       apply match_states_intro; eauto.
       induction WFF. auto.
       econstructor; eauto; intros.
-      replace (CSSApar.fn_params tf)
+      replace (CSSA.fn_params tf)
         with (fn_params f); auto.
       unfold transl_function in Eq.
       flatten Eq. simpl. auto.
@@ -4262,9 +4262,9 @@ Proof.
   }
   (* external *)
   { inv SPEC.
-    exists (CSSApar.Returnstate ts res m').
+    exists (CSSA.Returnstate ts res m').
     split.
-    + eapply CSSApar.exec_function_external.
+    + eapply CSSA.exec_function_external.
       eapply external_call_symbols_preserved; eauto.
       apply senv_preserved. 
     + econstructor; eauto.
@@ -4272,10 +4272,10 @@ Proof.
   (* return state *)
   {
     inv STACK.
-    exists (CSSApar.State ts0 tf sp pc
+    exists (CSSA.State ts0 tf sp pc
       (rs' # res <- vres) m).
     split.
-    + eapply CSSApar.exec_return.
+    + eapply CSSA.exec_return.
     + econstructor; eauto.
       econstructor; intros.
       inv MREG.
@@ -4289,7 +4289,7 @@ Proof.
 Qed.
 
 Theorem transf_program_correct:
-  forward_simulation (SSA.semantics prog) (CSSApar.semantics tprog).
+  forward_simulation (SSA.semantics prog) (CSSA.semantics tprog).
 Proof.
   eapply forward_simulation_step with (match_states := match_states).
   eapply senv_preserved. 

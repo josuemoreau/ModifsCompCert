@@ -15,7 +15,7 @@ Require Import Values.
 Require Import Globalenvs.
 Require Import Op.
 Require Import Registers.
-Require Import RTLt.
+Require Import RTLdfs.
 Require Import Kildall.
 Require Import Locations.
 Require Import Conventions.
@@ -42,7 +42,7 @@ Fixpoint reg_list_live
   end.
 
 Definition transfer
-            (f: RTLt.function) (pc: RTL.node) (after: Regset.t) : Regset.t :=
+            (f: RTLdfs.function) (pc: RTL.node) (after: Regset.t) : Regset.t :=
   match f.(fn_code)!pc with
   | None =>
       Regset.empty
@@ -88,7 +88,7 @@ Definition analyze (f: function): option (PMap.t Regset.t) :=
 
 Section WF_LIVE.
 
-  Variable f: RTLt.function.
+  Variable f: RTLdfs.function.
   
   Definition Lin := (fun pc live_out => (transfer f pc (live_out pc))).
   
@@ -98,7 +98,7 @@ Section WF_LIVE.
     wf_live_incl : forall pc pc' x, 
       rtl_cfg f pc pc' ->
       Regset.In x (Lin pc' live_out) ->
-      (Regset.In x (Lin pc live_out) \/ RTLutils.assigned_code_spec (RTLt.fn_code f) pc x) ;
+      (Regset.In x (Lin pc live_out) \/ RTLutils.assigned_code_spec (RTLdfs.fn_code f) pc x) ;
     
     wf_live_use : forall pc x, use_rtl_code f x pc -> (Regset.In x (Lin pc live_out)) 
   }.
@@ -130,7 +130,7 @@ Section WF_LIVE.
     forall pc pc' x, 
       rtl_cfg f pc pc' ->
       Regset.In x (Lin pc' (Lout live)) ->
-      Regset.In x (Lin pc (Lout live)) \/ RTLutils.assigned_code_spec (RTLt.fn_code f) pc x.
+      Regset.In x (Lin pc (Lout live)) \/ RTLutils.assigned_code_spec (RTLdfs.fn_code f) pc x.
   Proof.
     intros.
     generalize H ; intros AN.
@@ -148,7 +148,7 @@ Section WF_LIVE.
       intros; split; intros Hcont; inv Hcont.
     - intros.
       (unfold Lout, Lin in * ; unfold transfer).
-      { case_eq (RTLt.fn_code f) ! pc ; intros.
+      { case_eq (RTLdfs.fn_code f) ! pc ; intros.
         case_eq i ; intros ; subst; auto.
         - destruct (peq r x). 
           inv e. right ; eauto.

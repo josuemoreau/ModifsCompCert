@@ -11,7 +11,7 @@ Require Import Op.
 Require Import SSA.
 Require Import SSAutils.
 Require Import Utils.
-Require Import CSSApar.
+Require Import CSSA.
 Require RTLpar.
 Require Import RTLpargen.
 Require Import Kildall.
@@ -23,7 +23,7 @@ Require Import CSSAval.
 Require Import CSSAninterf.
 Require Import CSSAutils.
 Require Import Classical.
-Require Import CSSApardef.
+Require Import CSSAdef.
 Require Import Registers.
 
 Unset Allow StrictProp.
@@ -215,7 +215,7 @@ Proof.
 Qed.
 
 (** ** Transformation spec *)
-Variant transl_function_spec: CSSApar.function -> RTLpar.function -> Prop :=
+Variant transl_function_spec: CSSA.function -> RTLpar.function -> Prop :=
 | transl_function_spec_intro:
     forall f tf regrepr
     (RegRepr: compute_regrepr f = Errors.OK regrepr)
@@ -235,7 +235,7 @@ Variant transl_function_spec: CSSApar.function -> RTLpar.function -> Prop :=
         Some (parcb_cleanup (transl_parcb regrepr parcb))),
     transl_function_spec f tf.
 
-Variant tr_function: CSSApar.function -> RTLpar.function -> Prop :=
+Variant tr_function: CSSA.function -> RTLpar.function -> Prop :=
 | tr_function_intro:
     forall f regrepr (Regrepr: compute_regrepr f = Errors.OK regrepr),
       tr_function
@@ -278,7 +278,7 @@ Proof.
       flatten Eq; go).
 Qed.
 
-Definition transl_fundef (f: CSSApar.fundef) : res RTLpar.fundef :=
+Definition transl_fundef (f: CSSA.fundef) : res RTLpar.fundef :=
   transf_partial_fundef transl_function f.
 
 (** match_states *)
@@ -304,7 +304,7 @@ Variant lazydef (f : function) (r : reg) (pc : node) : Prop :=
     join_point pc f ->
     lazydef f r pc.
 
-Variant match_regset (f : CSSApar.function) (pc : node) :
+Variant match_regset (f : CSSA.function) (pc : node) :
   SSA.regset -> SSA.regset -> Prop :=
 | mrg_intro : forall rs rs' regrepr,
     forall (RegRepr: compute_regrepr f = Errors.OK regrepr),
@@ -313,7 +313,7 @@ Variant match_regset (f : CSSApar.function) (pc : node) :
                   rs # r = rs' # (regrepr r)) ->
       match_regset f pc rs rs'.
 
-Inductive match_stackframes : list CSSApar.stackframe -> list RTLpar.stackframe -> Prop :=
+Inductive match_stackframes : list CSSA.stackframe -> list RTLpar.stackframe -> Prop :=
 | match_stackframes_nil: match_stackframes nil nil
 | match_stackframes_cons:
     forall res f sp pc rs rs' s tf ts regrepr
@@ -342,7 +342,7 @@ Require Import Linking.
 
 Section PRESERVATION.
 
-  Definition match_prog (p: CSSApar.program) (tp: RTLpar.program) :=
+  Definition match_prog (p: CSSA.program) (tp: RTLpar.program) :=
     match_program (fun cu f tf => transl_fundef f = Errors.OK tf) eq p tp.
 
   Lemma transf_program_match:
@@ -353,7 +353,7 @@ Section PRESERVATION.
 
   Section CORRECTNESS.
 
-    Variable prog: CSSApar.program.
+    Variable prog: CSSA.program.
     Variable tprog: RTLpar.program.
 
     
@@ -363,7 +363,7 @@ Section PRESERVATION.
     Hypothesis TRANSF_PROG: match_prog prog tprog.
     Hypothesis WF_PROG : wf_cssa_program prog.
 
-    Variant match_states: CSSApar.state -> RTLpar.state -> Prop :=
+    Variant match_states: CSSA.state -> RTLpar.state -> Prop :=
     | match_states_intro:
         forall s ts sp pc rs rs' m f tf
                (REACH: reachable prog (State s f sp pc rs m))
@@ -1254,7 +1254,7 @@ Proof.
 Qed.
 
 Lemma function_ptr_translated:
-  forall (b: Values.block) (f: CSSApar.fundef),
+  forall (b: Values.block) (f: CSSA.fundef),
   Genv.find_funct_ptr ge b = Some f ->
   exists tf, Genv.find_funct_ptr tge b = Some tf
     /\ transl_fundef f = Errors.OK tf.
@@ -1266,7 +1266,7 @@ Lemma sig_fundef_translated:
   forall f tf,
     wf_cssa_fundef f ->
     transl_fundef f = Errors.OK tf ->
-    RTLpar.funsig tf = CSSApar.funsig f.
+    RTLpar.funsig tf = CSSA.funsig f.
 Proof.
   intros f tf. intros.
   case_eq f; intros.
@@ -1850,7 +1850,7 @@ Proof.
 Qed.
 
 Lemma functions_translated:
-  forall (v: val) (f: CSSApar.fundef),
+  forall (v: val) (f: CSSA.fundef),
   Genv.find_funct ge v = Some f ->
   exists tf, Genv.find_funct tge v = Some tf
     /\ transl_fundef f = Errors.OK tf.
@@ -1861,7 +1861,7 @@ Qed.
 Lemma spec_ros_r_find_function:
   forall rs rs' f r regrepr,
   rs # r = rs' # (regrepr r) ->
-  CSSApar.find_function ge (inl _ r) rs = Some f ->
+  CSSA.find_function ge (inl _ r) rs = Some f ->
   exists tf,
     RTLpar.find_function tge (inl _ (regrepr r)) rs' = Some tf
   /\ transl_fundef f = Errors.OK tf.
@@ -1873,7 +1873,7 @@ Qed.
 
 Lemma spec_ros_id_find_function:
   forall rs rs' f id,
-  CSSApar.find_function ge (inr _ id) rs = Some f ->
+  CSSA.find_function ge (inr _ id) rs = Some f ->
   exists tf,
      RTLpar.find_function tge (inr _ id) rs' = Some tf
   /\ transl_fundef f = Errors.OK tf.
@@ -3153,7 +3153,7 @@ Proof.
 Qed.
 
 Theorem transf_program_correct:
-  forward_simulation (CSSApar.semantics prog) (RTLpar.semantics tprog).
+  forward_simulation (CSSA.semantics prog) (RTLpar.semantics tprog).
 Proof.
   eapply forward_simulation_step with (match_states := match_states).
   eapply senv_preserved.
@@ -3168,7 +3168,7 @@ End PRESERVATION.
 
 Section WF.
 
-Variable prog: CSSApar.program.
+Variable prog: CSSA.program.
 Variable tprog: RTLpar.program.
 Hypothesis TRANSF_PROG: match_prog prog tprog.
 Hypothesis WF_TRANSF: wf_cssa_program prog. 
@@ -3328,7 +3328,7 @@ Proof.
   - intros pc PARC.
     destruct ((RTLpar.fn_parcopycode tf) ! pc) eqn: EQ; try congruence.
     exploit transl_function_parcb_2; go. intros [p' Hp'].
-    exploit (CSSApar.parcb_inop f H pc)  ; eauto; go. intros [s Hpc].
+    exploit (CSSA.parcb_inop f H pc)  ; eauto; go. intros [s Hpc].
     rewrite transl_function_inops in Hpc; eauto.
 
   - intros pc pc' instr CODE SUCC.

@@ -7,7 +7,7 @@ Require Import AST.
 Require Import Registers.
 Require Import Op.
 Require Import RTL.
-Require Import RTLt.
+Require Import RTLdfs.
 Require Import Kildall.
 Require Import KildallComp.
 Require Import Utils.
@@ -66,27 +66,27 @@ Ltac simpl_succs :=
 
   Variant use_rtl_code (f: function) : Registers.reg -> node -> Prop := 
   | UIop: forall pc arg op args dst s, 
-    (RTLt.fn_code f) !pc = Some (RTL.Iop op args dst s)  -> In arg args -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Iop op args dst s)  -> In arg args -> use_rtl_code f arg pc
   | UIload: forall pc arg chk adr args dst s,
-    (RTLt.fn_code f) !pc = Some (RTL.Iload chk adr args dst s) -> In arg args -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Iload chk adr args dst s) -> In arg args -> use_rtl_code f arg pc
   | UIcond: forall pc arg cond args s s',
-    (RTLt.fn_code f) !pc = Some (RTL.Icond cond args s s') -> In arg args -> use_rtl_code f arg pc 
+    (RTLdfs.fn_code f) !pc = Some (RTL.Icond cond args s s') -> In arg args -> use_rtl_code f arg pc 
   | UIbuiltin: forall pc arg ef args dst s,
-    (RTLt.fn_code f) !pc = Some (RTL.Ibuiltin ef args dst s) -> In arg (params_of_builtin_args args) -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Ibuiltin ef args dst s) -> In arg (params_of_builtin_args args) -> use_rtl_code f arg pc
   | UIstore: forall pc arg chk adr args src s,
-    (RTLt.fn_code f) !pc = Some (RTL.Istore chk adr args src s) -> In arg (src::args) -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Istore chk adr args src s) -> In arg (src::args) -> use_rtl_code f arg pc
   | UIcall: forall pc arg sig r args dst s,
-    (RTLt.fn_code f) !pc = Some (RTL.Icall sig (inl ident r) args dst s) -> In arg (r::args) -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Icall sig (inl ident r) args dst s) -> In arg (r::args) -> use_rtl_code f arg pc
   | UIcall2: forall pc arg sig id args dst s,
-    (RTLt.fn_code f) !pc = Some (RTL.Icall sig (inr _ id) args dst s) -> In arg args -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Icall sig (inr _ id) args dst s) -> In arg args -> use_rtl_code f arg pc
   | UItailcall: forall pc arg sig r args,
-    (RTLt.fn_code f) !pc = Some (RTL.Itailcall sig (inl ident r) args) -> In arg (r::args) -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Itailcall sig (inl ident r) args) -> In arg (r::args) -> use_rtl_code f arg pc
   | UItailcall2: forall pc arg sig id args,
-    (RTLt.fn_code f) !pc = Some (RTL.Itailcall sig (inr _ id) args) -> In arg args -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Itailcall sig (inr _ id) args) -> In arg args -> use_rtl_code f arg pc
   | UIjump: forall pc arg tbl, 
-    (RTLt.fn_code f) !pc = Some (RTL.Ijumptable arg tbl) -> use_rtl_code f arg pc
+    (RTLdfs.fn_code f) !pc = Some (RTL.Ijumptable arg tbl) -> use_rtl_code f arg pc
   | UIret: forall pc arg,
-    (RTLt.fn_code f) !pc = Some (RTL.Ireturn (Some arg)) -> use_rtl_code f arg pc.
+    (RTLdfs.fn_code f) !pc = Some (RTL.Ireturn (Some arg)) -> use_rtl_code f arg pc.
   
   Hint Constructors use_rtl_code: core.
   Hint Extern 4 (In _ (RTL.successors_instr _)) => simpl successors_instr: core.

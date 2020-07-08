@@ -10,7 +10,7 @@ Require Import Switch.
 Require Import Op.
 Require Import Registers.
 Require Import CminorSel.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import Kildall.
 Require Import Utils.
 Require Import SSA.
@@ -25,7 +25,7 @@ Local Open Scope string_scope.
 Record state : Type := mkstate {
   next_fresh_reg: reg;    (** next fresh register for a new parallel copy *)
   st_phicode: phicode;            (** phicode being constructed *)
-  st_parcopycode: CSSApar.parcopycode     (** parcopycode being constructed *)
+  st_parcopycode: CSSA.parcopycode     (** parcopycode being constructed *)
 }.
 
 Variant state_incr: state -> state -> Prop :=
@@ -146,7 +146,7 @@ Proof.
   apply Ple_refl.
 Qed.
 
-Definition add_parcopy (parcopy: CSSApar.parcopy) (pc: node) : mon unit :=
+Definition add_parcopy (parcopy: CSSA.parcopy) (pc: node) : mon unit :=
   fun s =>
     match PTree.get pc (st_parcopycode s) with
     | None => Error (Errors.msg "")
@@ -161,7 +161,7 @@ Definition add_parcopy (parcopy: CSSApar.parcopy) (pc: node) : mon unit :=
         (add_parcopy_incr _ _ _)
     end.
 
-Fixpoint add_parcopies (parcopies: list CSSApar.parcopy)
+Fixpoint add_parcopies (parcopies: list CSSA.parcopy)
     (copy_nodes: list node) : mon unit :=
   match parcopies, copy_nodes with
   | parcopy :: parcopies, pc :: copy_nodes =>
@@ -338,7 +338,7 @@ Definition init_state (f: SSA.function) :=
   (mkstate
     (Pos.succ (get_maxreg f))
     (PTree.empty phiblock)
-    (PTree.empty CSSApar.parcopyblock)
+    (PTree.empty CSSA.parcopyblock)
   , List.map fst (PTree.elements (fn_code f))).
 
 (** ** Normalisation check *)
@@ -410,7 +410,7 @@ Definition check_phicode_for_dups_in_phib f :=
       | (pc, phib) =>
           check_nodup_in_phib phib SSARegSet.empty
       end)
-    (PTree.elements (CSSApar.fn_phicode f)).
+    (PTree.elements (CSSA.fn_phicode f)).
 
 Definition check_nb_args f preds :=
   forallb
@@ -425,7 +425,7 @@ Definition check_nb_args f preds :=
               end)
             phib
       end)
-  (PTree.elements (CSSApar.fn_phicode f)).
+  (PTree.elements (CSSA.fn_phicode f)).
 
 Definition check_parcbSome f preds :=
   forallb
@@ -434,48 +434,48 @@ Definition check_parcbSome f preds :=
       | (pc, phib) =>
           forallb
             (fun pred =>
-              match (CSSApar.fn_parcopycode f) ! pred with
+              match (CSSA.fn_parcopycode f) ! pred with
               | None => false
               | _ => true
               end)
             (preds !!! pc)
       end)
-  (PTree.elements (CSSApar.fn_phicode f)).
+  (PTree.elements (CSSA.fn_phicode f)).
 
 Definition check_parcb'Some f :=
   forallb
     (fun pcphib =>
       match pcphib with
       | (pc, phib) =>
-            match (CSSApar.fn_parcopycode f) ! pc with
+            match (CSSA.fn_parcopycode f) ! pc with
             | None => false
             | _ => true
             end
       end)
-  (PTree.elements (CSSApar.fn_phicode f)).
+  (PTree.elements (CSSA.fn_phicode f)).
 
 Definition check_fn_parcb_inop f :=
   forallb
     (fun pcparcb =>
       match pcparcb with
       | (pc, parcb) =>
-            match (CSSApar.fn_code f) ! pc with
+            match (CSSA.fn_code f) ! pc with
             | Some (Inop s) => true
             | _ => false
             end
       end)
-  (PTree.elements (CSSApar.fn_parcopycode f)).
+  (PTree.elements (CSSA.fn_parcopycode f)).
 
 Definition check_fn_parcbjp f :=
   forallb
     (fun pcparcb =>
       match pcparcb with
       | (pc, parcb) =>
-          match (CSSApar.fn_code f) ! pc with
+          match (CSSA.fn_code f) ! pc with
           | Some (Inop pc') =>
-              match (CSSApar.fn_phicode f) ! pc' with
+              match (CSSA.fn_phicode f) ! pc' with
               | None =>
-                  match (CSSApar.fn_phicode f) ! pc with
+                  match (CSSA.fn_phicode f) ! pc with
                   | Some phib => true
                   | _ => false
                   end
@@ -484,18 +484,18 @@ Definition check_fn_parcbjp f :=
           | _ => true
           end
       end)
-    (PTree.elements (CSSApar.fn_parcopycode f)).
+    (PTree.elements (CSSA.fn_parcopycode f)).
 
 Definition check_parcborparcb' f :=
   forallb
     (fun pcparcb =>
       match pcparcb with
       | (pc, parcb) =>
-          match (CSSApar.fn_code f) ! pc with
+          match (CSSA.fn_code f) ! pc with
           | Some (Inop pc') =>
-              match (CSSApar.fn_phicode f) ! pc' with
+              match (CSSA.fn_phicode f) ! pc' with
               | None =>
-                  match (CSSApar.fn_phicode f) ! pc with
+                  match (CSSA.fn_phicode f) ! pc with
                   | Some phib => true
                   | _ => false
                   end
@@ -504,10 +504,10 @@ Definition check_parcborparcb' f :=
           | _ => false
           end
       end)
-    (PTree.elements (CSSApar.fn_parcopycode f)).
+    (PTree.elements (CSSA.fn_parcopycode f)).
 
 (** ** Global Translation *)
-Definition transl_function (f: SSA.function) : Errors.res CSSApar.function :=
+Definition transl_function (f: SSA.function) : Errors.res CSSA.function :=
   let '(init,lp) := init_state f in
   let predsfun := make_predecessors (fn_code f) successors_instr in
   match mfold_unit 
@@ -519,7 +519,7 @@ Definition transl_function (f: SSA.function) : Errors.res CSSApar.function :=
         && check_jp_inops f
         && entry_point_not_jp_pred f.(SSA.fn_entrypoint) s.(st_parcopycode)
       then
-        let tf := (CSSApar.mkfunction
+        let tf := (CSSA.mkfunction
             f.(SSA.fn_sig)
             f.(SSA.fn_params)
             f.(SSA.fn_stacksize)
@@ -529,7 +529,7 @@ Definition transl_function (f: SSA.function) : Errors.res CSSApar.function :=
             f.(SSA.fn_entrypoint))
         in
         if check_nb_args tf (get_preds tf) &&
-           check_parcbSome tf (CSSApar.get_preds tf) &&
+           check_parcbSome tf (CSSA.get_preds tf) &&
            check_parcb'Some tf &&
            check_fn_parcb_inop tf &&
            check_fn_parcbjp tf &&
@@ -541,8 +541,8 @@ Definition transl_function (f: SSA.function) : Errors.res CSSApar.function :=
         Errors.Error (Errors.msg "check_joinpoints")
   end.
 
-Definition transl_fundef (f: SSA.fundef) : Errors.res CSSApar.fundef :=
+Definition transl_fundef (f: SSA.fundef) : Errors.res CSSA.fundef :=
   transf_partial_fundef transl_function f.
 
-Definition transl_program (p: SSA.program) : Errors.res CSSApar.program :=
+Definition transl_program (p: SSA.program) : Errors.res CSSA.program :=
   transform_partial_program transl_fundef p.

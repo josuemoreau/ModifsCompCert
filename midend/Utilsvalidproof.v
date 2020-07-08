@@ -20,7 +20,7 @@ Require Import Smallstep.
 Require Import Op.
 Require Import Registers.
 Require Import RTL.
-Require Import RTLt.
+Require Import RTLdfs.
 Require Import Kildall.
 Require Import KildallComp.
 Require Import Conventions.
@@ -117,13 +117,13 @@ Definition erase_instr (size: nat) instr : RTL.instruction :=
 Definition erase_code (size: nat) (rtlphi:function) : RTL.code :=
   PTree.map (fun pc i => erase_instr size i) (fn_code rtlphi).
 
-Variant check_erased_spec (size: nat) (rtl: RTLt.function) (rtlphi:SSA.function) :=
+Variant check_erased_spec (size: nat) (rtl: RTLdfs.function) (rtlphi:SSA.function) :=
 | ces_intros: forall
-  (HSIG : (RTLt.fn_sig rtl) = (SSA.fn_sig rtlphi))
-  (HPARAMS: (RTLt.fn_params rtl) = (map (erase_reg size) (SSA.fn_params rtlphi)))
-  (HSSIZE : (RTLt.fn_stacksize rtl) = (SSA.fn_stacksize rtlphi))
-  (HENTRY : (RTLt.fn_entrypoint rtl) = (SSA.fn_entrypoint rtlphi))
-  (HCODE: forall p, (RTLt.fn_code rtl) ! p = (erase_code size rtlphi) ! p),
+  (HSIG : (RTLdfs.fn_sig rtl) = (SSA.fn_sig rtlphi))
+  (HPARAMS: (RTLdfs.fn_params rtl) = (map (erase_reg size) (SSA.fn_params rtlphi)))
+  (HSSIZE : (RTLdfs.fn_stacksize rtl) = (SSA.fn_stacksize rtlphi))
+  (HENTRY : (RTLdfs.fn_entrypoint rtl) = (SSA.fn_entrypoint rtlphi))
+  (HCODE: forall p, (RTLdfs.fn_code rtl) ! p = (erase_code size rtlphi) ! p),
   check_erased_spec size rtl rtlphi.
    
 Lemma extensional_assigned_code_spec :  forall m m' pc r, 
@@ -219,7 +219,7 @@ Variant check_instrs_spec (size: nat) (rtlphi:function)  : RTL.instruction -> in
 
 Lemma check_instr_spec_erase: forall size f tf pc rinstr rinstr',
   check_erased_spec size f tf -> 
-  (RTLt.fn_code f)!pc = Some rinstr ->
+  (RTLdfs.fn_code f)!pc = Some rinstr ->
   (fn_code tf)!pc = Some rinstr' ->
   (erase_instr size rinstr' = rinstr) /\ check_instrs_spec size tf rinstr rinstr'.
 Proof. 
@@ -258,7 +258,7 @@ Set Printing Notations.
 
 Lemma erase_funct_no_add: forall size tf f pc rinstr,
   check_erased_spec size f tf ->
-  ((RTLt.fn_code f)!pc = Some rinstr) ->
+  ((RTLdfs.fn_code f)!pc = Some rinstr) ->
   exists pinstr, (fn_code tf)!pc = Some pinstr.
 Proof.
   intros.  inv H. 
@@ -271,7 +271,7 @@ Qed.
 
 Lemma erased_funct_erased_instr: forall size pc f tf rinstr,
   check_erased_spec size f tf  ->
-  (RTLt.fn_code f)!pc = Some rinstr ->
+  (RTLdfs.fn_code f)!pc = Some rinstr ->
   exists pinstr,
     (SSA.fn_code tf) ! pc = Some pinstr
     /\ (rinstr =  erase_instr size pinstr).
@@ -531,9 +531,9 @@ Definition check_no_duplicates_spec (size: nat) (rtlphi:function) :=
     (args <> args' \/ dst <> dst') ->
     (erase_reg size dst) <> (erase_reg size dst').
 
-Definition structural_checks_spec (size: nat) (rtl: RTLt.function) (rtlphi: SSA.function) :=
-  (RTLt.fn_sig rtl = SSA.fn_sig rtlphi) 
-  /\ ((RTLt.fn_stacksize rtl) = (SSA.fn_stacksize rtlphi)) 
+Definition structural_checks_spec (size: nat) (rtl: RTLdfs.function) (rtlphi: SSA.function) :=
+  (RTLdfs.fn_sig rtl = SSA.fn_sig rtlphi) 
+  /\ ((RTLdfs.fn_stacksize rtl) = (SSA.fn_stacksize rtlphi)) 
   /\ (check_erased_spec size rtl rtlphi)
   /\ (unique_def_spec rtlphi)
   /\ (check_phi_params_spec rtlphi)
@@ -564,7 +564,7 @@ Qed.
 
 Lemma is_joinpoint_iff_join_point : forall f jp,
   RTLutils.join_point jp f <-> 
-  is_joinpoint (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) jp = true.
+  is_joinpoint (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) jp = true.
 Proof.
   intros. split; intros.
   - inv H.
@@ -574,7 +574,7 @@ Proof.
     destruct l; simpl in *; try (apply False_ind; omega).
     auto.    
   - unfold is_joinpoint in *.
-    case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr)!jp).
+    case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)!jp).
     * intros l' Hc.
       rewrite Hc in *.
       destruct l' ; simpl in *; try congruence.

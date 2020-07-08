@@ -3,17 +3,17 @@ Require Import Coqlib.
 Require Import Maps.
 Require Import AST.
 Require Import Registers.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import SSA.
 Require Import SSAutils.
-Require Import CSSApargen.
+Require Import CSSAgen.
 Require Import Utils.
 Require Import Kildall.
 Require Import KildallComp.
 Require Import DLib.
-Require Import CSSApargenspec.
+Require Import CSSAgenspec.
 Require Import CSSAutils.
-Require Import CSSApargenproof.
+Require Import CSSAproof.
 Require Import Classical.
 Unset Allow StrictProp.
 
@@ -900,7 +900,7 @@ Qed.
 Lemma check_phicode_for_dups_in_phib_correct :
   forall f pc phib,
   check_phicode_for_dups_in_phib f = true ->
-  (CSSApar.fn_phicode f) ! pc = Some phib ->
+  (CSSA.fn_phicode f) ! pc = Some phib ->
   nodups_in_phib_spec phib.
 Proof.
   intros.
@@ -933,7 +933,7 @@ Lemma exists_phib_iff :
   wf_ssa_function f ->
   ((fn_phicode f) ! pc <> None
     <->
-   (CSSApar.fn_phicode tf) ! pc <> None).
+   (CSSA.fn_phicode tf) ! pc <> None).
 Proof.
   intros. 
   exploit transl_function_spec_ok; eauto.
@@ -980,7 +980,7 @@ Lemma exists_phib_iff_none :
   wf_ssa_function f ->
   ((fn_phicode f) ! pc = None
     <->
-   (CSSApar.fn_phicode tf) ! pc = None).
+   (CSSA.fn_phicode tf) ! pc = None).
 Proof.
   intros.
   split; intros;
@@ -989,19 +989,19 @@ Proof.
 Qed.
 
 Definition get_tf s f :=
-  {| CSSApar.fn_sig := fn_sig f;
-     CSSApar.fn_params := fn_params f;
-     CSSApar.fn_stacksize := fn_stacksize f;
-     CSSApar.fn_code := fn_code f;
-     CSSApar.fn_phicode := st_phicode s;
+  {| CSSA.fn_sig := fn_sig f;
+     CSSA.fn_params := fn_params f;
+     CSSA.fn_stacksize := fn_stacksize f;
+     CSSA.fn_code := fn_code f;
+     CSSA.fn_phicode := st_phicode s;
      fn_parcopycode := st_parcopycode s;
-     CSSApar.fn_entrypoint := fn_entrypoint f |}.
+     CSSA.fn_entrypoint := fn_entrypoint f |}.
 
 Lemma cfgeq_to_star :
   forall f tf pc pc',
-  (forall x y, cfg f x y -> CSSApar.cfg tf x y) ->
+  (forall x y, cfg f x y -> CSSA.cfg tf x y) ->
   (cfg f **) pc pc' ->
-  (CSSApar.cfg tf **) pc pc'.
+  (CSSA.cfg tf **) pc pc'.
 Proof.
   intros.
   induction H0.
@@ -1012,9 +1012,9 @@ Qed.
 
 Lemma cfgeq_reached :
   forall f tf pc pc',
-  (forall x y, cfg f x y -> CSSApar.cfg tf x y) ->
+  (forall x y, cfg f x y -> CSSA.cfg tf x y) ->
   Dom.reached (cfg f) pc pc' ->
-  Dom.reached (CSSApar.cfg tf) pc pc'.
+  Dom.reached (CSSA.cfg tf) pc pc'.
 Proof.
   intros.
   inv H0.
@@ -1028,13 +1028,13 @@ Qed.
 Lemma check_nb_args_correct :
   forall f,
   check_nb_args f
-    (CSSApar.get_preds f)
+    (CSSA.get_preds f)
     = true ->
-  CSSApar.block_nb_args f.
+  CSSA.block_nb_args f.
 Proof.
   intros.
   unfold check_nb_args in H.
-  unfold CSSApar.block_nb_args.
+  unfold CSSA.block_nb_args.
   intros.
   rewrite forallb_forall in H.
   specialize (H (pc, block)).
@@ -1048,11 +1048,11 @@ Qed.
 Lemma check_parcbSome_correct :
   forall f phib pc pred,
   check_parcbSome f
-    (CSSApar.get_preds f)
+    (CSSA.get_preds f)
     = true ->
-  (CSSApar.fn_phicode f) ! pc = Some phib ->
-  In pred (CSSApar.get_preds f) !!! pc ->
-  (CSSApar.fn_parcopycode f) ! pred <> None.
+  (CSSA.fn_phicode f) ! pc = Some phib ->
+  In pred (CSSA.get_preds f) !!! pc ->
+  (CSSA.fn_parcopycode f) ! pred <> None.
 Proof.
   intros.
   unfold check_parcbSome in H.
@@ -1069,8 +1069,8 @@ Qed.
 Lemma check_parcb'Some_correct :
   forall f phib pc,
   check_parcb'Some f = true ->
-  (CSSApar.fn_phicode f) ! pc = Some phib ->
-  (CSSApar.fn_parcopycode f) ! pc <> None.
+  (CSSA.fn_phicode f) ! pc = Some phib ->
+  (CSSA.fn_parcopycode f) ! pc <> None.
 Proof.
   intros.
   unfold check_parcb'Some in H.
@@ -1084,8 +1084,8 @@ Qed.
 Lemma check_fn_parcb_inop_correct :
   forall f pc parcb,
   check_fn_parcb_inop f = true ->
-  (CSSApar.fn_parcopycode f) ! pc = Some parcb ->
-  exists s, (CSSApar.fn_code f) ! pc = Some (Inop s).
+  (CSSA.fn_parcopycode f) ! pc = Some parcb ->
+  exists s, (CSSA.fn_code f) ! pc = Some (Inop s).
 Proof.
   intros.
   unfold check_fn_parcb_inop in H.
@@ -1101,13 +1101,13 @@ Lemma wf_fn_phicode_inv :
   transl_function f = Errors.OK tf ->
   normalized_jp f ->
   wf_ssa_function f ->
-  (CSSApar.join_point jp tf <-> (CSSApar.fn_phicode tf) ! jp <> None).
+  (CSSA.join_point jp tf <-> (CSSA.fn_phicode tf) ! jp <> None).
 Proof.
   intros. split; intros.
   - assert(join_point jp f).
     eapply no_new_joinpoints; eauto.
     rewrite fn_phicode_inv in H3; auto.
-    assert((CSSApar.fn_phicode tf) ! jp <> None).
+    assert((CSSA.fn_phicode tf) ! jp <> None).
     eapply exists_phib_iff; eauto.
     go.
   - rewrite <- exists_phib_iff in H2; eauto.
@@ -1125,10 +1125,10 @@ Lemma check_fn_parcbjp_correct :
   normalized_jp f ->
   transl_function f = Errors.OK tf ->
   check_fn_parcbjp tf = true ->
-  (CSSApar.fn_parcopycode tf) ! pc = Some parcb ->
-  (CSSApar.fn_code tf) ! pc = Some (Inop pc') ->
-  ~ CSSApar.join_point pc' tf ->
-  CSSApar.join_point pc tf.
+  (CSSA.fn_parcopycode tf) ! pc = Some parcb ->
+  (CSSA.fn_code tf) ! pc = Some (Inop pc') ->
+  ~ CSSA.join_point pc' tf ->
+  CSSA.join_point pc tf.
 Proof.
   intros until pc'.
   intros WF Hnorm Htransl Hcheck Hparcb Hinop.
@@ -1151,8 +1151,8 @@ Lemma cssa_fn_inop_in_jp:
   normalized_jp f ->
   wf_ssa_function f ->
   forall pc,
-  (CSSApar.fn_phicode tf) ! pc <> None ->
-  exists succ, (CSSApar.fn_code tf) ! pc = Some (Inop succ).
+  (CSSA.fn_phicode tf) ! pc <> None ->
+  exists succ, (CSSA.fn_code tf) ! pc = Some (Inop succ).
 Proof.
   intros f tf Htrans
     Hnorm WF.
@@ -1240,7 +1240,7 @@ Lemma phib_nil_phib'_nil:
   wf_ssa_function f ->
   transl_function f = Errors.OK tf ->
   (fn_phicode f) ! pc = Some nil ->
-  (CSSApar.fn_phicode tf) ! pc <> Some nil ->
+  (CSSA.fn_phicode tf) ! pc <> Some nil ->
   False.
 Proof.
   intros f tf pc Hnorm WF Htrans Hnil Hnil'.
@@ -1251,10 +1251,10 @@ Proof.
   unfold transl_function in Htrans.
   assert(Hremembertrans: transl_function f = Errors.OK tf) by auto.
   flatten Htrans.
-  case_eq((CSSApar.fn_phicode (get_tf s' f)) ! pc).
+  case_eq((CSSA.fn_phicode (get_tf s' f)) ! pc).
   {
     intros phib' Hphib'.
-    assert(Hinop: exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc
+    assert(Hinop: exists succ, (CSSA.fn_code (get_tf s' f)) ! pc
       = Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; eauto. go.
     destruct Hinop as [succ Hinop].
@@ -1280,7 +1280,7 @@ Lemma In_has_really_phiblock_filter:
   normalized_jp f ->
   wf_ssa_function f ->
   transl_function f = Errors.OK tf ->
-  (CSSApar.fn_phicode tf) ! pc = Some phib ->
+  (CSSA.fn_phicode tf) ! pc = Some phib ->
   In (Iphi args r) phib ->
   In pc (filter (has_really_phiblock f)
     (map fst (PTree.elements (fn_code f)))).
@@ -1295,7 +1295,7 @@ Proof.
   flatten Htrans.
 
   apply filter_In.
-  assert(Hinop: exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc
+  assert(Hinop: exists succ, (CSSA.fn_code (get_tf s' f)) ! pc
     = Some (Inop succ)).
   eapply cssa_fn_inop_in_jp; eauto. go.
   simpl in Hinop.
@@ -1384,7 +1384,7 @@ Lemma assigned_phi_pltmaxreg_r:
 
   (* validations *)
   normalized_jp f ->
-  assigned_phi_spec (CSSApar.fn_phicode tf) pc r ->
+  assigned_phi_spec (CSSA.fn_phicode tf) pc r ->
   wf_ssa_function f ->
   Plt (get_maxreg f) r.
 Proof.
@@ -1398,7 +1398,7 @@ Proof.
   unfold init_state in *.
   inv Hphi.
   inv SPEC; simpl in *.
-  assert(Hinop: exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc
+  assert(Hinop: exists succ, (CSSA.fn_code (get_tf s' f)) ! pc
     = Some (Inop succ)).
   eapply cssa_fn_inop_in_jp; eauto. go.
   simpl in Hinop.
@@ -1430,7 +1430,7 @@ Lemma assigned_parc_pltmaxreg_notjp:
   normalized_jp f ->
   check_fn_parcb_inop tf = true ->
   check_fn_parcbjp tf = true ->
-  assigned_parcopy_spec (CSSApar.fn_parcopycode tf) pc r ->
+  assigned_parcopy_spec (CSSA.fn_parcopycode tf) pc r ->
   ~ join_point pc f ->
   Plt (get_maxreg f) r.
 Proof.
@@ -1449,9 +1449,9 @@ Proof.
   destruct Hinop as [succ Hinop].
   simpl in *.
   destruct H0 as [src Hin].
-  assert(Hjp: CSSApar.join_point succ (get_tf s' f)).
+  assert(Hjp: CSSA.join_point succ (get_tf s' f)).
   apply Peirce. intros.
-  assert(CSSApar.join_point pc (get_tf s' f)).
+  assert(CSSA.join_point pc (get_tf s' f)).
   eapply check_fn_parcbjp_correct; go.
   exploit no_new_joinpoints; eauto; intros.
   go.
@@ -1545,7 +1545,7 @@ Lemma assigned_parcjp_assigned_phi:
 
   normalized_jp f ->
   wf_ssa_function f ->
-  assigned_parcopy_spec (CSSApar.fn_parcopycode tf) pc r ->
+  assigned_parcopy_spec (CSSA.fn_parcopycode tf) pc r ->
   join_point pc f ->
   assigned_phi_spec (fn_phicode f) pc r.
 Proof.
@@ -1558,7 +1558,7 @@ Proof.
   inv Hassign.
   destruct H0 as [src Hin].
   rewrite fn_phicode_inv in Hjp; auto.
-  assert(Hinop: exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc =
+  assert(Hinop: exists succ, (CSSA.fn_code (get_tf s' f)) ! pc =
     Some (Inop succ)).
   eapply cssa_fn_inop_in_jp; eauto.
   rewrite <- exists_phib_iff; eauto.
@@ -1586,11 +1586,11 @@ Lemma check_parcborparcb'_correct:
   normalized_jp f ->
   transl_function f = Errors.OK tf ->
   check_parcborparcb' tf = true ->
-  (CSSApar.fn_parcopycode tf) ! pc <> None ->
+  (CSSA.fn_parcopycode tf) ! pc <> None ->
   exists pc',
   (fn_code f) ! pc = Some (Inop pc') /\
-  ((CSSApar.fn_phicode tf) ! pc <> None \/
-   (CSSApar.fn_phicode tf) ! pc' <> None).
+  ((CSSA.fn_phicode tf) ! pc <> None \/
+   (CSSA.fn_phicode tf) ! pc' <> None).
 Proof.
   intros until pc.
   intros WF Hnorm Htransl Hcheck Hparcb.
@@ -1635,7 +1635,7 @@ Proof.
     rewrite <- exists_phib_iff in Hphibpc; go. go.
     apply fn_phicode_inv; auto.
   + assert(Hinoppc':
-      exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc' =
+      exists succ, (CSSA.fn_code (get_tf s' f)) ! pc' =
         Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; eauto.
     simpl in *.
@@ -1852,8 +1852,8 @@ Lemma notassign_phi_and_parc:
 
   (* validations *)
   normalized_jp f ->
-  CSSApar.block_nb_args tf ->
-  check_parcbSome tf (CSSApar.get_preds tf) = true ->
+  CSSA.block_nb_args tf ->
+  check_parcbSome tf (CSSA.get_preds tf) = true ->
   check_parcb'Some tf = true ->
   check_fn_parcb_inop tf = true ->
   check_fn_parcbjp tf = true ->
@@ -1861,8 +1861,8 @@ Lemma notassign_phi_and_parc:
   check_phicode_for_dups_in_phib tf = true ->
 
   wf_ssa_function f ->
-  assigned_phi_spec (CSSApar.fn_phicode tf) pc r ->
-  assigned_parcopy_spec (CSSApar.fn_parcopycode tf) pc' r ->
+  assigned_phi_spec (CSSA.fn_phicode tf) pc r ->
+  assigned_parcopy_spec (CSSA.fn_parcopycode tf) pc' r ->
   False.
 Proof.
   intros f tf r pc pc' Htrans
@@ -1902,7 +1902,7 @@ Proof.
     - rewrite e in *.
       exploit assigned_parcjp_assigned_phi; eauto.
       inv H0.
-      assert((CSSApar.fn_phicode (get_tf s' f)) ! pc' <> None)
+      assert((CSSA.fn_phicode (get_tf s' f)) ! pc' <> None)
         by go.
       rewrite <- exists_phib_iff in H0; go.
       apply fn_phicode_inv; auto.
@@ -1924,7 +1924,7 @@ Proof.
   case_eq(peq pc'0 pc); intros.
   - rewrite e in *.
     inv SPEC; simpl in *.
-    assert(exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc =
+    assert(exists succ, (CSSA.fn_code (get_tf s' f)) ! pc =
       Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; go.
     destruct H3 as [succ Hinoppc'].
@@ -1992,7 +1992,7 @@ Proof.
     { flatten Eq. eapply In_has_really_phiblock_filter; eauto. }
 
     inv SPEC; simpl in *.
-    assert(exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc'0 =
+    assert(exists succ, (CSSA.fn_code (get_tf s' f)) ! pc'0 =
       Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; go.
     destruct H4 as [succ Hinoppc'].
@@ -2110,10 +2110,10 @@ Lemma wf_unique_def :
   forall f tf,
   transl_function f = Errors.OK tf ->
   normalized_jp f ->
-  CSSApar.block_nb_args tf ->
+  CSSA.block_nb_args tf ->
 
   (* validations *)
-  check_parcbSome tf (CSSApar.get_preds tf) = true ->
+  check_parcbSome tf (CSSA.get_preds tf) = true ->
   check_parcb'Some tf = true ->
   check_fn_parcb_inop tf = true ->
   check_fn_parcbjp tf = true ->
@@ -2121,7 +2121,7 @@ Lemma wf_unique_def :
   check_phicode_for_dups_in_phib tf = true ->
 
   wf_ssa_function f ->
-  CSSApar.unique_def_spec tf.
+  CSSA.unique_def_spec tf.
 Proof.
   intros f tf Htrans
     Hnorm Hblock_nb_args HparcbSome Hparcb'Some Hparcb_inop Hparcbjp
@@ -2229,12 +2229,12 @@ Proof.
       eapply Ple_maxreg_and_maxreg_Plt; eauto.
     - inv SPEC; simpl in *. 
       assert(Hinoppc0:
-        exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc0 =
+        exists succ, (CSSA.fn_code (get_tf s' f)) ! pc0 =
           Some (Inop succ)).
       eapply cssa_fn_inop_in_jp; go.
       destruct Hinoppc0 as [succ Hinoppc0].
       assert(Hinoppc'0:
-        exists succ', (CSSApar.fn_code (get_tf s' f)) ! pc'0 =
+        exists succ', (CSSA.fn_code (get_tf s' f)) ! pc'0 =
           Some (Inop succ')).
       eapply cssa_fn_inop_in_jp; go.
       destruct Hinoppc'0 as [succ' Hinoppc'0].
@@ -2378,7 +2378,7 @@ Proof.
     eapply notassign_phi_and_parc; eauto.
   + intros; simpl in *.
     inv SPEC; simpl in *.
-    assert(exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc =
+    assert(exists succ, (CSSA.fn_code (get_tf s' f)) ! pc =
       Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; go.
     destruct H1 as [succ Hinop].
@@ -2401,7 +2401,7 @@ Proof.
     apply NoDupdstphib_NoDupphib; auto.
   + intros. simpl in *.
     inv SPEC; simpl in *.
-    assert(exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc =
+    assert(exists succ, (CSSA.fn_code (get_tf s' f)) ! pc =
       Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; go.
     destruct H3 as [succ Hinop].
@@ -2450,7 +2450,7 @@ Proof.
       rewrite EQ in *.
       apply NoDupdstparcb_NoDupparcb; auto.
     - inv SPEC; simpl in *.
-      assert(exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc' =
+      assert(exists succ, (CSSA.fn_code (get_tf s' f)) ! pc' =
         Some (Inop succ)).
       eapply cssa_fn_inop_in_jp; go.
       destruct H1 as [succ Hinoppc'].
@@ -2504,7 +2504,7 @@ Proof.
       apply twoparc_not_NoDup with
         (src := src) (src' := src') (r := dst); eauto.
     - inv SPEC; simpl in *.
-      assert(exists succ, (CSSApar.fn_code (get_tf s' f)) ! pc' =
+      assert(exists succ, (CSSA.fn_code (get_tf s' f)) ! pc' =
         Some (Inop succ)).
       eapply cssa_fn_inop_in_jp; go.
       destruct H3 as [succ Hinoppc'].
@@ -2542,9 +2542,9 @@ Lemma wf_cssa_extrainv_1 :
   wf_ssa_function f ->
 
   forall pc r,
-  CSSApar.join_point pc tf ->
+  CSSA.join_point pc tf ->
   use_parcopycode tf r pc ->
-  assigned_phi_spec (CSSApar.fn_phicode tf) pc r.
+  assigned_phi_spec (CSSA.fn_phicode tf) pc r.
 Proof.
   intros f tf Htrans
     Hnorm WF.
@@ -2557,13 +2557,13 @@ Proof.
   flatten Htrans.
   intros. inv SPEC. inv H0. simpl in *.
   assert(Hinop: exists succ,
-    (CSSApar.fn_code (get_tf s' f)) ! pc = Some (Inop succ)).
+    (CSSA.fn_code (get_tf s' f)) ! pc = Some (Inop succ)).
   eapply cssa_fn_inop_in_jp; go.
   simpl.
   assert(Hjp: join_point pc f) by
     (eapply no_new_joinpoints; eauto).
   rewrite fn_phicode_inv in Hjp; auto.
-  assert(Hphib': (CSSApar.fn_phicode (get_tf s' f)) ! pc <> None).
+  assert(Hphib': (CSSA.fn_phicode (get_tf s' f)) ! pc <> None).
   rewrite <- exists_phib_iff; go.
   go.
   destruct Hinop as [succ Hinop].
@@ -2597,8 +2597,8 @@ Lemma wf_cssa_extrainv_2 :
   wf_ssa_function f ->
 
   forall pc r,
-  CSSApar.use_phicode tf r pc ->
-  assigned_parcopy_spec (CSSApar.fn_parcopycode tf) pc r.
+  CSSA.use_phicode tf r pc ->
+  assigned_parcopy_spec (CSSA.fn_parcopycode tf) pc r.
 Proof.
   intros f tf Htrans
     Hnorm WF.
@@ -2611,7 +2611,7 @@ Proof.
   flatten Htrans.
   intros. inv SPEC. inv H. simpl in *.
   assert(Hinop: exists succ,
-    (CSSApar.fn_code (get_tf s' f)) ! pc0 = Some (Inop succ)).
+    (CSSA.fn_code (get_tf s' f)) ! pc0 = Some (Inop succ)).
   eapply cssa_fn_inop_in_jp; go.
   destruct Hinop as [succ Hinop].
   exploit (H2 pc0 (Inop succ) k); eauto; intros.
@@ -2647,7 +2647,7 @@ Lemma assigned_phi_assigned_parcb':
 
   forall pc r,
   assigned_phi_spec (fn_phicode f) pc r ->
-  assigned_parcopy_spec (CSSApar.fn_parcopycode tf) pc r.
+  assigned_parcopy_spec (CSSA.fn_parcopycode tf) pc r.
 Proof.
   intros f tf Htrans
     Hnorm WF.
@@ -2736,7 +2736,7 @@ Lemma cssa_def_code_def_code:
   transl_function f = Errors.OK tf ->
   normalized_jp f ->
   wf_ssa_function f ->
-  assigned_code_spec (CSSApar.fn_code tf) r pc ->
+  assigned_code_spec (CSSA.fn_code tf) r pc ->
   assigned_code_spec (fn_code f) r pc.
 Proof.
   intros.
@@ -2750,7 +2750,7 @@ Lemma cssa_use_code_use_code:
   transl_function f = Errors.OK tf ->
   normalized_jp f ->
   wf_ssa_function f ->
-  CSSApar.use_code tf r pc ->
+  CSSA.use_code tf r pc ->
   use_code f r pc.
 Proof. 
   intros.
@@ -2765,7 +2765,7 @@ Lemma cssa_ext_params_ext_params:
   check_parcborparcb' tf = true ->
   normalized_jp f ->
   wf_ssa_function f ->
-  CSSApar.ext_params tf r ->
+  CSSA.ext_params tf r ->
   ext_params f r.
 Proof.
   intros f tf r Htrans Hcheckparcborparcb' Hnorm WF Hext.
@@ -2826,7 +2826,7 @@ Lemma cssa_cfg_cfg:
   forall f tf pc pc',
   transl_function f = Errors.OK tf ->
   cfg f pc pc' ->
-  CSSApar.cfg tf pc pc'.
+  CSSA.cfg tf pc pc'.
 Proof.
   intros.
   unfold transl_function in H.
@@ -2837,7 +2837,7 @@ Qed.
 Lemma cssa_cfg_cfg_2:
   forall f tf pc pc',
   transl_function f = Errors.OK tf ->
-  CSSApar.cfg tf pc pc' ->
+  CSSA.cfg tf pc pc' ->
   cfg f pc pc'.
 Proof.
   intros.
@@ -2850,7 +2850,7 @@ Lemma cssa_cfg_star_cfg_star:
   forall f tf pc pc',
   transl_function f = Errors.OK tf ->
   (cfg f **) pc pc' ->
-  (CSSApar.cfg tf **) pc pc'.
+  (CSSA.cfg tf **) pc pc'.
 Proof.
   intros.
   induction H0.
@@ -2863,7 +2863,7 @@ Qed.
 Lemma cssa_cfg_star_cfg_star_2:
   forall f tf pc pc',
   transl_function f = Errors.OK tf ->
-  (CSSApar.cfg tf **) pc pc' ->
+  (CSSA.cfg tf **) pc pc' ->
   (cfg f **) pc pc'.
 Proof.
   intros.
@@ -2878,7 +2878,7 @@ Lemma cssa_reached_reached:
   forall f tf pc,
   transl_function f = Errors.OK tf ->
   reached f pc ->
-  CSSApar.reached tf pc.
+  CSSA.reached tf pc.
 Proof.
   intros.
   assert(Hremembertrans: transl_function f = Errors.OK tf) by auto.
@@ -2896,7 +2896,7 @@ Qed.
 Lemma cssa_reached_reached_2:
   forall f tf pc,
   transl_function f = Errors.OK tf ->
-  CSSApar.reached tf pc ->
+  CSSA.reached tf pc ->
   reached f pc.
 Proof.
   intros.
@@ -2917,7 +2917,7 @@ Lemma cssa_path_path :
   transl_function f = Errors.OK tf ->
   normalized_jp f ->
   wf_ssa_function f ->
-  Dom.path (CSSApar.cfg tf) (CSSApar.exit tf) (entry f) pc l pc' ->
+  Dom.path (CSSA.cfg tf) (CSSA.exit tf) (entry f) pc l pc' ->
   Dom.path (cfg f) (exit f) (entry f) pc l pc'.
 Proof.
   intros.
@@ -2928,19 +2928,19 @@ Proof.
     - inv STEP.
       { constructor.
         eapply cssa_reached_reached_2; eauto.
-        replace (CSSApar.entry tf) with (entry f).
+        replace (CSSA.entry tf) with (entry f).
         auto.
         unfold transl_function in H.
         flatten H; simpl; auto.
         eapply cssa_cfg_cfg_2; eauto. }
       { constructor 2.
         eapply cssa_reached_reached_2; eauto.
-        replace (CSSApar.entry tf) with (entry f).
+        replace (CSSA.entry tf) with (entry f).
         auto.
         unfold transl_function in H.
         flatten H; simpl; auto.
         unfold exit.
-        unfold CSSApar.exit in NOSTEP.
+        unfold CSSA.exit in NOSTEP.
         erewrite instructions_preserved in NOSTEP; eauto.
       }
     - auto.
@@ -2952,7 +2952,7 @@ Lemma cssa_dom_dom:
   normalized_jp f ->
   wf_ssa_function f ->
   dom f pc pc' ->
-  CSSApar.dom tf pc pc'.
+  CSSA.dom tf pc pc'.
 Proof.
   intros.
   assert(Hremembertrans: transl_function f = Errors.OK tf) by auto.
@@ -2972,7 +2972,7 @@ Section WF_CSSA.
 Variable f : function.
 Hypothesis WF : wf_ssa_function f.
 
-Variable tf : CSSApar.function.
+Variable tf : CSSA.function.
 Hypothesis Htrans : transl_function f = Errors.OK tf.
 
 Lemma Hnorm : normalized_jp f.
@@ -2982,7 +2982,7 @@ Proof.
 Qed.
 Hint Resolve Hnorm: core.
 
-Lemma Hblock_nb_args : CSSApar.block_nb_args tf.
+Lemma Hblock_nb_args : CSSA.block_nb_args tf.
 Proof.
   unfold transl_function in * ; flatten Htrans ; boolInv.
   eapply check_nb_args_correct; eauto.
@@ -2990,9 +2990,9 @@ Qed.
 Hint Resolve Hblock_nb_args: core.
 
 Lemma HparcbSome : forall (phib : phiblock) (pc : positive),
-                (CSSApar.fn_phicode tf) ! pc = Some phib ->
+                (CSSA.fn_phicode tf) ! pc = Some phib ->
                 forall pred : positive,
-                In pred (CSSApar.get_preds tf) !!! pc ->
+                In pred (CSSA.get_preds tf) !!! pc ->
                 (fn_parcopycode tf) ! pred <> None. 
 Proof.
   unfold transl_function in * ; flatten Htrans ; boolInv.
@@ -3001,7 +3001,7 @@ Qed.
 Hint Resolve HparcbSome: core.
 
 Lemma Hparcb'Some :forall (phib : phiblock) (pc : positive),
-                 (CSSApar.fn_phicode tf) ! pc = Some phib ->
+                 (CSSA.fn_phicode tf) ! pc = Some phib ->
                  (fn_parcopycode tf) ! pc <> None.
 Proof.
   unfold transl_function in * ; flatten Htrans ; boolInv.
@@ -3010,7 +3010,7 @@ Qed.
 Hint Resolve Hparcb'Some: core.
 
 Lemma p_fn_entry : exists s : node,
-                 (CSSApar.fn_code tf) ! (CSSApar.fn_entrypoint tf) =
+                 (CSSA.fn_code tf) ! (CSSA.fn_entrypoint tf) =
                  Some (Inop s).
 Proof.
   exploit transl_function_spec_ok; eauto.
@@ -3022,7 +3022,7 @@ Proof.
 Qed.
 
 Lemma p_fn_entry_pred : forall pc : positive,
-                    ~ CSSApar.cfg tf pc (CSSApar.fn_entrypoint tf).
+                    ~ CSSA.cfg tf pc (CSSA.fn_entrypoint tf).
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3036,7 +3036,7 @@ Proof.
   inv H. simpl in *. go.
 Qed.
 
-Lemma p_fn_no_parcb_at_entry : (fn_parcopycode tf) ! (CSSApar.fn_entrypoint tf) =
+Lemma p_fn_no_parcb_at_entry : (fn_parcopycode tf) ! (CSSA.fn_entrypoint tf) =
                            None.
 Proof.
   exploit transl_function_spec_ok; eauto.
@@ -3052,8 +3052,8 @@ Proof.
 Qed.
 
 Lemma p_fn_phicode_inv : forall jp : positive,
-                     CSSApar.join_point jp tf <->
-                     (CSSApar.fn_phicode tf) ! jp <> None.
+                     CSSA.join_point jp tf <->
+                     (CSSA.fn_phicode tf) ! jp <> None.
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3062,9 +3062,9 @@ Proof.
 Qed. 
 
 Lemma p_fn_normalized : forall (jp : positive) (pc : positive),
-                    CSSApar.join_point jp tf ->
-                    In jp (CSSApar.succs tf pc) ->
-                    (CSSApar.fn_code tf) ! pc = Some (Inop jp).
+                    CSSA.join_point jp tf ->
+                    In jp (CSSA.succs tf pc) ->
+                    (CSSA.fn_code tf) ! pc = Some (Inop jp).
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3075,7 +3075,7 @@ Proof.
     erewrite instructions_preserved in Hpreds; go.
   }
   
-  unfold CSSApar.successors, successors_list in H0.
+  unfold CSSA.successors, successors_list in H0.
   rewrite PTree.gmap1 in H0.
   flatten H0; go.
   erewrite instructions_preserved ; go.
@@ -3087,9 +3087,9 @@ Proof.
 Qed.
 
 Lemma p_fn_inop_in_jp : forall pc : positive,
-                    (CSSApar.fn_phicode tf) ! pc <> None ->
+                    (CSSA.fn_phicode tf) ! pc <> None ->
                     exists succ : node,
-                      (CSSApar.fn_code tf) ! pc = Some (Inop succ).
+                      (CSSA.fn_code tf) ! pc = Some (Inop succ).
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3100,10 +3100,10 @@ Qed.
 Hint Resolve normalisation_checker_correct: core.
 
 Lemma p_fn_normalized_jp : forall (pc : positive) (preds : list positive),
-                       (CSSApar.fn_phicode tf) ! pc <> None ->
-                       (CSSApar.get_preds tf) ! pc = Some preds ->
+                       (CSSA.fn_phicode tf) ! pc <> None ->
+                       (CSSA.get_preds tf) ! pc = Some preds ->
                        forall pred : positive,
-                       In pred preds -> (CSSApar.fn_phicode tf) ! pred = None.
+                       In pred preds -> (CSSA.fn_phicode tf) ! pred = None.
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3115,10 +3115,10 @@ Proof.
   rewrite andb_true_iff in Eq1.
   rewrite andb_true_iff in Eq1.
   destruct Eq1 as [[Check_jp Check_jpinop] Check_entry].
-  assert(Hphipreserved: (CSSApar.fn_phicode (get_tf s' f)) ! pc
+  assert(Hphipreserved: (CSSA.fn_phicode (get_tf s' f)) ! pc
                         = (st_phicode s') ! pc) by go.
   rewrite <- Hphipreserved in H0.
-  assert(Hphipreserved2: (CSSApar.fn_phicode (get_tf s' f)) ! pred
+  assert(Hphipreserved2: (CSSA.fn_phicode (get_tf s' f)) ! pred
                          = (st_phicode s') ! pred) by go.
   rewrite <- Hphipreserved2.
   rewrite <- exists_phib_iff in H0; go.
@@ -3133,8 +3133,8 @@ Qed.
   
 Lemma p_fn_parcbjp : forall (pc : positive) (pc' : node) (parcb : parcopyblock),
                  (fn_parcopycode tf) ! pc = Some parcb ->
-                 (CSSApar.fn_code tf) ! pc = Some (Inop pc') ->
-                 ~ CSSApar.join_point pc' tf -> CSSApar.join_point pc tf.
+                 (CSSA.fn_code tf) ! pc = Some (Inop pc') ->
+                 ~ CSSA.join_point pc' tf -> CSSA.join_point pc tf.
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3151,7 +3151,7 @@ Qed.
 
 Lemma p_parcb_inop : forall pc : positive,
                  (fn_parcopycode tf) ! pc <> None ->
-                 exists s : node, (CSSApar.fn_code tf) ! pc = Some (Inop s).
+                 exists s : node, (CSSA.fn_code tf) ! pc = Some (Inop s).
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3161,15 +3161,15 @@ Proof.
   flatten Htrans; simpl in *.
   intros.
   case_eq((st_parcopycode s') ! pc); try congruence; intros.
-  replace (fn_code f) with (CSSApar.fn_code (get_tf s' f)) by go.
+  replace (fn_code f) with (CSSA.fn_code (get_tf s' f)) by go.
   eapply check_fn_parcb_inop_correct; eauto.
   unfold get_tf ; unfold transl_function in Hremembertrans ; 
   flatten Hremembertrans; boolInv ; go.
 Qed.
 
 Lemma p_fn_code_reached : forall (pc : positive) (ins : instruction),
-                            (CSSApar.fn_code tf) ! pc = Some ins ->
-                            CSSApar.reached tf pc.
+                            (CSSA.fn_code tf) ! pc = Some ins ->
+                            CSSA.reached tf pc.
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3184,10 +3184,10 @@ Qed.
 
 Lemma p_fn_code_closed : forall (pc : positive) (pc' : node)
                        (instr : instruction),
-                     (CSSApar.fn_code tf) ! pc = Some instr ->
+                     (CSSA.fn_code tf) ! pc = Some instr ->
                      In pc' (successors_instr instr) ->
                      exists instr' : instruction,
-                       (CSSApar.fn_code tf) ! pc' = Some instr'.
+                       (CSSA.fn_code tf) ! pc' = Some instr'.
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3198,7 +3198,7 @@ Proof.
   eapply fn_code_closed; eauto.
 Qed.
 
-Lemma p_fn_cssa : CSSApar.unique_def_spec tf.
+Lemma p_fn_cssa : CSSA.unique_def_spec tf.
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3211,11 +3211,11 @@ Proof.
 Qed.
 
 Lemma p_fn_cssa_params : forall x : reg,
-                     In x (CSSApar.fn_params tf) ->
+                     In x (CSSA.fn_params tf) ->
                      (forall pc : node,
-                      ~ assigned_code_spec (CSSApar.fn_code tf) pc x) /\
+                      ~ assigned_code_spec (CSSA.fn_code tf) pc x) /\
                      (forall pc : node,
-                      ~ assigned_phi_spec (CSSApar.fn_phicode tf) pc x) /\
+                      ~ assigned_phi_spec (CSSA.fn_phicode tf) pc x) /\
                      (forall pc : positive,
                       ~ assigned_parcopy_spec (fn_parcopycode tf) pc x).
 Proof.
@@ -3288,7 +3288,7 @@ Hint Resolve ident_eq: core.
         + use-parcb' def-parcb'': def-phib' => unique_def
     *)
 Lemma p_fn_strict : forall (x : reg) (u d : positive),
-                CSSApar.use tf x u -> CSSApar.def tf x d -> CSSApar.dom tf d u.
+                CSSA.use tf x u -> CSSA.def tf x d -> CSSA.dom tf d u.
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3520,7 +3520,7 @@ Proof.
         apply no_successive_jp
         with (f := f) (pc := d) (pc' := pc'0); eauto.
         assert(Hphibnotnone:
-                 (CSSApar.fn_phicode (get_tf s' f)) ! pc'0 <> None)
+                 (CSSA.fn_phicode (get_tf s' f)) ! pc'0 <> None)
           by go.
         rewrite <- exists_phib_iff in Hphibnotnone; eauto.
         apply fn_phicode_inv; auto.
@@ -3530,8 +3530,8 @@ Proof.
 Qed.  
 
 Lemma p_fn_use_def_code : forall (x : reg) (pc : positive),
-                      CSSApar.use_code tf x pc ->
-                      assigned_code_spec (CSSApar.fn_code tf) pc x -> False.
+                      CSSA.use_code tf x pc ->
+                      assigned_code_spec (CSSA.fn_code tf) pc x -> False.
 Proof.
   exploit transl_function_spec_ok; eauto.
   eapply transl_function_charact; eauto.
@@ -3586,7 +3586,7 @@ Proof.
     intros. inv SPEC; simpl in *.
 
     assert(Hinoppc': exists succ,
-                       (CSSApar.fn_code (get_tf s' f)) ! pc' = Some (Inop succ)).
+                       (CSSA.fn_code (get_tf s' f)) ! pc' = Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; go.
     destruct Hinoppc' as [succ Hinoppc'].
     exploit (index_pred_instr_some (Inop pc')
@@ -3615,15 +3615,15 @@ Proof.
 Qed.
 
 Lemma p_fn_jp_use_parcb' : forall (x : reg) (pc : positive),
-                       CSSApar.join_point pc tf ->
+                       CSSA.join_point pc tf ->
                        use_parcopycode tf x pc ->
-                       assigned_phi_spec (CSSApar.fn_phicode tf) pc x.
+                       assigned_phi_spec (CSSA.fn_phicode tf) pc x.
 Proof.
   intros. eapply wf_cssa_extrainv_1; eauto.
 Qed.
 
 Lemma p_fn_jp_use_phib : forall (x : reg) (pc : positive),
-                     CSSApar.use_phicode tf x pc ->
+                     CSSA.use_phicode tf x pc ->
                      assigned_parcopy_spec (fn_parcopycode tf) pc x.
 Proof.
   intros. eapply wf_cssa_extrainv_2; eauto.
@@ -3660,7 +3660,7 @@ Lemma wf_cssa_tprog :
   forall prog tprog,
   wf_ssa_program prog ->
   match_prog prog tprog ->
-  CSSApar.wf_cssa_program tprog.
+  CSSA.wf_cssa_program tprog.
 Proof.
   red. intros prog tprog WF_SSA MATCH. intros.
   red in  WF_SSA.

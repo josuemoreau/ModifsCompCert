@@ -9,7 +9,7 @@ Require Import Registers.
 Require Import Floats.
 Require Import Utils.
 
-Require Import RTLt.
+Require Import RTLdfs.
 Require Import RTLutils.
  
 Require Import Dom.
@@ -33,7 +33,7 @@ Notation path_step := (fun f => path_step (cfg f) (exit f) (entry f)).
 Section WT_FUNCTION.
 
 Variable size: nat.  
-Variable f_rtl : RTLt.function.
+Variable f_rtl : RTLdfs.function.
 Variable f : function.
 Variable G : SSAvalid.tgamma.
 Variable live: PMap.t Regset.t.
@@ -107,7 +107,7 @@ Lemma erased_funct_erased_instr_2: forall size pc f tf rinstr,
   check_erased_spec size f tf  ->
   (SSA.fn_code tf)!pc = Some rinstr ->
   exists pinstr,
-    (RTLt.fn_code f) ! pc = Some pinstr
+    (RTLdfs.fn_code f) ! pc = Some pinstr
     /\ pinstr =  (erase_instr size rinstr).
 Proof.
   clear.
@@ -122,7 +122,7 @@ Qed.
 
 Lemma erased_assigned_code_spec : 
   forall pc x, 
-    RTLutils.assigned_code_spec (RTLt.fn_code f_rtl) pc (ui x) ->
+    RTLutils.assigned_code_spec (RTLdfs.fn_code f_rtl) pc (ui x) ->
     exists rix idx,
       Bij.rmap size rix = ((ui x),idx) /\
       assigned_code_spec (fn_code f) pc rix.

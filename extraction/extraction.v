@@ -126,7 +126,7 @@ Extract Constant Compiler.time  => "Timing.time_coq".
 
 (* Midend *)
 Extract Constant SSAvalid.extern_gen_ssa => "ExternSSAgen.genSSA".
-Extract Constant Compiler.print_RTL_norm => "PrintRTLt.print_if PrintRTLt.destination_drtlnorm".
+Extract Constant Compiler.print_RTL_norm => "PrintRTLdfs.print_if PrintRTLdfs.destination_drtlnorm".
 Extract Constant Compiler.print_SSA => "PrintSSA.print_ssa".
 
 Extract Constant DomTest.fuel => "DomTreeExtern.fuel".
@@ -190,7 +190,7 @@ Separate Extraction
    Conventions1.int_callee_save_regs Conventions1.float_callee_save_regs
    Conventions1.dummy_int_reg Conventions1.dummy_float_reg
    RTL.instr_defs RTL.instr_uses
-   RTLt.successors_map
+   RTLdfs.successors_map
    Machregs.mregs_for_operation Machregs.mregs_for_builtin
    Machregs.two_address_op Machregs.is_stack_reg
    Machregs.destroyed_at_indirect_call

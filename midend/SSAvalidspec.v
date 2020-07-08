@@ -18,7 +18,7 @@ Require Import Events.
 Require Import Smallstep.
 Require Import Op.
 Require Import Registers.
-Require Import RTLt.
+Require Import RTLdfs.
 Require Import Kildall.
 Require Import KildallComp.
 Require Import Conventions.
@@ -109,17 +109,17 @@ End WT_EDGE.
 Arguments Lout [A].
 
 (** * Well-typed functions *)
-Variant wt_function (size: nat) (f: RTLt.function) (tf: function) (live: PMap.t Regset.t) (Γ:tgamma): Prop :=
+Variant wt_function (size: nat) (f: RTLdfs.function) (tf: function) (live: PMap.t Regset.t) (Γ:tgamma): Prop :=
 | wt_fun_intro : forall
     (WTE: forall i j, is_edge tf i j -> wt_edge tf size (Lin f j (Lout live)) Γ i j)
     (WTO: forall i, is_out_node tf i -> wt_out size tf Γ i), 
     wt_function size f tf live Γ.
 
 (** * Overall specification of a validated function *)
-Definition normalised_function (f : RTLt.function) : Prop :=
-  check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) = true.
+Definition normalised_function (f : RTLdfs.function) : Prop :=
+  check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) = true.
 
-Definition check_function_spec (size: nat) (f: RTLt.function) (live: PMap.t Regset.t) (tf: SSA.function) Γ :=
+Definition check_function_spec (size: nat) (f: RTLdfs.function) (live: PMap.t Regset.t) (tf: SSA.function) Γ :=
   (structural_checks_spec size f tf)
   /\ (wf_init size tf Γ)
   /\ (wt_function size f tf live Γ)

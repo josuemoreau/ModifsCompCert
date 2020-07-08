@@ -11,7 +11,7 @@ Require Import Op.
 Require Import Registers.
 Require Import SSA.
 Require Import SSAutils.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import Kildall.
 Require Import DLib.
 Require Import CSSAutils.
@@ -88,7 +88,7 @@ Definition transfer_parcb' (parcb' : parcopyblock)
       after.
 
 Definition transfer
-    (f: CSSApar.function) (pc: node)
+    (f: CSSA.function) (pc: node)
     (after: SSARegSet.t) : SSARegSet.t :=
   match f.(fn_code)!pc with
   | None =>
@@ -124,7 +124,7 @@ Definition analyze (f: function): option (PMap.t SSARegSet.t) :=
 
 Section WF_LIVE.
 
-Variable f : CSSApar.function.
+Variable f : CSSA.function.
 
 Definition Lout (live : PMap.t SSARegSet.t) :=
   fun pc => live # pc.

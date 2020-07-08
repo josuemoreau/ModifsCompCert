@@ -54,7 +54,7 @@ let compile_c_file sourcename ifile ofile =
   set_dest AsmToJSON.destination option_sdump !sdump_suffix;
 
   (* Pretty printers for SSA stages *)
-  set_dest PrintRTLt.destination_drtlnorm option_drtlnorm ".rtl.norm";
+  set_dest PrintRTLdfs.destination_drtlnorm option_drtlnorm ".rtl.norm";
   set_dest PrintSSA.destination_ssa option_dssa ".ssa";
 
   (* Parse the ast *)

@@ -9,14 +9,14 @@ Require Import Op.
 Require Import SSA.
 Require Import SSAutils.
 Require Import Utils.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import DLib.
 Require Import RTLpargen.
 Require Import CSSAutils.
 Require Import Classical.
 Require Import Kildall.
 Require Import KildallComp.
-Require Import CSSApardef.
+Require Import CSSAdef.
 Require Import Registers.
 Unset Allow StrictProp.
 

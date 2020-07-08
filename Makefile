@@ -106,23 +106,23 @@ BACKEND=\
 
 # Middle-end modules (in midend/, $(VLIB2)/, $(ARCH))
 MIDEND=\
-  DLib.v Bijection.v \
-  RTLt.v RTLdfs.v RTLdfsproof.v \
+  DLib.v \
+  RTLnorm.v RTLnormspec.v RTLnormproof.v \
+  RTLdfs.v RTLdfsgen.v RTLdfsproof.v \
+  RTLutils.v LightLive.v KildallComp.v \
+  Bijection.v \
   SSA.v SSAutils.v SSAvalid.v SSAvalidspec.v \
   Utilsvalidproof.v SSAvalidproof.v SSAvalidprop.v SSAvalidator_proof.v \
-  RTLnorm.v RTLnormspec.v RTLnormproof.v \
-  RTLutils.v LightLive.v KildallComp.v \
   Dom.v DomCompute.v DomTest.v \
   SSAinv.v Dsd.v \
   Opt.v OptInv.v \
   GVNopt.v  GVNoptproof.v GVNoptProp.v \
-  CSSAutils.v CSSApar.v CSSApardef.v CSSApargen.v \
-  CSSApargenspec.v CSSApargenwf.v CSSApargenproof.v \
-  CSSAval.v CSSAlive.v CSSAninterf.v CSSAcoalescing.v CSSAliverange.v \
-  RTLpar.v RTLpargen.v RTLparcleanup.v \
-  RTLdpar.v RTLdparspec.v RTLdparproof.v \
   ValueDomainSSA.v ValueAOpSSA.v \
-  SCCPopt.v SCCPoptProp.v SCCPoptproof.v
+  SCCPopt.v SCCPoptProp.v SCCPoptproof.v \
+  CSSA.v CSSAutils.v CSSAdef.v CSSAgen.v CSSAgenspec.v CSSAgenwf.v CSSAproof.v \
+  CSSAval.v CSSAlive.v CSSAninterf.v CSSAliverange.v \
+  RTLpar.v RTLpargen.v RTLparproof.v RTLparcleanup.v \
+  RTLdpar.v RTLdparspec.v RTLdparproof.v
 
 # C front-end modules (in cfrontend/)
 

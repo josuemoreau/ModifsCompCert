@@ -13,7 +13,7 @@ let diag m =
   flush_all()
 
 (** compute cssa value *)
-let compute_cssaval_function (f : CSSApar.coq_function) =
+let compute_cssaval_function (f : CSSA.coq_function) =
   let cssaval_hash = Hashtbl.create 16 in  
   let get_cssaval r =
     try Hashtbl.find cssaval_hash r with
@@ -22,37 +22,37 @@ let compute_cssaval_function (f : CSSApar.coq_function) =
 
   (* depth first search *)
   let sorted_nodes = Stack.create () in
-  let unvisited = ref (PosSet.of_list (List.map fst (PTree.elements f.CSSApar.fn_code))) in
+  let unvisited = ref (PosSet.of_list (List.map fst (PTree.elements f.CSSA.fn_code))) in
   let rec visit pc =
     if not (PosSet.mem pc !unvisited) then ()
     else begin
       unvisited := PosSet.remove pc !unvisited;
-      match PTree.get pc f.CSSApar.fn_code with
+      match PTree.get pc f.CSSA.fn_code with
       | None     -> assert false
       | Some ins ->
           List.iter visit (successors_instr ins);
           Stack.push pc sorted_nodes
     end
   in
-  visit f.CSSApar.fn_entrypoint;
+  visit f.CSSA.fn_entrypoint;
   if not (PosSet.is_empty !unvisited) then
     diag "Warning: some not accessible nodes";
 
   (* node processing *)
   let rec do_node pc =
-    match PTree.get pc f.CSSApar.fn_code with
+    match PTree.get pc f.CSSA.fn_code with
     | None     -> assert false
     | Some ins ->
         begin
-          if PTree.get pc f.CSSApar.fn_phicode <> None then
-            match PTree.get pc f.CSSApar.fn_parcopycode with
+          if PTree.get pc f.CSSA.fn_phicode <> None then
+            match PTree.get pc f.CSSA.fn_parcopycode with
             | None       -> assert false
             | Some parcb ->
                 do_parcopyblock parcb;
                 do_instruction ins
           else
             do_instruction ins;
-            match PTree.get pc f.CSSApar.fn_parcopycode with
+            match PTree.get pc f.CSSA.fn_parcopycode with
             | None       -> ()
             | Some parcb -> do_parcopyblock parcb
         end
@@ -61,7 +61,7 @@ let compute_cssaval_function (f : CSSApar.coq_function) =
     | _ -> ()
   and do_parcopyblock parcb =
     List.iter
-      (function CSSApar.Iparcopy(src, dst) -> Hashtbl.add cssaval_hash dst (get_cssaval src))
+      (function CSSA.Iparcopy(src, dst) -> Hashtbl.add cssaval_hash dst (get_cssaval src))
       parcb
   in
   while not (Stack.is_empty sorted_nodes) do
@@ -83,7 +83,7 @@ let initialize_classes f : (PosSet.t PTree.t * (Registers.reg , Registers.reg) H
             PTree.set dst (PosSet.of_list (dst :: args)) acc)
           acc
           phib)
-      f.CSSApar.fn_phicode
+      f.CSSA.fn_phicode
       PTree.empty in
   (classes, repr_hash)
 
@@ -102,10 +102,10 @@ let build_coalescing_classes_extern f ninterfere =
   let classes =
     PTree.fold
       (fun acc pc parcb ->
-        match PTree.get pc f.CSSApar.fn_phicode with
+        match PTree.get pc f.CSSA.fn_phicode with
         | Some phib ->
            List.fold_left
-             (fun acc (CSSApar.Iparcopy(src,dst)) ->
+             (fun acc (CSSA.Iparcopy(src,dst)) ->
                let repr_class = get_class src acc in
                let dst_class = PosSet.union (get_class (regrepr dst) acc) (PosSet.singleton dst)
                in
@@ -120,17 +120,17 @@ let build_coalescing_classes_extern f ninterfere =
              acc
              parcb
         | None -> acc)
-      f.CSSApar.fn_parcopycode
+      f.CSSA.fn_parcopycode
       classes
   in
   let classes =
     PTree.fold
       (fun acc pc parcb ->
-        match PTree.get pc f.CSSApar.fn_phicode with
+        match PTree.get pc f.CSSA.fn_phicode with
         | Some phib -> acc
         | None ->
            List.fold_left
-             (fun acc (CSSApar.Iparcopy(src,dst)) ->
+             (fun acc (CSSA.Iparcopy(src,dst)) ->
                let repr = Hashtbl.find repr_hash dst in
                let dst_class = get_class repr acc in
                let src_class = PosSet.union (get_class (regrepr src) acc) (PosSet.singleton src) in
@@ -145,7 +145,7 @@ let build_coalescing_classes_extern f ninterfere =
                else acc)
              acc
              parcb)
-      f.CSSApar.fn_parcopycode
+      f.CSSA.fn_parcopycode
       classes
   in
   (regrepr, PTree.map (fun r s -> PosSet.elements s) classes)

@@ -63,15 +63,15 @@ let rec int_of_nat n =
 
 
 let succ f = 
-  let map = RTLt.successors_map f in
+  let map = RTLdfs.successors_map f in
     fun i -> 
       match PTree.get (positive_of_int i) map with
 	  None -> []
 	| Some l -> List.map int_of_positive l
 
 let succ_and_pred f = 
-  let succ = RTLt.successors_map f in
-  let pred = Kildall.make_predecessors f.RTLt.fn_code RTLt.successors_instr in
+  let succ = RTLdfs.successors_map f in
+  let pred = Kildall.make_predecessors f.RTLdfs.fn_code RTLdfs.successors_instr in
     ((fun i -> 
 	match PTree.get (positive_of_int i) succ with
 	    None -> []
@@ -83,10 +83,10 @@ let succ_and_pred f =
      
 
 let entry f =
-  int_of_positive f.RTLt.fn_entrypoint
+  int_of_positive f.RTLdfs.fn_entrypoint
 
 let size f = 
-  1+ int_of_positive (RTLnorm.get_max f.RTLt.fn_code)
+  1+ int_of_positive (RTLnorm.get_max f.RTLdfs.fn_code)
 
 (* [find_index x l] return the position of element [x] in list [l]. 
    @raise Not_found if [x] does not appear in [l]. *)
@@ -118,10 +118,10 @@ let var_defs f entry =
 	| Ibuiltin (_,_,AST.BR(r),_) ->  
 	    Ptmap.add ~merge:Ptset.union (int_of_positive r) (Ptset.singleton (int_of_positive i)) map
 	| _ -> map)     
-      f.RTLt.fn_code
+      f.RTLdfs.fn_code
     (List.fold_right
        (fun r -> Ptmap.add (int_of_positive r) (Ptset.singleton entry))
-       f.RTLt.fn_params Ptmap.empty)
+       f.RTLdfs.fn_params Ptmap.empty)
 
 let all_vars f = 
   PTree.fold
@@ -141,7 +141,7 @@ let all_vars f =
 	| Ijumptable (r,_)  
 	| Ireturn (Some r) ->  add r set
 	| _ -> set)     
-      f.RTLt.fn_code
+      f.RTLdfs.fn_code
     Ptset.empty
 
 let var_use  = function
@@ -410,25 +410,25 @@ let rename_V2 n entry params code vars children preds succs phi_nodes =
 let ssa_function_to_function_wo_inv f = f
 
 let remove_dead_node f =
-  let succ = RTLt.successors_map f in
+  let succ = RTLdfs.successors_map f in
   let succ i = match PTree.get i succ with None -> [] | Some l -> l in
   let seen = ref PTree.empty in
   let has_been_seen i = match PTree.get i !seen with None -> false | Some _ -> true in
   let rec dfs v =
     seen := PTree.set v () !seen;
     List.iter (fun w -> if not (has_been_seen w) then dfs w) (succ v) in
-    dfs f.RTLt.fn_entrypoint;
+    dfs f.RTLdfs.fn_entrypoint;
     let new_code = 
       PTree.fold
 	(fun new_code n ins ->
 	   if has_been_seen n then new_code else PTree.remove n new_code)
-	f.RTLt.fn_code f.RTLt.fn_code in
-      { RTLt.fn_sig = f.RTLt.fn_sig;
-	RTLt.fn_params = f.RTLt.fn_params; 
-        RTLt.fn_stacksize = f.RTLt.fn_stacksize;
-	RTLt.fn_code = new_code;
-	RTLt.fn_entrypoint = f.RTLt.fn_entrypoint;
-        RTLt.fn_dfs = [];
+	f.RTLdfs.fn_code f.RTLdfs.fn_code in
+      { RTLdfs.fn_sig = f.RTLdfs.fn_sig;
+	RTLdfs.fn_params = f.RTLdfs.fn_params; 
+        RTLdfs.fn_stacksize = f.RTLdfs.fn_stacksize;
+	RTLdfs.fn_code = new_code;
+	RTLdfs.fn_entrypoint = f.RTLdfs.fn_entrypoint;
+        RTLdfs.fn_dfs = [];
       }
 
 let output_cfg fd succ =
@@ -437,7 +437,7 @@ let output_cfg fd succ =
 		let i = int_of_positive n in
 		let succ = succ i in
 		  List.iter (Printf.printf "\"N%d\" -> \"N%d\"; " i ) succ)
-    (fd.RTLt.fn_code) ();
+    (fd.RTLdfs.fn_code) ();
   Printf.printf "}\n"
 
 
@@ -452,8 +452,8 @@ let genSSA_V2 f live =
   let is_live x i = Regset.mem (positive_of_int x) (live (positive_of_int i)) in
   let phi_nodes = place_phi_nodes size var_defs (fun i -> domf.(i)) is_live in
   let children = Dominator.make_children idom in
-  let params = List.map int_of_positive f.RTLt.fn_params in
-  let (rename_def,rename_def_phi,max_index) = rename_V2 size entry params f.RTLt.fn_code 
+  let params = List.map int_of_positive f.RTLdfs.fn_params in
+  let (rename_def,rename_def_phi,max_index) = rename_V2 size entry params f.RTLdfs.fn_code 
 						(all_vars f) children pred succ phi_nodes in
   let ptmap_to_ptree m = Ptmap.fold 
 			   (fun n i -> PTree.set (positive_of_int n) (positive_of_int i))

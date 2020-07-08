@@ -11,7 +11,7 @@ Require Import Op.
 Require Import SSA.
 Require Import SSAutils.
 Require Import Utils.
-Require Import CSSApar.
+Require Import CSSA.
 Require RTLpar.
 Require Import Kildall.
 Require Import KildallComp.
@@ -278,7 +278,7 @@ Definition parcopycode_cleanup (parcode : parcopycode) :=
 
 (** ** The transformation *)
 
-Definition transl_function (f : CSSApar.function) :=
+Definition transl_function (f : CSSA.function) :=
   match compute_regrepr f with
   | Errors.Error m => Errors.Error m
   | Errors.OK regrepr =>
@@ -295,7 +295,7 @@ Definition transl_function (f : CSSApar.function) :=
 Definition transl_fundef :=
   transf_partial_fundef transl_function.
 
-Definition transl_program (p: CSSApar.program) : Errors.res RTLpar.program :=
+Definition transl_program (p: CSSA.program) : Errors.res RTLpar.program :=
   transform_partial_program transl_fundef p.
 
 End TRANSFORMATION.

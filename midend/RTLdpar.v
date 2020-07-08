@@ -15,8 +15,8 @@ Require Import Utils.
 Require Import SSAutils.
 Require Import Bijection.
 Require Import DLib.
-Require Import CSSApar.
-Require CSSApargen.
+Require Import CSSA.
+Require CSSAgen.
 Require Import RTLpar.
 
 Unset Allow StrictProp.
@@ -26,7 +26,7 @@ Local Open Scope string_scope.
 (** ** Some utility functions *)
 Definition get_max_reg_in_parc (parc : parcopy) :=
   match parc with
-  | Iparcopy src dst => CSSApargen.max_reg_in_list (src :: dst :: nil)
+  | Iparcopy src dst => CSSAgen.max_reg_in_list (src :: dst :: nil)
   end.
 
 Definition get_max_reg_in_parcb (parcb : parcopyblock) :=
@@ -41,10 +41,10 @@ Definition get_max_reg_in_parcode (parcode : parcopycode) :=
 
 Definition get_maxreg (f : function) :=
   Pos.max
-    (CSSApargen.get_max_reg_in_code (fn_code f))
+    (CSSAgen.get_max_reg_in_code (fn_code f))
     (Pos.max
       (get_max_reg_in_parcode (fn_parcopycode f))
-      (CSSApargen.max_reg_in_list (fn_params f))).
+      (CSSAgen.max_reg_in_list (fn_params f))).
 
 Definition fresh_init (f : function) : reg :=
   (Pos.succ (get_maxreg f)).
@@ -532,7 +532,7 @@ Definition copy_inop (pc max: node) (code:SSA.code) : mon unit :=
   fun s => copy_ins pc max (RTL.Inop (st_nextnode_fs s)) code s.
 
 Definition copy_wwo_add (tmp_reg: reg)  (preds: PTree.t (list node)) (code : SSA.code) 
-                        (pcode : CSSApar.parcopycode) (max pc: node) : mon unit :=
+                        (pcode : CSSA.parcopycode) (max pc: node) : mon unit :=
   fun s =>
     match code ! pc with 
       | None => 

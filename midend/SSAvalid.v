@@ -12,7 +12,7 @@ Require Import Values.
 Require Import Globalenvs.
 Require Import Op.
 Require Import Registers.
-Require Import RTLt.
+Require Import RTLdfs.
 Require Import RTLtyping.
 Require Import Kildall.
 Require Import Machregs.
@@ -25,7 +25,7 @@ Require Import Floats.
 Require Import Utils.
 Require Import NArith.
 Require Import LightLive.
-Require Import RTLdfs.
+Require Import RTLdfsgen.
 Require Import Bijection.
 Local Open Scope string_scope.
 
@@ -78,21 +78,21 @@ Definition check_unique_def (tf: SSA.function) : bool :=
 
 
 (** Checker for normalization of code and successor-closed code *)
-Definition succ_is_some_instr (code: RTLt.code) := 
+Definition succ_is_some_instr (code: RTLdfs.code) := 
   (fun res i => res && match code ! i with
                          | Some _ => true
                          | _ => false
                        end).
   
-Definition instr_is_nop (code : RTLt.code) (pc: node) :=
+Definition instr_is_nop (code : RTLdfs.code) (pc: node) :=
   (match code ! pc with 
      | Some (RTL.Inop _) => true         
      | _ => false
    end).
 
-Definition check_instr_inv (code: RTLt.code) (entry: node) (preds: PTree.t (list positive)) (i:node) : bool := 
+Definition check_instr_inv (code: RTLdfs.code) (entry: node) (preds: PTree.t (list positive)) (i:node) : bool := 
   match code ! i with 
-    | Some instr => fold_left (succ_is_some_instr code) (RTLt.successors_instr instr) true
+    | Some instr => fold_left (succ_is_some_instr code) (RTLdfs.successors_instr instr) true
     | None => false
   end  &&
   if peq entry i then 
@@ -117,13 +117,13 @@ Definition no_pred (preds: PTree.t (list positive)) (i:node) : bool :=
     |_ => false
   end.
 
-Definition check_function_inv (f: RTLt.function) (preds: PTree.t (list positive)) : bool := 
-  match (RTLt.fn_code f) ! (RTLt.fn_entrypoint f) with 
+Definition check_function_inv (f: RTLdfs.function) (preds: PTree.t (list positive)) : bool := 
+  match (RTLdfs.fn_code f) ! (RTLdfs.fn_entrypoint f) with 
     | Some (RTL.Inop s) => 
-      no_pred preds (RTLt.fn_entrypoint f)  &&
+      no_pred preds (RTLdfs.fn_entrypoint f)  &&
         PTree.fold
-          (fun (res : bool) (i : node) _ => res && check_instr_inv (RTLt.fn_code f) (RTLt.fn_entrypoint f) preds i)
-          (RTLt.fn_code f) true
+          (fun (res : bool) (i : node) _ => res && check_instr_inv (RTLdfs.fn_code f) (RTLdfs.fn_entrypoint f) preds i)
+          (RTLdfs.fn_code f) true
     | _ => false
 end.
 
@@ -175,7 +175,7 @@ defined at that point (if any) and (iii) a similar map for phi-blocks.
 This certificate will be then transmitted to the generating
 validator. *)
 
-Parameter extern_gen_ssa : RTLt.function -> (node -> Regset.t) -> (nat * (PTree.t index) * (PTree.t (PTree.t index))).
+Parameter extern_gen_ssa : RTLdfs.function -> (node -> Regset.t) -> (nat * (PTree.t index) * (PTree.t (PTree.t index))).
 
 (** Checker for validity of computed indexes *)
 Definition check_valid_index (size: nat) (defs: PTree.t index) : bool :=
@@ -193,8 +193,8 @@ Definition check_valid_index_phis (size: nat) (phidefs: PTree.t (PTree.t index))
     RTLt code.  *)
 
 (** Definition for the initial global typing context *) 
-Definition entry_Gamma (tf : RTLt.function) : ttgamma :=
-  PTree.set (RTLt.fn_entrypoint tf) (PTree.empty _) (PTree.empty (PTree.t index)).
+Definition entry_Gamma (tf : RTLdfs.function) : ttgamma :=
+  PTree.set (RTLdfs.fn_entrypoint tf) (PTree.empty _) (PTree.empty (PTree.t index)).
 
 (** [update_ctx] updates the global typing information according to
    encountered definitions. It also update the registers used in the
@@ -400,29 +400,29 @@ Definition compute_test_dom (entry: node) (code: code): option (node -> node -> 
    external parameters for the function  
  *)
 
-Definition typecheck_function (f: RTLt.function) (max_index:nat) 
+Definition typecheck_function (f: RTLdfs.function) (max_index:nat) 
            (def:PTree.t index) (def_phi:PTree.t (PTree.t index))
            (live:node -> Regset.t) : res SSA.function :=
   let G := entry_Gamma f in     
-  let preds := (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) in
+  let preds := (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) in
   if Bij.valid_index max_index dft_pos then
     if check_valid_index max_index def && check_valid_index_phis max_index def_phi then 
       if check_function_inv f preds then
-        (match fold_left (update_ctx max_index preds def def_phi (RTLt.fn_code f) live) 
+        (match fold_left (update_ctx max_index preds def def_phi (RTLdfs.fn_code f) live) 
                          (fn_dfs f) (OK (G,PTree.empty _,nil)) with
          | Error msg => Error msg
          | OK (G,new_code,juncpoints) =>
            do phi_code <- fold_left (build_phi_block max_index preds live def_phi G) juncpoints (OK (PTree.empty _));
-           match compute_test_dom (RTLt.fn_entrypoint f) new_code with
+           match compute_test_dom (RTLdfs.fn_entrypoint f) new_code with
            | Some domtest => 
-             let params:= (map (fun r => Bij.pamr max_index (r,dft_pos)) (RTLt.fn_params f)) in 
+             let params:= (map (fun r => Bij.pamr max_index (r,dft_pos)) (RTLdfs.fn_params f)) in 
              let fwo := (mkfunction
-                           (RTLt.fn_sig f)
+                           (RTLdfs.fn_sig f)
                            params
-                           (RTLt.fn_stacksize f)
+                           (RTLdfs.fn_stacksize f)
                            new_code
                            phi_code
-                           (RTLt.fn_entrypoint f)
+                           (RTLdfs.fn_entrypoint f)
                            (ext_params_list new_code phi_code params)
                            domtest
                         ) in
@@ -439,14 +439,14 @@ Definition typecheck_function (f: RTLt.function) (max_index:nat)
 
 (** * Actual code of the generating validator. *)
 (** The transformation uses a liveness analysis over the RTL code (see separate file). *)
-Definition transf_function (f: RTLt.function) : res SSA.function := 
+Definition transf_function (f: RTLdfs.function) : res SSA.function := 
   do live <- get_option (analyze f) "Bad live analysis" ;
   let '(size, def, def_phi) := extern_gen_ssa f (fun pc => (Lin f pc (Lout live))) in 
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))).
 
-Definition transf_fundef (fd: RTLt.fundef) : res fundef :=
+Definition transf_fundef (fd: RTLdfs.fundef) : res fundef :=
   AST.transf_partial_fundef transf_function fd.
 
-Definition transf_program (p: RTLt.program) : res program :=
+Definition transf_program (p: RTLdfs.program) : res program :=
   transform_partial_program transf_fundef p.
 

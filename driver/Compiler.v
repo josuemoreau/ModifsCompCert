@@ -44,12 +44,12 @@ Require Deadcode.
 Require Unusedglob.
 (** SSA middle-end passes *)
 Require RTLnorm.
-Require RTLt.
 Require RTLdfs.
+Require RTLdfsgen.
 Require SSAvalid.
 Require SCCPopt.
 Require GVNopt.
-Require CSSApargen.
+Require CSSAgen.
 Require RTLpargen.
 Require RTLparcleanup.
 Require RTLdpar.
@@ -82,8 +82,8 @@ Require RTLdfsproof.
 Require SSAvalidproof.
 Require SCCPoptproof.
 Require GVNoptproof.
-Require CSSApargenproof CSSApargenwf.
-Require CSSAcoalescing.
+Require CSSAproof CSSAgenwf.
+Require RTLparproof.
 Require RTLparcleanup.
 Require RTLdparproof.
 
@@ -104,9 +104,9 @@ Parameter print_RTL: Z -> RTL.program -> unit.
 Parameter print_LTL: LTL.program -> unit.
 Parameter print_Mach: Mach.program -> unit.
 
-Parameter print_RTL_norm: RTLt.program -> unit.
+Parameter print_RTL_norm: RTLdfs.program -> unit.
 Parameter print_SSA: Z -> SSA.program -> unit.
-Parameter print_CSSA: CSSApar.program -> unit.
+Parameter print_CSSA: CSSA.program -> unit.
 Parameter print_RTLpar: RTLpar.program -> unit.
 
 Local Open Scope string_scope.
@@ -196,7 +196,7 @@ Definition transf_rtl_program_via_SSA (f: RTL.program) : res Asm.program :=
    @@ print (print_RTL 8)
 
   @@@ time "RTL normalization" RTLnorm.transl_program
-  @@@ time "RTL unreachable code elimination" RTLdfs.transf_program
+  @@@ time "RTL unreachable code elimination" RTLdfsgen.transf_program
    @@ print print_RTL_norm
   @@@ time "SSA generation" SSAvalid.transf_program
    @@ print (print_SSA 0)
@@ -204,7 +204,7 @@ Definition transf_rtl_program_via_SSA (f: RTL.program) : res Asm.program :=
    @@ print (print_SSA 1)
    @@ time "SCCP optimization" SCCPopt.transf_program
    @@ print (print_SSA 2)
-  @@@ time "CSSA generation" CSSApargen.transl_program
+  @@@ time "CSSA generation" CSSAgen.transl_program
    @@ print print_CSSA
   @@@ time "RTLpargen" RTLpargen.transl_program
   @@@ time "RTLparcleanup" RTLparcleanup.transl_program
@@ -370,8 +370,8 @@ Definition CompCertSSA's_passes :=
   ::: mkpass SSAvalidproof.match_prog
   ::: mkpass GVNoptproof.match_prog
   ::: mkpass SCCPoptproof.match_prog
-  ::: mkpass CSSApargenproof.match_prog
-  ::: mkpass CSSAcoalescing.match_prog
+  ::: mkpass CSSAproof.match_prog
+  ::: mkpass RTLparproof.match_prog
   ::: mkpass RTLparcleanup.match_prog
   ::: mkpass RTLdparproof.match_prog
   ::: mkpass Renumberproof.match_prog
@@ -494,12 +494,12 @@ Proof.
   destruct (Unusedglob.transform_program p13) as [p14|e] eqn:P14; simpl in T; try discriminate.
 
   destruct (RTLnorm.transl_program p14) as [p141|e] eqn:P141; simpl in T; try discriminate.
-  destruct (RTLdfs.transf_program p141) as [p142|e] eqn:P142; simpl in T; try discriminate.
+  destruct (RTLdfsgen.transf_program p141) as [p142|e] eqn:P142; simpl in T; try discriminate.
   destruct (SSAvalid.transf_program p142) as [p143|e] eqn:P143; simpl in T; try discriminate.
   set (p144 := GVNopt.transf_program p143) in *.
   set (p145 := SCCPopt.transf_program p144) in *.
 
-  destruct (CSSApargen.transl_program p145) as [p146|e] eqn: P146; simpl in T; try discriminate.
+  destruct (CSSAgen.transl_program p145) as [p146|e] eqn: P146; simpl in T; try discriminate.
   destruct (RTLpargen.transl_program p146) as [p147|e] eqn: P147; simpl in T; try discriminate.
   destruct (RTLparcleanup.transl_program p147) as [p148|e] eqn: P148; simpl in T; try discriminate.
   destruct (RTLdpar.transl_program p148) as [p149|e] eqn:P149; simpl in T; try discriminate.
@@ -536,8 +536,8 @@ Proof.
   exists p144; split. apply GVNoptproof.transf_program_match; auto.
   exists p145; split. apply SCCPoptproof.transf_program_match; auto.
 
-  exists p146; split. apply CSSApargenproof.transf_program_match; auto.
-  exists p147; split. apply CSSAcoalescing.transf_program_match; auto.
+  exists p146; split. apply CSSAproof.transf_program_match; auto.
+  exists p147; split. apply RTLparproof.transf_program_match; auto.
   exists p148; split. apply RTLparcleanup.transf_program_match; auto.
   exists p149; split. apply RTLdparproof.transf_program_match; auto.
 
@@ -708,15 +708,15 @@ Proof.
     eapply RTLdfsproof.match_prog_wf_dfs; eauto.
 
   eapply compose_forward_simulations.
-    eapply CSSApargenproof.transf_program_correct; eauto.
+    eapply CSSAproof.transf_program_correct; eauto.
     eapply SCCPoptproof.match_prog_wf_ssa; eauto.
     eapply GVNoptproof.match_prog_wf_ssa; eauto.
     eapply SSAvalidproof.match_prog_wf_ssa; eauto.
     eapply RTLdfsproof.match_prog_wf_dfs; eauto.
 
   eapply compose_forward_simulations.
-    eapply CSSAcoalescing.transf_program_correct; eauto.
-    eapply CSSApargenwf.wf_cssa_tprog; eauto.
+    eapply RTLparproof.transf_program_correct; eauto.
+    eapply CSSAgenwf.wf_cssa_tprog; eauto.
     eapply SCCPoptproof.match_prog_wf_ssa; eauto.
     eapply GVNoptproof.match_prog_wf_ssa; eauto.
     eapply SSAvalidproof.match_prog_wf_ssa; eauto.
@@ -727,8 +727,8 @@ Proof.
   eapply compose_forward_simulations.
    eapply RTLdparproof.transf_program_correct; eauto.
    eapply RTLparcleanup.match_prof_wf_program; eauto.
-   eapply CSSAcoalescing.is_wf_program; eauto.
-   eapply CSSApargenwf.wf_cssa_tprog; eauto.
+   eapply RTLparproof.is_wf_program; eauto.
+   eapply CSSAgenwf.wf_cssa_tprog; eauto.
    eapply SCCPoptproof.match_prog_wf_ssa; eauto.
    eapply GVNoptproof.match_prog_wf_ssa; eauto.
    eapply SSAvalidproof.match_prog_wf_ssa; eauto.

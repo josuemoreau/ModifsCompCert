@@ -2,7 +2,7 @@ open Printf
 open Camlcoq
 open Maps
 open AST
-open RTLt
+open RTLdfs
 
 (* Printing of RTLt code *)
 let print_instruction = PrintRTL.print_instruction
@@ -25,7 +25,7 @@ let print_globdef pp (id, gd) =
   | Gfun(Internal f) -> print_function pp id f
   | _ -> ()
 
-let print_program pp (prog: RTLt.program) =
+let print_program pp (prog: RTLdfs.program) =
   List.iter (print_globdef pp) prog.prog_defs
 
 let destination : string option ref = ref None

@@ -14,23 +14,21 @@ Require Import Smallstep.
 Require Import RTL.
 Require Import SSA.
 Require Import SSAutils.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import RTLdparspec.
 Require Import Kildall.
 Require Import Conventions.
 Require Import Utils.
 Require Import NArith.
 Require Import Events.
-Require Import Bijection.
 Require Import Permutation.
-Require Import Utilsvalidproof.
 Require Import DLib.
-Require Import CSSApargenproof.
+Require Import CSSAproof.
 Require Import RTLpar.
 Require Import RTLdpar.
 
 Lemma max_reg_correct_code: forall f,
-    Ple (CSSApargen.get_max_reg_in_code (RTLpar.fn_code f))
+    Ple (CSSAgen.get_max_reg_in_code (RTLpar.fn_code f))
         (get_maxreg f).
 Proof.
   intros.
@@ -178,7 +176,7 @@ Proof.
   simpl.
   destruct a. simpl.
   eapply Ple_trans with
-    (Pos.max m (CSSApargen.max_reg_in_list (r :: r0 :: nil))); auto.
+    (Pos.max m (CSSAgen.max_reg_in_list (r :: r0 :: nil))); auto.
   apply Pos.le_max_l.
   apply IHl.
   apply Pos.max_le_compat.
@@ -197,7 +195,7 @@ Proof.
   flatten H; subst. destruct H.
   + inv H. 
     simpl. eapply ple_foldmaxreg_init; eauto. 
-    unfold CSSApargen.max_reg_in_list. simpl.
+    unfold CSSAgen.max_reg_in_list. simpl.
     eapply Pos.le_trans. 
     2: {
     eapply Pos.le_trans. 
@@ -220,7 +218,7 @@ Proof.
   flatten H; subst. destruct H.
   + inv H. 
     simpl. eapply ple_foldmaxreg_init; eauto. 
-    unfold CSSApargen.max_reg_in_list. simpl.
+    unfold CSSAgen.max_reg_in_list. simpl.
     eapply Pos.le_trans. 
     eapply Pos.le_max_r.     
     eapply Pos.le_max_r.     

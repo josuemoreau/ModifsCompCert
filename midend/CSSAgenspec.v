@@ -1,9 +1,9 @@
 (* Specification of CSSApargen.v transformation *)
 Require Import Coqlib.
 Require Import Maps.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import SSA.
-Require Import CSSApargen.
+Require Import CSSAgen.
 Require Import Kildall.
 Unset Allow StrictProp.
 
@@ -143,7 +143,7 @@ Definition inop_in_jp (f : SSA.function) :=
   exists succ,
   (fn_code f) ! pc = Some (Inop succ).
 
-Variant tr_function: SSA.function -> CSSApar.function -> Prop :=
+Variant tr_function: SSA.function -> CSSA.function -> Prop :=
 | tr_function_intro:
     forall f init lp s incr preds,
     (init,lp) = init_state f ->
@@ -156,7 +156,7 @@ Variant tr_function: SSA.function -> CSSApar.function -> Prop :=
     s.(st_parcopycode) ! (fn_entrypoint f) = None ->
     inop_in_jp f ->
     tr_function f
-      (CSSApar.mkfunction
+      (CSSA.mkfunction
         f.(SSA.fn_sig)
         f.(SSA.fn_params)
         f.(SSA.fn_stacksize)
@@ -165,7 +165,7 @@ Variant tr_function: SSA.function -> CSSApar.function -> Prop :=
         s.(st_parcopycode)
         f.(SSA.fn_entrypoint)).
 
-Variant transl_function_spec: SSA.function -> CSSApar.function -> Prop :=
+Variant transl_function_spec: SSA.function -> CSSA.function -> Prop :=
 | transl_function_spec_intro:
     forall f tf preds,
     normalized_jp f ->
@@ -175,11 +175,11 @@ Variant transl_function_spec: SSA.function -> CSSApar.function -> Prop :=
       cssa_spec 
         (get_maxreg f)
         preds (fn_code f)
-        (fn_phicode f) (CSSApar.fn_phicode tf)
-        (CSSApar.fn_parcopycode tf) pc k) ->
+        (fn_phicode f) (CSSA.fn_phicode tf)
+        (CSSA.fn_parcopycode tf) pc k) ->
     (forall pc phib,
       (fn_phicode f) ! pc = Some phib ->
       unique_def_phib_spec phib) ->
-    (CSSApar.fn_parcopycode tf) ! (fn_entrypoint f) = None ->
+    (CSSA.fn_parcopycode tf) ! (fn_entrypoint f) = None ->
     inop_in_jp f ->
     transl_function_spec f tf.

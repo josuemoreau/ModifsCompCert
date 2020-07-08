@@ -16,16 +16,16 @@ Require Import Globalenvs.
 Require Import Op.
 Require Import Registers.
 Require Import Smallstep.
-Require Import RTLt.
+Require Import RTLdfs.
 Require Import RTL.
 Require Import RTLutils.
-Require Import RTLdfs.
+Require Import RTLdfsgen.
 Require Import Kildall.
 Require Import Conventions.
 Require Import Integers.
 Require Import Floats.
 Require Import Utils.
-Require Import RTLdfs.
+Require Import RTLdfsgen.
 Require Import Events.
 
 Unset Allow StrictProp.
@@ -523,7 +523,7 @@ Qed.
   (** Lemmas derived from the main lemma.*)
 Lemma transf_function_fn_entrypoint : forall f tf, 
   transf_function f = OK tf ->
-  RTLt.fn_entrypoint tf = fn_entrypoint f.
+  RTLdfs.fn_entrypoint tf = fn_entrypoint f.
 Proof.
   intros.
   unfold transf_function in H.
@@ -535,7 +535,7 @@ Qed.
 Lemma transf_function_ppoints1 : forall f tf,
   transf_function f = OK tf ->
   (forall j, (cfg (fn_code f))** (fn_entrypoint f) j ->
-             (fn_code f) ! j = (RTLt.fn_code tf) ! j).
+             (fn_code f) ! j = (RTLdfs.fn_code tf) ! j).
 Proof.
   intros.
   monadInv H.
@@ -547,11 +547,11 @@ Qed.
 Lemma transf_function_ppoints1' : forall f tf, 
   transf_function f = OK tf ->
   (forall j, (cfg (fn_code f))** (fn_entrypoint f) j -> 
-    (cfg (RTLt.fn_code tf))** (RTLt.fn_entrypoint tf) j).
+    (cfg (RTLdfs.fn_code tf))** (RTLdfs.fn_entrypoint tf) j).
 Proof.
   intros.
   rewrite <- cfg_star_same.
-  assert (RTLt.fn_entrypoint tf = fn_entrypoint f)
+  assert (RTLdfs.fn_entrypoint tf = fn_entrypoint f)
     by (eapply transf_function_fn_entrypoint; eauto).
   apply cfg_star_same_code with (fn_code f).
   - intros.
@@ -565,7 +565,7 @@ Qed.
 
 Lemma transf_function_ppoints2 : forall f tf,
     transf_function f = OK tf ->
-    (forall j ins, (RTLt.fn_code tf)!j = Some ins -> In j (fn_dfs tf)).
+    (forall j ins, (RTLdfs.fn_code tf)!j = Some ins -> In j (fn_dfs tf)).
 Proof.
   intros.
   monadInv H ; simpl in *.
@@ -584,7 +584,7 @@ Qed.
 
 Lemma transf_function_ppoints6 : forall f tf,
   transf_function f = OK tf ->
-  (forall i, In i (fn_dfs tf) -> (cfg (RTLt.fn_code tf))** (RTLt.fn_entrypoint tf) i).
+  (forall i, In i (fn_dfs tf) -> (cfg (RTLdfs.fn_code tf))** (RTLdfs.fn_entrypoint tf) i).
 Proof.
   intros.
   eapply transf_function_ppoints1'; eauto.
@@ -605,8 +605,8 @@ Qed.
 (** All generated functions satisfy the [wf_dfs] predicate. *)
 Require Import Linking.
 
-Definition match_prog (p: RTL.program) (tp: RTLt.program) :=
-  match_program (fun ctx f tf => RTLdfs.transf_fundef f = OK tf) eq p tp.
+Definition match_prog (p: RTL.program) (tp: RTLdfs.program) :=
+  match_program (fun ctx f tf => RTLdfsgen.transf_fundef f = OK tf) eq p tp.
 
 Lemma transf_program_match:
   forall p tp, transf_program p = OK tp -> match_prog p tp.
@@ -642,7 +642,7 @@ Qed.
 Section PRESERVATION.
 
 Variable prog: RTL.program.
-Variable tprog: RTLt.program.
+Variable tprog: RTLdfs.program.
 Hypothesis TRANSF_PROG: match_prog prog tprog.
 
 Let ge := Genv.globalenv prog.
@@ -676,7 +676,7 @@ Lemma instr_at:
   transf_function f = OK tf ->
   (cfg (fn_code f) **) (fn_entrypoint f) pc -> 
   (RTL.fn_code f)!pc = Some ins ->  
-  (RTLt.fn_code tf)!pc = Some ins.
+  (RTLdfs.fn_code tf)!pc = Some ins.
 Proof.
   intros. inv H. 
   monadInv  H3; simpl.
@@ -689,7 +689,7 @@ Qed.
 Lemma sig_fundef_translated:
   forall f tf,
   transf_fundef f = OK tf ->
-  RTLt.funsig tf = RTL.funsig f.
+  RTLdfs.funsig tf = RTL.funsig f.
 Proof.
   intros f tf. destruct f; simpl; intros.
   monadInv H; auto.
@@ -699,8 +699,8 @@ Qed.
 
 Lemma find_function_preserved_same : forall r rs f f', 
   find_function ge (inl ident r) rs = Some f ->
-  RTLt.find_function tge (inl ident r) rs = Some f' ->
-  funsig f = RTLt.funsig f'.
+  RTLdfs.find_function tge (inl ident r) rs = Some f' ->
+  funsig f = RTLdfs.funsig f'.
 Proof.
   intros. simpl in *.
   exploit (functions_translated rs#r) ; eauto.
@@ -715,7 +715,7 @@ Lemma spec_ros_r_find_function:
   forall rs f r,
   RTL.find_function ge (inl _ r) rs = Some f ->
   exists tf,
-     RTLt.find_function tge (inl _ r) rs = Some tf
+     RTLdfs.find_function tge (inl _ r) rs = Some tf
   /\ transf_fundef f = OK tf.
 Proof.
   intros.
@@ -726,7 +726,7 @@ Lemma spec_ros_id_find_function:
   forall rs f id,
   RTL.find_function ge (inr _ id) rs = Some f ->
   exists tf,
-     RTLt.find_function tge (inr _ id) rs = Some tf
+     RTLdfs.find_function tge (inr _ id) rs = Some tf
   /\ transf_fundef f = OK tf.
 Proof.
   intros.
@@ -738,7 +738,7 @@ Proof.
   rewrite H0 in H ; inv H.
 Qed.
 
-Inductive match_stackframes : list stackframe -> list RTLt.stackframe -> Prop :=
+Inductive match_stackframes : list stackframe -> list RTLdfs.stackframe -> Prop :=
 | match_stackframes_nil: match_stackframes nil nil
 | match_stackframes_cons: 
   forall res f sp pc rs s tf ts 
@@ -747,37 +747,37 @@ Inductive match_stackframes : list stackframe -> list RTLt.stackframe -> Prop :=
     (HCFG: (cfg (fn_code f) **) (fn_entrypoint f) pc),
     match_stackframes
     ((Stackframe res f sp pc rs) :: s)
-    ((RTLt.Stackframe res tf sp pc rs) :: ts)
+    ((RTLdfs.Stackframe res tf sp pc rs) :: ts)
     .
 Hint Constructors match_stackframes: core.
 
-Variant match_states: state -> RTLt.state -> Prop :=
+Variant match_states: state -> RTLdfs.state -> Prop :=
   | match_states_intro:
       forall s ts sp pc rs m f tf
         (SPEC: transf_function f = OK tf)
         (HCFG: (cfg (fn_code f) ** ) (fn_entrypoint f) pc)
         (STACK: match_stackframes s ts ),
-        match_states (State s f sp pc rs m) (RTLt.State ts tf sp pc rs m)
+        match_states (State s f sp pc rs m) (RTLdfs.State ts tf sp pc rs m)
   | match_states_call:
       forall s ts f tf args m
         (SPEC: transf_fundef f = OK tf)
         (STACK: match_stackframes s ts ),
-        match_states (Callstate s f args m) (RTLt.Callstate ts tf args m)
+        match_states (Callstate s f args m) (RTLdfs.Callstate ts tf args m)
   | match_states_return:
       forall s ts v m 
         (STACK: match_stackframes s ts ),
-        match_states (Returnstate s v m) (RTLt.Returnstate ts v m).
+        match_states (Returnstate s v m) (RTLdfs.Returnstate ts v m).
 Hint Constructors match_states: core.
 
 Lemma transf_initial_states:
   forall st1, RTL.initial_state prog st1 ->
-    exists st2, RTLt.initial_state tprog st2 /\ match_states st1 st2.
+    exists st2, RTLdfs.initial_state tprog st2 /\ match_states st1 st2.
 Proof.
   intros. inversion H.
   exploit function_ptr_translated ; eauto. intros [tf [Hfind Htrans]].
   assert (MEM: (Genv.init_mem tprog) = Some m0)
     by (eapply (Genv.init_mem_transf_partial TRANSF_PROG); eauto).
-  exists (RTLt.Callstate nil tf nil m0); split.
+  exists (RTLdfs.Callstate nil tf nil m0); split.
   - econstructor; eauto.
     + replace (prog_main tprog) with (prog_main prog). rewrite symbols_preserved; eauto.
       symmetry; eapply match_program_main; eauto.
@@ -787,7 +787,7 @@ Qed.
 
 Lemma transf_final_states:
   forall st1 st2 r,
-  match_states st1 st2 -> RTL.final_state st1 r -> RTLt.final_state st2 r.
+  match_states st1 st2 -> RTL.final_state st1 r -> RTLdfs.final_state st2 r.
 Proof.
   intros. inv H0. inv H. 
   inv STACK.
@@ -796,7 +796,7 @@ Qed.
 
 Lemma stacksize_preserved: forall f tf, 
   transf_function f = OK tf -> 
-  fn_stacksize f = RTLt.fn_stacksize tf.
+  fn_stacksize f = RTLdfs.fn_stacksize tf.
 Proof.
   intros.
   monadInv H. auto.
@@ -825,37 +825,37 @@ Lemma transl_step_correct:
   forall s1 t s2,
   step ge s1 t s2 ->
   forall s1' (MS: match_states s1 s1'),
-  exists s2', RTLt.step tge s1' t s2' /\ match_states s2 s2'.
+  exists s2', RTLdfs.step tge s1' t s2' /\ match_states s2 s2'.
 Proof.
   induction 1; intros; inv MS; auto.
   
   (* inop *)
   exploit instr_at; eauto; intros.
-  exists (RTLt.State ts tf sp pc' rs m); split ; eauto. 
+  exists (RTLdfs.State ts tf sp pc' rs m); split ; eauto. 
   econstructor; auto. 
   constructor; auto.  
   try_succ f pc pc'.
   
   (* iop *)
   exploit instr_at; eauto; intros.
-  exists (RTLt.State ts tf sp pc' (rs#res<- v) m); split ; eauto. 
-  eapply RTLt.exec_Iop ; eauto.
+  exists (RTLdfs.State ts tf sp pc' (rs#res<- v) m); split ; eauto. 
+  eapply RTLdfs.exec_Iop ; eauto.
   rewrite <- H0 ; eauto with valagree. 
   constructor; auto.  
   try_succ f pc pc'.
   
   (* iload *)
   exploit instr_at; eauto; intros.
-  exists (RTLt.State ts tf sp pc' (rs#dst <- v) m); split ; eauto. 
-  eapply RTLt.exec_Iload ; eauto. 
+  exists (RTLdfs.State ts tf sp pc' (rs#dst <- v) m); split ; eauto. 
+  eapply RTLdfs.exec_Iload ; eauto. 
   try solve [rewrite <- H0 ; eauto with valagree].
   econstructor ; eauto.
   try_succ f pc pc'.
   
   (* istore *)
   exploit instr_at; eauto; intros.
-  exists (RTLt.State ts tf sp pc' rs m'); split ; eauto. 
-  eapply RTLt.exec_Istore ; eauto. 
+  exists (RTLdfs.State ts tf sp pc' rs m'); split ; eauto. 
+  eapply RTLdfs.exec_Istore ; eauto. 
   try solve [rewrite <- H0 ; eauto with valagree].
   constructor ; eauto.
   try_succ f pc pc'.
@@ -866,8 +866,8 @@ Proof.
   intros. destruct H1 as [tf' [Hfind OKtf']].
 
   exploit instr_at; eauto; intros.
-  exists (RTLt.Callstate (RTLt.Stackframe res tf sp pc' rs :: ts) tf' rs ## args m) ; split ; eauto. 
-  eapply RTLt.exec_Icall ; eauto. 
+  exists (RTLdfs.Callstate (RTLdfs.Stackframe res tf sp pc' rs :: ts) tf' rs ## args m) ; split ; eauto. 
+  eapply RTLdfs.exec_Icall ; eauto. 
   eauto with valagree.
   constructor; auto. 
   constructor; auto.
@@ -877,8 +877,8 @@ Proof.
   intros. destruct H1 as [tf' [Hfind OKtf']].
 
   exploit instr_at; eauto; intros.
-  exists (RTLt.Callstate (RTLt.Stackframe res tf sp pc' rs :: ts) tf' rs ## args m) ; split ; eauto. 
-  eapply RTLt.exec_Icall ; eauto. 
+  exists (RTLdfs.Callstate (RTLdfs.Stackframe res tf sp pc' rs :: ts) tf' rs ## args m) ; split ; eauto. 
+  eapply RTLdfs.exec_Icall ; eauto. 
   eauto with valagree.
   constructor; auto.
   constructor ; eauto.
@@ -892,22 +892,22 @@ Proof.
   exploit instr_at; eauto; intros.
   exploit find_function_preserved_same ; eauto.
   intros.
-  exists (RTLt.Callstate ts tf' rs##args m');  split ; eauto. 
-  eapply RTLt.exec_Itailcall ; eauto with valagree.  
-  replace (RTLt.fn_stacksize tf) with (fn_stacksize f); eauto with valagree.
+  exists (RTLdfs.Callstate ts tf' rs##args m');  split ; eauto. 
+  eapply RTLdfs.exec_Itailcall ; eauto with valagree.  
+  replace (RTLdfs.fn_stacksize tf) with (fn_stacksize f); eauto with valagree.
   
   exploit spec_ros_id_find_function ; eauto.
   intros. destruct H1 as [tf' [Hfind OKtf']].
 
   exploit instr_at; eauto; intros.
-  exists (RTLt.Callstate ts tf' rs##args m');  split ; eauto. 
-  eapply RTLt.exec_Itailcall ; eauto with valagree.
-  replace (RTLt.fn_stacksize tf) with (fn_stacksize f); eauto with valagree.
+  exists (RTLdfs.Callstate ts tf' rs##args m');  split ; eauto. 
+  eapply RTLdfs.exec_Itailcall ; eauto with valagree.
+  replace (RTLdfs.fn_stacksize tf) with (fn_stacksize f); eauto with valagree.
 
   (* ibuiltin *)
   exploit instr_at; eauto; intros.
-  exists (RTLt.State ts tf sp pc' (regmap_setres res vres rs) m') ; split ; eauto. 
-  eapply RTLt.exec_Ibuiltin with (vargs:= vargs) ; eauto.
+  exists (RTLdfs.State ts tf sp pc' (regmap_setres res vres rs) m') ; split ; eauto. 
+  eapply RTLdfs.exec_Ibuiltin with (vargs:= vargs) ; eauto.
   eapply eval_builtin_args_preserved with (2:= H0); eauto with valagree.
   eapply external_call_symbols_preserved; eauto with valagree.
 
@@ -917,48 +917,48 @@ Proof.
   
   exploit instr_at; eauto; intros.
   destruct b.
-  exists (RTLt.State ts tf sp ifso rs m); split ; eauto. 
-  eapply RTLt.exec_Icond ; eauto. 
+  exists (RTLdfs.State ts tf sp ifso rs m); split ; eauto. 
+  eapply RTLdfs.exec_Icond ; eauto. 
   constructor; auto.  
   try_succ f pc ifso.
 
   (* ifnot *)
   exploit instr_at; eauto; intros.
-  exists (RTLt.State ts tf sp ifnot rs m); split ; eauto. 
-  eapply RTLt.exec_Icond ; eauto. 
+  exists (RTLdfs.State ts tf sp ifnot rs m); split ; eauto. 
+  eapply RTLdfs.exec_Icond ; eauto. 
   constructor; auto.  
   try_succ f pc ifnot.
   
   (* ijump *)
   exploit instr_at; eauto; intros.
-  exists (RTLt.State ts tf sp pc' rs m); split ; eauto. 
-  eapply RTLt.exec_Ijumptable ; eauto. 
+  exists (RTLdfs.State ts tf sp pc' rs m); split ; eauto. 
+  eapply RTLdfs.exec_Ijumptable ; eauto. 
   constructor; auto.  
   try_succ f pc pc'.
   eapply list_nth_z_in; eauto. 
   
   (* ireturn *)
   exploit instr_at; eauto; intros.
-  exists (RTLt.Returnstate ts (regmap_optget or Vundef rs) m'); split ; eauto. 
-  eapply RTLt.exec_Ireturn ; eauto.
+  exists (RTLdfs.Returnstate ts (regmap_optget or Vundef rs) m'); split ; eauto. 
+  eapply RTLdfs.exec_Ireturn ; eauto.
   rewrite <- H0 ; eauto with valagree.
   rewrite stacksize_preserved with f tf ; eauto.
 
   (* internal *)
   simpl in SPEC. monadInv SPEC. simpl in STACK.
-  exists (RTLt.State ts x
+  exists (RTLdfs.State ts x
     (Vptr stk Ptrofs.zero)
-    x.(RTLt.fn_entrypoint)
-    (init_regs args x.(RTLt.fn_params))
+    x.(RTLdfs.fn_entrypoint)
+    (init_regs args x.(RTLdfs.fn_params))
     m').
   split.
-  eapply RTLt.exec_function_internal; eauto.
+  eapply RTLdfs.exec_function_internal; eauto.
   rewrite stacksize_preserved with f x in H ; auto.
-  replace (RTL.fn_entrypoint f) with (RTLt.fn_entrypoint x).
-  replace (RTL.fn_params f) with (RTLt.fn_params x).
+  replace (RTL.fn_entrypoint f) with (RTLdfs.fn_entrypoint x).
+  replace (RTL.fn_params f) with (RTLdfs.fn_params x).
 
   econstructor ; eauto.
-  replace (RTLt.fn_entrypoint x) with (fn_entrypoint f).
+  replace (RTLdfs.fn_entrypoint x) with (fn_entrypoint f).
   eapply Rstar_refl ; eauto.
   monadInv EQ. auto.
   monadInv EQ. auto.
@@ -966,19 +966,19 @@ Proof.
 
   (* external *)
   inv SPEC.
-  exists (RTLt.Returnstate ts res m'). split. 
-  eapply RTLt.exec_function_external; eauto.
+  exists (RTLdfs.Returnstate ts res m'). split. 
+  eapply RTLdfs.exec_function_external; eauto.
   eapply external_call_symbols_preserved; eauto with valagree.
   econstructor ; eauto.
   
   (* return state *)
   inv STACK. 
-  exists (RTLt.State ts0 tf sp pc (rs# res <- vres) m);
+  exists (RTLdfs.State ts0 tf sp pc (rs# res <- vres) m);
     split; ( try constructor ; eauto).
 Qed.
   
 Theorem transf_program_correct:
-  forward_simulation (RTL.semantics prog) (RTLt.semantics tprog).
+  forward_simulation (RTL.semantics prog) (RTLdfs.semantics tprog).
 Proof.
   eapply forward_simulation_step.
   eapply senv_preserved.

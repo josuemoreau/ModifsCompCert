@@ -17,13 +17,13 @@ Require Import Smallstep.
 Require Import Op.
 Require Import Registers.
 Require Import Integers.
-Require Import RTL RTLt.
+Require Import RTL RTLdfs.
 Require Import Kildall.
 Require Import KildallComp.
 Require Import Conventions.
 Require Import Utils.
 Require Import RTLutils.
-Require RTLdfs.
+Require RTLdfsgen.
 Require Import SSA.
 Require Import SSAutils.
 Require Import SSAvalid.  
@@ -51,7 +51,7 @@ Hint Constructors use_rtl_code: core.
 Hint Constructors wf_live: core.
 Hint Constructors RTLutils.assigned_code_spec: core.
 Hint Constructors SSA.assigned_code_spec: core.
-Hint Extern 4 (In _ (RTLt.successors_instr _)) => simpl RTLt.successors_instr: core.
+Hint Extern 4 (In _ (RTLdfs.successors_instr _)) => simpl RTLdfs.successors_instr: core.
 Hint Extern 4 (In _ (SSA.successors_instr _)) => simpl SSA.successors_instr: core.
 
 Ltac well_typed :=
@@ -63,10 +63,10 @@ Ltac well_typed :=
 (** * Generated SSA functions are well typed, and well formed *)
 Section FUNC.
 
-Variable f: RTLt.function.
+Variable f: RTLdfs.function.
 Variable tf: SSA.function.
 
-Hypothesis HWF_DFS : RTLdfs.wf_dfs_function f.
+Hypothesis HWF_DFS : RTLdfsgen.wf_dfs_function f.
 Hypothesis TRANSF_OK : SSAvalid.transf_function f = OK tf.
 
 Lemma WELL_TYPED : 
@@ -97,7 +97,7 @@ End FUNC.
 Require Import Linking.
 Section PRESERVATION.
 
-  Definition match_prog (p: RTLt.program) (tp: SSA.program) :=
+  Definition match_prog (p: RTLdfs.program) (tp: SSA.program) :=
   match_program (fun cu f tf => transf_fundef f = Errors.OK tf) eq p tp.
 
   Lemma transf_program_match:
@@ -108,13 +108,13 @@ Section PRESERVATION.
 
   Section CORRECTNESS.
     
-  Variable prog: RTLt.program.
+  Variable prog: RTLdfs.program.
   Variable tprog: SSA.program.
   
   Hypothesis TRANSL_PROG: match_prog prog tprog.
-  Hypothesis WF_DFS_PROG: RTLdfs.wf_dfs_program prog.
+  Hypothesis WF_DFS_PROG: RTLdfsgen.wf_dfs_program prog.
 
-  Let ge : RTLt.genv := Genv.globalenv prog.
+  Let ge : RTLdfs.genv := Genv.globalenv prog.
   Let tge : SSA.genv := Genv.globalenv tprog.
 
   Import RTLdfsproof.
@@ -152,7 +152,7 @@ Section PRESERVATION.
   Qed.
   
   Lemma function_ptr_translated:
-    forall (b: block) (f: RTLt.fundef),
+    forall (b: block) (f: RTLdfs.fundef),
       Genv.find_funct_ptr ge b = Some f ->
       exists tf, Genv.find_funct_ptr tge b = Some tf /\ transf_fundef f = OK tf.
   Proof.
@@ -160,7 +160,7 @@ Section PRESERVATION.
   Qed.
 
   Lemma functions_translated:
-    forall (v: val) (f: RTLt.fundef),
+    forall (v: val) (f: RTLdfs.fundef),
       Genv.find_funct ge v = Some f ->
       exists tf, Genv.find_funct tge v = Some tf /\ transf_fundef f = OK tf.
   Proof.
@@ -170,7 +170,7 @@ Section PRESERVATION.
   Lemma sig_function_translated:
   forall f tf,
     transf_function f = OK tf ->
-    SSA.fn_sig tf = RTLt.fn_sig f.
+    SSA.fn_sig tf = RTLdfs.fn_sig f.
   Proof.
     intros.
     monadInv H.
@@ -194,7 +194,7 @@ Section PRESERVATION.
   Lemma sig_fundef_translated:
     forall f tf,
       transf_fundef f = OK tf ->
-      SSA.funsig tf = RTLt.funsig f.
+      SSA.funsig tf = RTLdfs.funsig f.
   Proof.
     intros.
     destruct f. 
@@ -212,7 +212,7 @@ Section PRESERVATION.
   Lemma spec_ros_r_find_function:
     forall rs rs' f r r',
       rs#r = rs'# r' ->
-      RTLt.find_function ge (inl _ r) rs = Some f ->
+      RTLdfs.find_function ge (inl _ r) rs = Some f ->
       exists tf,
         SSA.find_function tge (inl _ r') rs' = Some tf
         /\ transf_fundef f = OK tf.
@@ -225,7 +225,7 @@ Section PRESERVATION.
   
   Lemma spec_ros_id_find_function:
     forall rs rs' f id,
-      RTLt.find_function ge (inr _ id) rs = Some f ->
+      RTLdfs.find_function ge (inr _ id) rs = Some f ->
       exists tf,
         SSA.find_function tge (inr _ id) rs' = Some tf
         /\ transf_fundef f = OK tf.
@@ -243,7 +243,7 @@ Section PRESERVATION.
   forall size rs rs' f ros ros',
     check_ros_spec size ros ros' ->
     (forall r r', ros = (inl ident (erase_reg size r)) -> ros' = (inl ident r') -> rs#(erase_reg size r) = rs'# r') ->
-    RTLt.find_function ge ros rs = Some f ->
+    RTLdfs.find_function ge ros rs = Some f ->
     exists tf,
       SSA.find_function tge ros' rs' = Some tf
       /\ transf_fundef f = OK tf.
@@ -259,7 +259,7 @@ Section PRESERVATION.
   Lemma instr_at:
     forall size f tf pc rinstr Γ live,
       check_function_spec size f live tf Γ  ->
-      (RTLt.fn_code f)!pc = Some rinstr ->
+      (RTLdfs.fn_code f)!pc = Some rinstr ->
       exists pinstr, 
         (SSA.fn_code tf)!pc = Some pinstr /\
         check_instrs_spec size tf rinstr pinstr.
@@ -308,7 +308,7 @@ Section PRESERVATION.
   (** ** Simulation relation *)
 
   (** Matching relation for stackframes *)
-  Inductive match_stackframes : list RTLt.stackframe -> list SSA.stackframe -> Prop :=
+  Inductive match_stackframes : list RTLdfs.stackframe -> list SSA.stackframe -> Prop :=
   | match_stackframes_nil: match_stackframes nil nil 
   | match_stackframes_cons: 
     forall res f sp pc rs s tf rs' ts Γ live size
@@ -316,7 +316,7 @@ Section PRESERVATION.
       (match_stackframes s ts) ->
       (check_function_spec size f live tf Γ) ->
       (wf_live f (Lout live)) ->
-      (∀ j ins, (RTLt.fn_code f) ! j = Some ins → (RTLutils.cfg (RTLt.fn_code f) ** ) (RTLt.fn_entrypoint f) j) ->
+      (∀ j ins, (RTLdfs.fn_code f) ! j = Some ins → (RTLutils.cfg (RTLdfs.fn_code f) ** ) (RTLdfs.fn_entrypoint f) j) ->
       (fn_phicode tf) ! pc = None ->
       get_index size res = (Γ pc) (erase_reg size res) ->
       (forall r, r <> (erase_reg size res) ->
@@ -325,11 +325,11 @@ Section PRESERVATION.
                  rs#r = rs'# (Bij.pamr size (r,Γ pc r))) ->
       (Bij.valid_reg_ssa size res = true) ->
       match_stackframes 
-      ((RTLt.Stackframe (erase_reg size res) f sp pc rs) :: s)
+      ((RTLdfs.Stackframe (erase_reg size res) f sp pc rs) :: s)
       ((SSA.Stackframe res tf sp pc rs') :: ts).
 
   (** Agreement between values of registers wrt a register mapping *)
-  Definition agree (size: nat) (β: Registers.reg -> index) (rs: RTLt.regset) (rps: SSA.regset) (live: Regset.t) : Prop :=
+  Definition agree (size: nat) (β: Registers.reg -> index) (rs: RTLdfs.regset) (rps: SSA.regset) (live: Regset.t) : Prop :=
     forall r,
       Regset.In r live ->
       Bij.valid_index size (β r) = true ->
@@ -339,26 +339,26 @@ Section PRESERVATION.
   Reserved Notation "s ≃ s'" (at level 40).
   
   (** Matching relation for states *)
-  Variant match_states : RTLt.state -> SSA.state -> Prop :=
+  Variant match_states : RTLdfs.state -> SSA.state -> Prop :=
   | match_states_reg: 
     forall s f sp pc rs m ts tf  rs'  Γ live size
       (STACKS: match_stackframes s ts)
       (SPEC: check_function_spec size f live tf Γ)
-      (WFDFS: (∀ j ins, (RTLt.fn_code f) ! j = Some ins → (RTLutils.cfg (RTLt.fn_code f) ** ) (RTLt.fn_entrypoint f) j))
+      (WFDFS: (∀ j ins, (RTLdfs.fn_code f) ! j = Some ins → (RTLutils.cfg (RTLdfs.fn_code f) ** ) (RTLdfs.fn_entrypoint f) j))
       (WF: wf_ssa_function tf)
       (LIVE: wf_live f (Lout live))
       (AG: agree size (Γ pc)  rs rs' (Lin f pc (Lout live))),
-      (RTLt.State s f sp pc rs m) ≃ (SSA.State ts tf sp pc rs' m)
+      (RTLdfs.State s f sp pc rs m) ≃ (SSA.State ts tf sp pc rs' m)
   | match_states_return: 
     forall s res m ts 
       (STACKS: match_stackframes s ts),
-      (RTLt.Returnstate s res m) ≃ (SSA.Returnstate ts res m)
+      (RTLdfs.Returnstate s res m) ≃ (SSA.Returnstate ts res m)
   | match_states_call:
     forall s f args m ts tf
       (STACKS: match_stackframes s ts)
-      (WFDFS: RTLdfs.wf_dfs_fundef f)
+      (WFDFS: RTLdfsgen.wf_dfs_fundef f)
       (TRANSF: transf_fundef f = OK tf),
-      (RTLt.Callstate s f args m) ≃ (SSA.Callstate ts tf args m)
+      (RTLdfs.Callstate s f args m) ≃ (SSA.Callstate ts tf args m)
    where "s ≃ t" := (match_states s t).
   Hint Constructors match_states: core.  
 
@@ -514,7 +514,7 @@ Qed.
 Lemma agree_init_regs_gamma: forall tf Γ params args live size,
   inclist params (fn_params tf) ->
   wf_init size tf Γ ->
-  agree size (Γ (fn_entrypoint tf)) (RTLt.init_regs args (map (erase_reg size) params)) (init_regs args params) live.
+  agree size (Γ (fn_entrypoint tf)) (RTLdfs.init_regs args (map (erase_reg size) params)) (init_regs args params) live.
 Proof.
   induction params; intros.
   - (* nil *) simpl. unfold agree; intros. inv H0; allinv. rewrite PMap.gi; rewrite PMap.gi; auto.
@@ -552,9 +552,9 @@ Qed.
 Lemma wt_call_agree : forall f tf live size pc fd fn' args'  s ts sp dst pc' x Γ rs rs' ros
   (WFLIVE: wf_live f (Lout live))
   (WF_SSA: wf_ssa_function tf)
-  (WFDFS: (∀ j ins, (RTLt.fn_code f) ! j = Some ins → (RTLutils.cfg (RTLt.fn_code f) ** ) (RTLt.fn_entrypoint f) j)),
-  (RTLt.fn_code f) ! pc = Some (RTL.Icall (RTLt.funsig fd) ros (map (erase_reg size)  args') (erase_reg size dst) pc') ->
-  (fn_code tf) ! pc = Some (Icall (RTLt.funsig fd) fn' args' dst pc') ->
+  (WFDFS: (∀ j ins, (RTLdfs.fn_code f) ! j = Some ins → (RTLutils.cfg (RTLdfs.fn_code f) ** ) (RTLdfs.fn_entrypoint f) j)),
+  (RTLdfs.fn_code f) ! pc = Some (RTL.Icall (RTLdfs.funsig fd) ros (map (erase_reg size)  args') (erase_reg size dst) pc') ->
+  (fn_code tf) ! pc = Some (Icall (RTLdfs.funsig fd) fn' args' dst pc') ->
   is_edge tf (pc) pc' ->
   index_pred  (make_predecessors (fn_code tf) successors_instr) pc pc' = Some x ->
   agree size (Γ pc) rs rs' (Lin f pc (Lout live)) ->
@@ -562,7 +562,7 @@ Lemma wt_call_agree : forall f tf live size pc fd fn' args'  s ts sp dst pc' x �
   check_function_spec size f live tf Γ ->
   wt_edge tf size (Lin f pc' (Lout live)) Γ pc pc' ->
   match_stackframes s ts->
-  match_stackframes (RTLt.Stackframe (erase_reg size dst) f sp pc' rs :: s)
+  match_stackframes (RTLdfs.Stackframe (erase_reg size dst) f sp pc' rs :: s)
   (Stackframe dst tf sp  pc' rs' :: ts).
 Proof.
   intros. generalize H6 ; intro HWTE.
@@ -752,7 +752,7 @@ Qed.
 
 (** ** The [match_state] is indeed a simulation relation *)
 Lemma transf_initial_states:
-  forall st1, RTLt.initial_state prog st1 ->
+  forall st1, RTLdfs.initial_state prog st1 ->
     exists st2, SSA.initial_state tprog st2 /\ st1 ≃ st2.
 Proof.
   intros. inversion H.
@@ -772,7 +772,7 @@ Qed.
 
 Lemma transf_final_states:
   forall st1 st2 r,
-  st1 ≃ st2 -> RTLt.final_state st1 r -> SSA.final_state st2 r.
+  st1 ≃ st2 -> RTLdfs.final_state st1 r -> SSA.final_state st2 r.
 Proof.
   intros. inv H0. inv H. inv STACKS. constructor.
 Qed.
@@ -823,7 +823,7 @@ Proof.
 Qed.
 
 Lemma transl_step_correct:
-  forall s1 t s2, RTLt.step ge s1 t s2 ->
+  forall s1 t s2, RTLdfs.step ge s1 t s2 ->
     forall s1', 
       s1 ≃ s1' ->
       exists s2',
@@ -1179,8 +1179,8 @@ Proof.
     split.
     eapply exec_function_internal; eauto.
     erewrite <- typecheck_function_correct_ssize; eauto.
-    replace (RTLt.fn_entrypoint f) with (fn_entrypoint x) at 1; auto.
-    replace (RTLt.fn_params f) with (map (erase_reg size) (fn_params x)); auto.
+    replace (RTLdfs.fn_entrypoint f) with (fn_entrypoint x) at 1; auto.
+    replace (RTLdfs.fn_params f) with (map (erase_reg size) (fn_params x)); auto.
     
     econstructor ; eauto.
     * econstructor; eauto. 
@@ -1230,7 +1230,7 @@ Qed.
 
 (** ** Final semantics preservation result *)
 Theorem transf_program_correct:
-  forward_simulation (RTLt.semantics prog) (SSA.semantics tprog).
+  forward_simulation (RTLdfs.semantics prog) (SSA.semantics tprog).
 Proof.
   eapply forward_simulation_step.
   - eapply senv_preserved; eauto.

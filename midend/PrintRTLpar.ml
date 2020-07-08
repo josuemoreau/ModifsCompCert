@@ -27,7 +27,7 @@ let print_parcopies parcopycode (pc : P.t) pp =
   | None -> ()
   | Some parcb ->
       List.iter
-        (fun (CSSApar.Iparcopy (src,dst)) ->
+        (fun (CSSA.Iparcopy (src,dst)) ->
           fprintf pp "%a = %a (par)\n     " reg dst reg src)
         parcb
 

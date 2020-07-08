@@ -9,7 +9,7 @@ Require Import Op.
 Require Import SSA.
 Require Import SSAutils.
 Require Import Utils.
-Require Import CSSApar.
+Require Import CSSA.
 Require Import DLib.
 Require Import RTLpargen.
 Require Import CSSAutils.
@@ -514,7 +514,7 @@ Qed.
 Lemma compute_def_correct :
   forall f r d,
   wf_cssa_function f ->
-  CSSApar.def f r d ->
+  CSSA.def f r d ->
   compute_def f (get_all_def f) r = d.
 Proof.
   intros f r d WF Hdef.
@@ -656,7 +656,7 @@ Qed.
 Lemma compute_def_in_correct :
   forall f r d,
   wf_cssa_function f ->
-  CSSApar.def f r d ->
+  CSSA.def f r d ->
   In r (map fst (PTree.elements (get_all_def f)))
   \/ SSARegSet.In r (get_ext_params f (get_all_def f)).
 Proof.

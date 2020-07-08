@@ -21,7 +21,7 @@ Require Import Classical.
 Require Import Relations.Relation_Definitions.
 Require Import DLib.
 Require Import SSA.
-Require Import CSSApar.
+Require Import CSSA.
 Require Parmov.
 Require Import Dom.
 Require Import Registers.

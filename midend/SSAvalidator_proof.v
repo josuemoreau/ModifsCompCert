@@ -17,9 +17,9 @@ Require Import Conventions.
 Require Import Kildall.
 Require Import KildallComp.
 Require Import Utils.
-Require Import RTLt.
+Require Import RTLdfs.
 Require Import RTLutils.
-Require RTLdfs.
+Require RTLdfsgen.
 Require Import SSA.
 Require Import SSAutils.
 Require Import SSAvalid.  
@@ -51,41 +51,41 @@ Proof.
 Qed.
   
 (** * The checker [check_function_inv] satisfies its specification *)
-Lemma check_function_inv_correct0 : forall (f: RTLt.function), 
-  check_function_inv f (make_predecessors (RTLt.fn_code f) RTL.successors_instr) = true -> 
-  forall pc pc' instr , (RTLt.fn_code f) ! pc = Some instr ->
+Lemma check_function_inv_correct0 : forall (f: RTLdfs.function), 
+  check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTL.successors_instr) = true -> 
+  forall pc pc' instr , (RTLdfs.fn_code f) ! pc = Some instr ->
     In pc' (RTL.successors_instr instr) -> 
-    exists instr', (RTLt.fn_code f) ! pc' = Some instr'.
+    exists instr', (RTLdfs.fn_code f) ! pc' = Some instr'.
 Proof.
   intros tf  CHECK pc  pc' instr Hinstr Hsuccs.
   unfold check_function_inv in *.
-  case_eq ((RTLt.fn_code tf) ! (RTLt.fn_entrypoint tf)); intros; rewrite H in *. 
+  case_eq ((RTLdfs.fn_code tf) ! (RTLdfs.fn_entrypoint tf)); intros; rewrite H in *. 
   destruct i ; boolInv; try congruence. 
   eapply ptree_forall with (i := pc) in H1; eauto. 
   unfold check_instr_inv in H1. rewrite Hinstr in *. boolInv.
-  set (f := (fun (i : positive) => match (RTLt.fn_code tf) ! i with
+  set (f := (fun (i : positive) => match (RTLdfs.fn_code tf) ! i with
                                      | Some _ => true
                                      | None => false
                                    end)) in *.
   exploit (list_forall f) ; eauto. 
   unfold f in *.
-  case_eq ((RTLt.fn_code tf) ! pc') ; intros; eauto.
+  case_eq ((RTLdfs.fn_code tf) ! pc') ; intros; eauto.
   rewrite H4 in *; congruence. inv CHECK.
 Qed.
   
-Lemma check_function_inv_correct01 : forall (f: RTLt.function), 
-  check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) = true -> 
+Lemma check_function_inv_correct01 : forall (f: RTLdfs.function), 
+  check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) = true -> 
   forall i ins, 
-    (RTLt.fn_code f)!i = Some ins ->
-    In (RTLt.fn_entrypoint f) (RTLt.successors_instr ins) -> False.
+    (RTLdfs.fn_code f)!i = Some ins ->
+    In (RTLdfs.fn_entrypoint f) (RTLdfs.successors_instr ins) -> False.
 Proof.
   intros f CHECK pc ins Hpc1 Hcont. 
   unfold check_function_inv in *.
-  case_eq ((RTLt.fn_code f) ! (RTLt.fn_entrypoint f)); [intros i Hi | intros Hi] ; rewrite Hi in *.
+  case_eq ((RTLdfs.fn_code f) ! (RTLdfs.fn_entrypoint f)); [intros i Hi | intros Hi] ; rewrite Hi in *.
   - destruct i ; try congruence.
     unfold no_pred in *.
     boolInv. clear H0.
-    case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr) !!! (RTLt.fn_entrypoint f));
+    case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) !!! (RTLdfs.fn_entrypoint f));
       [intros Hpreds | intros p l Hpreds]; rewrite Hpreds in *. 
     * clear Hi.
       exploit @make_predecessors_correct_1; eauto. 
@@ -94,19 +94,19 @@ Proof.
   - congruence.
 Qed.
 
-Lemma check_function_inv_correct11 : forall (f: RTLt.function), 
-  check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) = true -> 
-  (exists instr, (RTLt.fn_code f) ! (RTLt.fn_entrypoint f) = Some instr).
+Lemma check_function_inv_correct11 : forall (f: RTLdfs.function), 
+  check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) = true -> 
+  (exists instr, (RTLdfs.fn_code f) ! (RTLdfs.fn_entrypoint f) = Some instr).
 Proof.
   intros tf  CHECK. 
   unfold check_function_inv in *.
-  case_eq ((RTLt.fn_code tf) ! (RTLt.fn_entrypoint tf)); intros; eauto.
+  case_eq ((RTLdfs.fn_code tf) ! (RTLdfs.fn_entrypoint tf)); intros; eauto.
   rewrite H in *. inv CHECK.
 Qed.
 
-Lemma check_function_inv_correct12 : forall (f: RTLt.function), 
-  check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) = true -> 
-  ~ RTLutils.join_point (RTLt.fn_entrypoint f) f.
+Lemma check_function_inv_correct12 : forall (f: RTLdfs.function), 
+  check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) = true -> 
+  ~ RTLutils.join_point (RTLdfs.fn_entrypoint f) f.
 Proof.
   intros tf  CHECK. 
   generalize (check_function_inv_correct11 tf CHECK) ; intros.
@@ -118,7 +118,7 @@ Proof.
   rewrite H in *.
   destruct x ; try congruence ; boolInv.
   rename H1 into CHECK.
-  eapply ptree_forall with (i := RTLt.fn_entrypoint tf) in CHECK; eauto. 
+  eapply ptree_forall with (i := RTLdfs.fn_entrypoint tf) in CHECK; eauto. 
   unfold check_instr_inv in CHECK. 
   rewrite peq_true in *.
   boolInv.
@@ -128,12 +128,12 @@ Proof.
   congruence.
 Qed.
 
-Lemma check_function_inv_correct3 : forall f: RTLt.function, 
-  check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) = true -> 
+Lemma check_function_inv_correct3 : forall f: RTLdfs.function, 
+  check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) = true -> 
   (forall jp pc i,
-    RTLutils.join_point jp f -> In jp (RTLt.successors_map f) !!! pc ->
-    (RTLt.fn_code f) ! jp = Some i ->
-    (RTLt.fn_code f) ! pc = Some (RTL.Inop jp)).  
+    RTLutils.join_point jp f -> In jp (RTLdfs.successors_map f) !!! pc ->
+    (RTLdfs.fn_code f) ! jp = Some i ->
+    (RTLdfs.fn_code f) ! pc = Some (RTL.Inop jp)).  
 Proof.
   intros tf CHECK jp pc i Hjp Hinsuccpc Hi.
   generalize Hjp; intros.
@@ -150,7 +150,7 @@ Proof.
   unfold check_instr_inv in CHECK'.
   
   rewrite Hi in *.  rewrite Hpreds in *. 
-  destruct (peq (RTLt.fn_entrypoint tf) jp).
+  destruct (peq (RTLdfs.fn_entrypoint tf) jp).
   - boolInv. 
     destruct l; simpl in *; try (apply False_ind; omega).
     destruct l; simpl in *; try (apply False_ind; omega).
@@ -161,25 +161,25 @@ Proof.
     destruct l. congruence. 
     destruct l. simpl in *. omega.
 
-    assert (In pc ((make_predecessors (RTLt.fn_code tf) RTLt.successors_instr)!!! jp)).
+    assert (In pc ((make_predecessors (RTLdfs.fn_code tf) RTLdfs.successors_instr)!!! jp)).
     { 
-      unfold RTLt.successors_map, successors_list in Hinsuccpc.      
+      unfold RTLdfs.successors_map, successors_list in Hinsuccpc.      
       rewrite PTree.gmap1 in Hinsuccpc.
-      case_eq (option_map RTLt.successors_instr (RTLt.fn_code tf) ! pc) ; intros.
+      case_eq (option_map RTLdfs.successors_instr (RTLdfs.fn_code tf) ! pc) ; intros.
       exploit option_map_some; eauto. intros [ipc Hipc]. 
       eapply make_predecessors_correct_1 with (n1:= pc); eauto.
       unfold option_map in *.
       rewrite Hipc in *. inv H1. auto.
       
       unfold option_map in *.
-      case_eq ((RTLt.fn_code tf) ! pc) ; intros; rewrite H3 in *. 
+      case_eq ((RTLdfs.fn_code tf) ! pc) ; intros; rewrite H3 in *. 
       congruence.
       inv Hinsuccpc.
     }      
 
     unfold successors_list in *.
     rewrite Hpreds in *.
-    unfold RTLt.successors_map in *.
+    unfold RTLdfs.successors_map in *.
     rewrite PTree.gmap1 in Hinsuccpc.
     unfold option_map in Hinsuccpc. 
 
@@ -275,7 +275,7 @@ Hypothesis pred_hyp2: forall n1 n2 n' ins1 ins2,
 
 Hypothesis pred_hyp3 : forall i j ins,
   code ! i = Some ins ->
-  In j (RTLt.successors_instr ins) ->
+  In j (RTLdfs.successors_instr ins) ->
   is_joinpoint  preds j = true ->
   ins = RTL.Inop j.
 
@@ -314,12 +314,12 @@ Ltac in_succ_case :=
          | id1 : ?g1 ! ?n1 = Some _ |- ?g1 ! ?n1 <> None =>
            elim id1; fail
          end)
-  |  id: In ?j (RTLt.successors_instr ?inst) |- _ => simpl in id; 
+  |  id: In ?j (RTLdfs.successors_instr ?inst) |- _ => simpl in id; 
       repeat destruct id as [id|id]; subst; try (elim id; fail)
   end.
 
 Hint Extern 4 (In _ (successors_instr _)) => simpl: core.
-Hint Extern 4 (In _ (RTLt.successors_instr _)) => simpl: core.
+Hint Extern 4 (In _ (RTLdfs.successors_instr _)) => simpl: core.
 
 Variant is_out_instr : instruction -> Prop:=
 | Out_jumptable: forall arg, 
@@ -355,7 +355,7 @@ Qed.
 Lemma fold_build_phi_block_some : forall f size live def_phi G jpoints phiblock acc,
   fold_left
   (build_phi_block size
-    (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) live def_phi G)
+    (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) live def_phi G)
   jpoints acc = OK phiblock ->
   exists a, acc = OK a.
 Proof.
@@ -364,7 +364,7 @@ Proof.
   intros [a' Ha].
   destruct acc; eauto.
   unfold build_phi_block in Ha.
-  destruct (get_option (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)!a); 
+  destruct (get_option (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)!a); 
     simpl in Ha; try congruence.
   destruct (def_phi0!a); simpl in Ha; try congruence.
   destruct (@forall_ptree positive); congruence.
@@ -373,7 +373,7 @@ Qed.
 Lemma fold_build_phi_block_def_phi_same : forall size f live def_phi G jpoints phiblock phiblock',
   fold_left
   (build_phi_block size
-    (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) live def_phi G)
+    (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) live def_phi G)
   jpoints (OK phiblock) = OK phiblock' ->
   forall pc, ~ In pc jpoints -> phiblock!pc = phiblock'!pc.
 Proof.
@@ -384,7 +384,7 @@ Proof.
   exploit IHjpoints; eauto; intros Heq; clear IHjpoints H.
   rewrite <- Heq; clear Heq.
   unfold build_phi_block in *.
-  destruct ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr)!a); simpl in *; try congruence.
+  destruct ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)!a); simpl in *; try congruence.
   destruct (def_phi0!a); simpl in *; try congruence.
   destruct (@forall_ptree positive).
   inv Hb.
@@ -395,7 +395,7 @@ Qed.
 Lemma fold_build_phi_block_def_phi_some : forall size f live def_phi G jpoints phiblock acc,
   fold_left
   (build_phi_block size
-    (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) live def_phi G)
+    (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) live def_phi G)
   jpoints acc = OK phiblock ->
   forall pc, In pc jpoints -> exists d, 
     def_phi!pc = Some d /\ 
@@ -406,7 +406,7 @@ Proof.
   destruct H0; subst; eauto.
   exploit fold_build_phi_block_some; eauto; intros [a Ha].
   unfold build_phi_block in *.
-  destruct ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr)!pc); simpl in *; try congruence.
+  destruct ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)!pc); simpl in *; try congruence.
   destruct (def_phi0!pc); simpl in *; eauto.
   exists t; split; auto.
   case_eq (forall_ptree (fun _ xdef : positive => negb (Pos.eqb 1 xdef)) t); intros Hb.
@@ -420,10 +420,10 @@ Qed.
 Lemma fold_build_phi_block_value: forall size f live def_phi G jpoints phiblock acc,
   fold_left
   (build_phi_block size 
-    (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) live def_phi G)
+    (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) live def_phi G)
   jpoints acc = OK phiblock -> 
   forall pc pred d, In pc jpoints -> 
-    (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)!pc = Some pred ->
+    (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)!pc = Some pred ->
     def_phi!pc = Some d ->
     let live := live pc in 
       let get_Gpreds := 
@@ -505,7 +505,7 @@ Qed.
 Lemma fold_build_phi_block_correct : forall size f live def_phi G jpoints m phicode,
   fold_left
   (build_phi_block size
-    (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) live def_phi G)
+    (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) live def_phi G)
   jpoints (OK m) = OK phicode ->
   (forall i phi, phicode!i = Some phi -> (In i jpoints) \/ m!i = Some phi) /\
   (forall i, In i jpoints -> exists phi, phicode!i = Some phi) /\
@@ -644,7 +644,7 @@ Lemma fold_left_update_ctx_prop: forall live
     G ! n2 = Some g -> 
     In n1 ppoints -> 
     code ! n1 = Some ins ->
-    In n2 (RTLt.successors_instr ins) ->
+    In n2 (RTLdfs.successors_instr ins) ->
     is_joinpoint preds n2 = true) ->
   (forall j gj dphi,
     G!j = Some gj -> 
@@ -660,7 +660,7 @@ Lemma fold_left_update_ctx_prop: forall live
   (forall n g, G ! n = Some g -> G' ! n = Some g) /\
   (forall i ins, new_code!i = Some ins -> new_code'!i = Some ins) /\
   (forall i, In i ppoints -> 
-    get_opt successors_instr (new_code'!i) = get_opt RTLt.successors_instr (code!i)) /\
+    get_opt successors_instr (new_code'!i) = get_opt RTLdfs.successors_instr (code!i)) /\
   (forall i, In i ppoints -> 
     get_opt (erase_instr size) (new_code'!i) = get_opt (fun x => x) (code!i)) /\
   (forall i j ins gi gj,
@@ -686,7 +686,7 @@ Lemma fold_left_update_ctx_prop: forall live
   (forall i, In i juncpoints -> In i juncpoints') /\
   (forall i j ins, In i ppoints -> 
     code ! i = Some ins ->
-    In j (RTLt.successors_instr ins) ->
+    In j (RTLdfs.successors_instr ins) ->
     is_joinpoint preds j = true -> In j juncpoints') /\
   (forall i ins, new_code'!i = Some ins -> In i ppoints \/ new_code!i = Some ins) /\
   (forall i ins, new_code'!i = Some ins ->
@@ -2163,8 +2163,8 @@ End fold_left_update_ctx_prop.
 (** * Properties about [normalised_function] *)
 Lemma normalised_entry_not_successor : forall f ins i,
   normalised_function f ->
-  (RTLt.fn_code f)!i = Some ins ->
-  In (RTLt.fn_entrypoint f) (RTLt.successors_instr ins) -> False.
+  (RTLdfs.fn_code f)!i = Some ins ->
+  In (RTLdfs.fn_entrypoint f) (RTLdfs.successors_instr ins) -> False.
 Proof.
   unfold normalised_function; intros.
   exploit check_function_inv_correct01; eauto.
@@ -2172,7 +2172,7 @@ Qed.
 
 Lemma normalised_entry_not_joinpoint : forall f,
   normalised_function f ->
-  ~ is_joinpoint (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) (RTLt.fn_entrypoint f) = true.
+  ~ is_joinpoint (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) (RTLdfs.fn_entrypoint f) = true.
 Proof.
   red; unfold normalised_function; intros.
   exploit check_function_inv_correct12; eauto.
@@ -2385,12 +2385,12 @@ Lemma aux_same_succ : forall l rtl_code code,
   (∀ i : node,
        In i l
        → get_opt successors_instr code ! i =
-         get_opt RTLt.successors_instr rtl_code ! i) ->
+         get_opt RTLdfs.successors_instr rtl_code ! i) ->
   (∀ (i : positive) (ins : instruction),
        code ! i = Some ins
        → In i l ∨ (PTree.empty instruction) ! i = Some ins) ->
   forall i:node, 
-    (PTree.map1 RTLt.successors_instr rtl_code)!i = 
+    (PTree.map1 RTLdfs.successors_instr rtl_code)!i = 
     (PTree.map1 successors_instr code)!i.
 Proof.
   intros l rtl_code code T H1 H9 i1.
@@ -2416,7 +2416,7 @@ Require Import RTLdfsproof.
   
 (** * The typechercker [typecheck_function] satisfies its specification *)
 Theorem typecheck_function_correct : forall f size def def_phi live f_ssa,
-    (forall j ins, (RTLt.fn_code f)!j = Some ins -> In j (fn_dfs f)) -> 
+    (forall j ins, (RTLdfs.fn_code f)!j = Some ins -> In j (fn_dfs f)) -> 
     list_norepet (fn_dfs f) -> 
     typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK f_ssa ->
     exists G,
@@ -2435,13 +2435,13 @@ Theorem typecheck_function_correct : forall f size def def_phi live f_ssa,
       /\ (forall phib jp i, f_ssa.(fn_code) ! jp = Some i -> f_ssa.(fn_phicode) ! jp = Some phib -> join_point jp f_ssa)
       /\ (forall jp i, join_point jp f_ssa ->  f_ssa.(fn_code) ! jp = Some i -> 
                          exists phib, f_ssa.(fn_phicode) ! jp = Some phib)
-      /\ (forall i, get_opt (erase_instr size) ((f_ssa.(fn_code))!i) = get_opt (fun x => x) ((f.(RTLt.fn_code))!i))
+      /\ (forall i, get_opt (erase_instr size) ((f_ssa.(fn_code))!i) = get_opt (fun x => x) ((f.(RTLdfs.fn_code))!i))
 .
 Proof.
   unfold typecheck_function; intros f size def def_phi live f_ssa HDFS HNOREPET.
   case_eq (Bij.valid_index size dft_pos) ; intros HVALID_dft; try congruence.
   case_eq (check_valid_index size def && check_valid_index_phis size def_phi); intros CHECK_VALID; try congruence.
-  case_eq (check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)); intros Hcheck; try congruence.
+  case_eq (check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)); intros Hcheck; try congruence.
   assert (Hnl:normalised_function f) by (apply Hcheck).
   match goal with |- context[fold_left ?f ?l ?x] => 
                   case_eq (fold_left f l x); 
@@ -2474,18 +2474,18 @@ Proof.
     congruence.
     destruct (peq n1 n2); auto.
     elim H4; clear H4 H3.
-    assert (In n' ((RTLt.successors_map f) !!! n1)).
+    assert (In n' ((RTLdfs.successors_map f) !!! n1)).
     unfold successors_list.
-    unfold RTLt.successors_map; rewrite PTree.gmap1; rewrite H; simpl; auto.
-    assert (In n' ((RTLt.successors_map f) !!! n2)).
+    unfold RTLdfs.successors_map; rewrite PTree.gmap1; rewrite H; simpl; auto.
+    assert (In n' ((RTLdfs.successors_map f) !!! n2)).
     unfold successors_list.
-    unfold RTLt.successors_map; rewrite PTree.gmap1; rewrite H1; simpl; auto.
+    unfold RTLdfs.successors_map; rewrite PTree.gmap1; rewrite H1; simpl; auto.
     exploit @make_predecessors_correct_1; eauto. 
     generalize H1 ; clear H1.
     exploit @make_predecessors_correct_1; eauto. 
     intros T3 H1 T4.
     unfold successors_list in *.
-    case_eq ((make_predecessors (RTLt.fn_code f) RTL.successors_instr)!n'); intros.
+    case_eq ((make_predecessors (RTLdfs.fn_code f) RTL.successors_instr)!n'); intros.
     rewrite H5 in *.
     econstructor; eauto.
     destruct l; simpl in *.
@@ -2499,9 +2499,9 @@ Proof.
 
   - intros i j ins Hp Hp0 Hp1.
     rewrite <- is_joinpoint_iff_join_point in Hp1.
-    assert (In j (RTLt.successors_map f) !!! i).
+    assert (In j (RTLdfs.successors_map f) !!! i).
     unfold successors_list.
-    unfold RTLt.successors_map; rewrite PTree.gmap1; rewrite Hp; simpl; auto.    
+    unfold RTLdfs.successors_map; rewrite PTree.gmap1; rewrite Hp; simpl; auto.    
     exploit check_function_inv_correct0; eauto.
     intros [ins' Hi'].
     rewrite (check_function_inv_correct3 _ Hnl _ _ ins' Hp1 H) in Hp; auto.
@@ -2553,15 +2553,15 @@ Proof.
             { elim H9 with i instr; auto.
               rewrite PTree.gempty; congruence.
             }
-            assert (He: exists ins', (RTLt.fn_code f)!i = Some ins').
+            assert (He: exists ins', (RTLdfs.fn_code f)!i = Some ins').
             { exploit H1; eauto.
               rewrite H13; simpl.
-              case_eq ((RTLt.fn_code f)!i); simpl.
+              case_eq ((RTLdfs.fn_code f)!i); simpl.
               - intros ins0; exists ins0; auto.
               - congruence.    
             }
             destruct He as [instr' He].
-            case_eq (is_joinpoint (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) j); intros Hj.
+            case_eq (is_joinpoint (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) j); intros Hj.
             + exploit (H8 i j instr'); eauto.
               * exploit H1; eauto.
                 rewrite H13; rewrite He; simpl; intros.
@@ -2573,7 +2573,7 @@ Proof.
                   - econstructor 1; simpl; eauto.
                   - (* wt_eidx *)
                     simpl.
-                    assert (HG: (entry_Gamma f) ! (RTLt.fn_entrypoint f) = Some (PTree.empty index)).
+                    assert (HG: (entry_Gamma f) ! (RTLdfs.fn_entrypoint f) = Some (PTree.empty index)).
                     unfold entry_Gamma.
                     rewrite PTree.gss; auto.    
                     rewrite (H _ _ HG).
@@ -2585,12 +2585,12 @@ Proof.
                     case_eq (G!j); [intros gj Hgj| intuition;fail].
                     exploit fold_build_phi_block_def_phi_some; eauto; intros [d [Hd Hd2]]; eauto.
                     simpl.
-                    assert (HG: (entry_Gamma f) ! (RTLt.fn_entrypoint f) = Some (PTree.empty index)).
+                    assert (HG: (entry_Gamma f) ! (RTLdfs.fn_entrypoint f) = Some (PTree.empty index)).
                     unfold entry_Gamma.
                     rewrite PTree.gss; auto.    
                     rewrite (H _ _ HG).
                     replace (read_gamma (PTree.empty index)) with (fun _ : Registers.reg => 1%positive).
-                    case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr) ! j); eauto.
+                    case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) ! j); eauto.
                     intros pred Hpred.
                     exploit fold_build_phi_block_value; eauto.
                     rewrite Hphi0; intros T.
@@ -2615,7 +2615,7 @@ Proof.
                       exploit fold_build_phi_block_def_phi_some; eauto; intros [d [Hd _]]; eauto.
                       exploit H5; eauto; intros [T4 _].
                       unfold is_joinpoint in *.
-                      case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr) ! j); eauto.
+                      case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) ! j); eauto.
                       * intros pred Hpred.
                         exploit fold_build_phi_block_value; eauto.
                         rewrite Hphi0; intros T.
@@ -2634,7 +2634,7 @@ Proof.
 
                     + intros ri r i0 Ha Hb.    
                       destruct Ha as [xx X].
-                      case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr) ! j); 
+                      case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) ! j); 
                         [intros pred Hpred| intros Hpred; unfold is_joinpoint in Hj; rewrite Hpred in Hj; congruence].
                       exploit fold_build_phi_block_def_phi_some; eauto; intros [d [Hd _]]; eauto.
                       exploit fold_build_phi_block_value; eauto.
@@ -2646,7 +2646,7 @@ Proof.
 
                       + intros ri Ha.    
                       destruct Ha as [xx X].
-                      case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr) ! j); 
+                      case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) ! j); 
                         [intros pred Hpred| intros Hpred; unfold is_joinpoint in Hj; rewrite Hpred in Hj; congruence].
                       exploit fold_build_phi_block_def_phi_some; eauto; intros [d [Hd _]]; eauto.
                       exploit fold_build_phi_block_value; eauto.
@@ -2657,7 +2657,7 @@ Proof.
 
                     + intros ri r i0 Ha Hb.    
                       destruct Ha as [xx X].
-                      case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr) ! j); 
+                      case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) ! j); 
                         [intros pred Hpred| intros Hpred; unfold is_joinpoint in Hj; rewrite Hpred in Hj; congruence].
                       exploit fold_build_phi_block_def_phi_some; eauto; intros [d [Hd _]]; eauto.
                       exploit fold_build_phi_block_value; eauto.
@@ -2673,7 +2673,7 @@ Proof.
                       exploit fold_build_phi_block_def_phi_some; eauto; intros [d [Hd _]]; eauto.
                       exploit H5; eauto; intros [_ T4].
                       unfold is_joinpoint in *.
-                      case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr) ! j); eauto.
+                      case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) ! j); eauto.
                       intros pred Hpred.
                       exploit fold_build_phi_block_value; eauto.
                       rewrite Hphi0; intros T.
@@ -2699,19 +2699,19 @@ Proof.
                   - constructor; simpl.
                     intros args dst r i0 Hi Hb.
                     set (ff:={|
-                               fn_sig := RTLt.fn_sig f;
+                               fn_sig := RTLdfs.fn_sig f;
                                fn_params := map (fun r0 => Bij.pamr size (r0, dft_pos))
-                                                (RTLt.fn_params f);
-                               fn_stacksize := RTLt.fn_stacksize f;
+                                                (RTLdfs.fn_params f);
+                               fn_stacksize := RTLdfs.fn_stacksize f;
                                fn_code := new_code;
                                fn_phicode := phiblock;
-                               fn_entrypoint := RTLt.fn_entrypoint f;
-                               fn_ext_params := ext_params_list new_code phiblock (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos)) (RTLt.fn_params f));
+                               fn_entrypoint := RTLdfs.fn_entrypoint f;
+                               fn_ext_params := ext_params_list new_code phiblock (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos)) (RTLdfs.fn_params f));
                                fn_dom_test := domtest
                              |}).
                     exploit fold_build_phi_block_def_phi_some; eauto; intros [d [Hd _]]; eauto.
                     unfold is_joinpoint in *.
-                    case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr) ! j); eauto.
+                    case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) ! j); eauto.
                     intros pred Hpred.
                     exploit fold_build_phi_block_value; eauto.
                     rewrite Hphi0; intros T; inv T.
@@ -2719,7 +2719,7 @@ Proof.
                     destruct (assigned_fold_Iphi_map _ _ _ _ _ _ _ Hi) as [r' [idx [R1 [R2 [R3 R4]]]]].
                     subst. clear Hi.
                     rewrite Bij.BIJ1 in Hb. inv Hb. 
-                    assert (forall i, (RTLt.successors_map f) !i = (successors ff) !i)
+                    assert (forall i, (RTLdfs.successors_map f) !i = (successors ff) !i)
                       by (eapply aux_same_succ; eauto).                    
                     replace ((make_predecessors new_code successors_instr) !!!j) with pred.
                     clear Hpred Hphi0.
@@ -2740,7 +2740,7 @@ Proof.
                            rewrite Bij.BIJ1; eauto.
                            eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
                     + unfold successors_list.
-                      erewrite <- (same_successors_same_predecessors _ _ (RTLt.fn_code f) new_code); 
+                      erewrite <- (same_successors_same_predecessors _ _ (RTLdfs.fn_code f) new_code); 
                         eauto.
                       rewrite Hpred; auto.
                     + boolInv; eapply check_valid_index_phis_correct; eauto.
@@ -2760,7 +2760,7 @@ Proof.
                   exploit T; eauto; rewrite PTree.gempty.
                   destruct 1; intuition; congruence.
                 - (* wt_eidx. *)
-                  assert (HG: (entry_Gamma f) ! (RTLt.fn_entrypoint f) = Some (PTree.empty index)).
+                  assert (HG: (entry_Gamma f) ! (RTLdfs.fn_entrypoint f) = Some (PTree.empty index)).
                   unfold entry_Gamma.
                   rewrite PTree.gss; auto.    
                   rewrite (H _ _ HG).
@@ -2786,7 +2786,7 @@ Proof.
         inv H12 ; simpl in H13; rewrite Hi in H13 ; inv H13; econstructor; eauto.
 
     + (** wf_init **)
-      assert (HG: (entry_Gamma f) ! (RTLt.fn_entrypoint f) = Some (PTree.empty index)).
+      assert (HG: (entry_Gamma f) ! (RTLdfs.fn_entrypoint f) = Some (PTree.empty index)).
       { unfold entry_Gamma.
         rewrite PTree.gss; auto.
       }
@@ -2811,7 +2811,7 @@ Proof.
         unfold erase_code; simpl.
         intros ; intuition.
         rewrite PTree.gmap ; eauto.
-        case_eq (RTLt.fn_code f) ! p; intros.
+        case_eq (RTLdfs.fn_code f) ! p; intros.
         exploit HDFS ; eauto. intros.   
         exploit H2 ; eauto.
         intros. rewrite H12 in * ; simpl in *.
@@ -2841,7 +2841,7 @@ Proof.
         unfold index_pred, successors_list in *.
         case_eq ((make_predecessors new_code successors_instr) ! pc); intros.  
         replace (make_predecessors new_code successors_instr)
-          with (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) in *.
+          with (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) in *.
         exploit fold_build_phi_block_value; eauto.
         intros.
         inv H16.
@@ -2865,7 +2865,7 @@ Proof.
         exploit fold_build_phi_block_def_phi_some; eauto.
         intros [d [D1 _]].
         exploit H6; eauto; destruct 1 as [V|V]; [elim V|idtac].
-        case_eq ((make_predecessors (RTLt.fn_code f) RTLt.successors_instr)!pc); [intros l|idtac];
+        case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)!pc); [intros l|idtac];
           intros Hl; unfold is_joinpoint in *; rewrite Hl in *; try congruence; clear V.
         exploit fold_build_phi_block_value; eauto.
         intros F; inv F.  
@@ -2888,22 +2888,22 @@ Proof.
 
       (* make_predecessors *)
       assert (TT: ∀pc : RTL.node, RTLutils.join_point pc f ↔ join_point pc {|
-                                                        fn_sig := RTLt.fn_sig f;
+                                                        fn_sig := RTLdfs.fn_sig f;
                                                         fn_params := map (fun r : Registers.reg => Bij.pamr size (r, dft_pos))
-                                                                         (RTLt.fn_params f);
-                                                        fn_stacksize := RTLt.fn_stacksize f;
+                                                                         (RTLdfs.fn_params f);
+                                                        fn_stacksize := RTLdfs.fn_stacksize f;
                                                         fn_code := new_code;
                                                         fn_phicode := phiblock;
-                                                        fn_entrypoint := RTLt.fn_entrypoint f;
+                                                        fn_entrypoint := RTLdfs.fn_entrypoint f;
                                                         fn_ext_params := ext_params_list new_code phiblock
-                             (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos)) (RTLt.fn_params f));
+                             (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos)) (RTLdfs.fn_params f));
                                                         fn_dom_test := domtest |}).
       { intros pc. 
         rewrite is_joinpoint_iff_join_point ; eauto.
         rewrite is_joinpoint_iff_join_point_ssa ; eauto.  
         unfold successors, successors.  simpl.
         replace (make_predecessors new_code successors_instr)
-          with (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) in *. intuition. 
+          with (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) in *. intuition. 
         erewrite same_successors_same_predecessors; eauto.
         eapply aux_same_succ; eauto.
       }  
@@ -2938,7 +2938,7 @@ Proof.
         unfold index_pred, successors_list in *.
         case_eq ((make_predecessors new_code successors_instr) !jp); intros.  
         replace (make_predecessors new_code successors_instr)
-          with (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) in *.
+          with (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) in *.
         exploit fold_build_phi_block_value; eauto.
         intros.
         inv H16.
@@ -2984,7 +2984,7 @@ Proof.
       }
 
       { intros i.
-        case_eq ((RTLt.fn_code f)!i); intros.
+        case_eq ((RTLdfs.fn_code f)!i); intros.
         exploit HDFS; eauto; intros Hi.
         exploit H2; eauto.
         rewrite H12; auto.
@@ -3003,7 +3003,7 @@ in the proofs.*)
 Lemma typecheck_function_correct_sig:
   forall size f tf def def_phi live ,
     typecheck_function f size def def_phi live = OK tf ->
-    RTLt.fn_sig f = fn_sig tf.
+    RTLdfs.fn_sig f = fn_sig tf.
 Proof.
   intros.
   unfold typecheck_function in H.
@@ -3011,23 +3011,23 @@ Proof.
   destruct andb; try congruence.
   destruct check_function_inv; try congruence.
   destruct (fold_left
-          (update_ctx size (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) def
-             def_phi (RTLt.fn_code f) live) (fn_dfs f)
+          (update_ctx size (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) def
+             def_phi (RTLdfs.fn_code f) live) (fn_dfs f)
           (OK (entry_Gamma f, PTree.empty instruction, nil))); try congruence.
   destruct p ; destruct p.
   monadInv H.
-  destruct (compute_test_dom (RTLt.fn_entrypoint f) t0) ; try congruence.
+  destruct (compute_test_dom (RTLdfs.fn_entrypoint f) t0) ; try congruence.
   case_eq (check_unique_def {|
-              fn_sig := RTLt.fn_sig f;
+              fn_sig := RTLdfs.fn_sig f;
               fn_params := map (fun r : Registers.reg => Bij.pamr size (r, dft_pos))
-                             (RTLt.fn_params f);
-              fn_stacksize := RTLt.fn_stacksize f;
+                             (RTLdfs.fn_params f);
+              fn_stacksize := RTLdfs.fn_stacksize f;
               fn_code := t0;
               fn_phicode := x;
-              fn_entrypoint := RTLt.fn_entrypoint f;
+              fn_entrypoint := RTLdfs.fn_entrypoint f;
              fn_ext_params := ext_params_list t0 x
                                 (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos))
-                                   (RTLt.fn_params f));
+                                   (RTLdfs.fn_params f));
              fn_dom_test := b |}); intros Hif ; rewrite Hif in *.
   destruct check_code_at_phipoints; simpl in EQ0; try congruence.
   inversion EQ0. auto.
@@ -3037,30 +3037,30 @@ Qed.
 Lemma typecheck_function_correct_ssize:
   forall size f tf def def_phi live ,
     typecheck_function f size def def_phi live = OK tf ->
-    RTLt.fn_stacksize f = fn_stacksize tf.
+    RTLdfs.fn_stacksize f = fn_stacksize tf.
 Proof.
   intros.
   unfold typecheck_function in H.
   destruct Bij.valid_index; try congruence.
   destruct andb; try congruence.
-  case_eq (check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)) ; intros Hif ; rewrite Hif in *; try congruence.
+  case_eq (check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)) ; intros Hif ; rewrite Hif in *; try congruence.
   destruct (fold_left 
-          (update_ctx size (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) def
-             def_phi (RTLt.fn_code f) live) (fn_dfs f)
+          (update_ctx size (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) def
+             def_phi (RTLdfs.fn_code f) live) (fn_dfs f)
           (OK (entry_Gamma f, PTree.empty instruction, nil))); try congruence.
   destruct p ; destruct p.
   monadInv H.
-  destruct (compute_test_dom (RTLt.fn_entrypoint f) t0) ; try congruence.
+  destruct (compute_test_dom (RTLdfs.fn_entrypoint f) t0) ; try congruence.
   case_eq (check_unique_def {|
-              fn_sig := RTLt.fn_sig f;
+              fn_sig := RTLdfs.fn_sig f;
               fn_params := map (fun r : Registers.reg => Bij.pamr size (r, dft_pos))
-                             (RTLt.fn_params f);
-              fn_stacksize := RTLt.fn_stacksize f;
+                             (RTLdfs.fn_params f);
+              fn_stacksize := RTLdfs.fn_stacksize f;
               fn_code := t0;
               fn_phicode := x;
-              fn_entrypoint := RTLt.fn_entrypoint f;
+              fn_entrypoint := RTLdfs.fn_entrypoint f;
             fn_ext_params := ext_params_list t0 x
-                               (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos)) (RTLt.fn_params f));
+                               (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos)) (RTLdfs.fn_params f));
             fn_dom_test := b|}); intros Hif' ; rewrite Hif' in *.
   destruct check_code_at_phipoints; simpl in EQ0; try congruence.
   inversion EQ0. auto.
@@ -3078,22 +3078,22 @@ Proof.
   destruct andb; try congruence.
   destruct check_function_inv; try congruence.
   destruct (fold_left
-          (update_ctx size (make_predecessors (RTLt.fn_code f) RTLt.successors_instr) def
-             def_phi (RTLt.fn_code f) live) (fn_dfs f)
+          (update_ctx size (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr) def
+             def_phi (RTLdfs.fn_code f) live) (fn_dfs f)
           (OK (entry_Gamma f, PTree.empty instruction, nil))); try congruence.
   destruct p ; destruct p.
   monadInv H.
-  destruct (compute_test_dom (RTLt.fn_entrypoint f) t0) ; try congruence.
+  destruct (compute_test_dom (RTLdfs.fn_entrypoint f) t0) ; try congruence.
   case_eq (check_unique_def {|
-              fn_sig := RTLt.fn_sig f;
+              fn_sig := RTLdfs.fn_sig f;
               fn_params := map (fun r : Registers.reg => Bij.pamr size (r, dft_pos))
-                             (RTLt.fn_params f);
-              fn_stacksize := RTLt.fn_stacksize f;
+                             (RTLdfs.fn_params f);
+              fn_stacksize := RTLdfs.fn_stacksize f;
               fn_code := t0;
               fn_phicode := x;
-              fn_entrypoint := RTLt.fn_entrypoint f;
+              fn_entrypoint := RTLdfs.fn_entrypoint f;
             fn_ext_params := ext_params_list t0 x
-                               (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos)) (RTLt.fn_params f));
+                               (map (λ r : Registers.reg, Bij.pamr size (r, dft_pos)) (RTLdfs.fn_params f));
             fn_dom_test := b|}); intros Hif' ; rewrite Hif' in *.
   destruct check_code_at_phipoints; simpl in *; try congruence.
   inversion EQ0.
@@ -3101,11 +3101,11 @@ Proof.
   simpl in *; congruence.
 Qed.
 
-Require Import RTLdfsproof.
+Require Import RTLdfsgen RTLdfsproof.
 
 Lemma typecheck_function_correct_erase:
   forall size f tf def def_phi live,
-    RTLdfs.wf_dfs_function f  ->
+    RTLdfsgen.wf_dfs_function f  ->
     typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
     check_erased_spec size f tf.
 Proof.
@@ -3116,7 +3116,7 @@ Qed.
 
 Lemma typecheck_function_correct_phiparams:
   forall size f tf def def_phi live,
-    RTLdfs.wf_dfs_function f ->
+    RTLdfsgen.wf_dfs_function f ->
     typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
     check_phi_params_spec tf.
 Proof.
@@ -3128,7 +3128,7 @@ Qed.
 
 Lemma typecheck_function_correct_noduplicates:
   forall size f tf def def_phi live ,
-    RTLdfs.wf_dfs_function f ->
+    RTLdfsgen.wf_dfs_function f ->
     typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
     check_no_duplicates_spec size tf.
 Proof.
@@ -3140,7 +3140,7 @@ Qed.
 
 Lemma typecheck_function_correct_structural_checks:
   forall size f tf def def_phi live ,
-    RTLdfs.wf_dfs_function f ->
+    RTLdfsgen.wf_dfs_function f ->
     typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
     structural_checks_spec size f tf.
 Proof.
@@ -3154,12 +3154,12 @@ Proof.
 Qed.
 
 Lemma fn_ssa_params1 : forall size f tf def def_phi live ,
-    RTLdfs.wf_dfs_function f ->
+    RTLdfsgen.wf_dfs_function f ->
     typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
     forall x pc, In x (fn_params tf) -> ~ assigned_code_spec (fn_code tf) pc x.
 Proof.
   intros.
-  exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
+  exploit typecheck_function_correct ; eauto; [ eapply fn_dfs_comp ; eauto|eapply fn_dfs_norep ; eauto|idtac].
   intros [G [HWT [HWFI [HER HPHI]]]].
   intros Hcont.
   inv HWFI. exploit H2 ; eauto. intros [_ [r Heq]] ; subst.
@@ -3170,12 +3170,12 @@ Proof.
 Qed.
 
 Lemma fn_ssa_params2 : forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   forall x pc, In x (fn_params tf) -> ~ assigned_phi_spec (fn_phicode tf) pc x.
 Proof.
   intros.
-  exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
+  exploit typecheck_function_correct ; eauto; [ eapply fn_dfs_comp ; eauto|eapply fn_dfs_norep ; eauto|idtac].
   intros [G [HWT [HWFI [HERASE [HNORM [[HPHI HPHI3] [HPHI4 [HJP [HPHI5 HPHI6]]]]]]]]].
   intro Hcont.
   inv HWFI. exploit H2 ; eauto. intros [_ [r Heq]] ; subst.
@@ -3201,56 +3201,56 @@ Proof.
 Qed.
 
 Lemma fn_reached : forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   forall pc ins, (fn_code tf) ! pc = Some ins -> reached tf pc.
 Proof.
   intros.
-  assert (∀i : positive, get_opt (erase_instr size) (fn_code tf) ! i = get_opt (fun x => x) (RTLt.fn_code f) ! i).
-  { exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
+  assert (∀i : positive, get_opt (erase_instr size) (fn_code tf) ! i = get_opt (fun x => x) (RTLdfs.fn_code f) ! i).
+  { exploit typecheck_function_correct ; eauto; [ eapply fn_dfs_comp ; eauto|eapply fn_dfs_norep ; eauto|idtac].
     intros [G HG].
     decompose [and] HG; assumption.
   }
-  assert (exists ins', (RTLt.fn_code f)!pc = Some ins').
+  assert (exists ins', (RTLdfs.fn_code f)!pc = Some ins').
     generalize (H2 pc); rewrite H1; simpl.
-    case_eq ((RTLt.fn_code f)!pc); simpl; try congruence; eauto.
+    case_eq ((RTLdfs.fn_code f)!pc); simpl; try congruence; eauto.
   destruct H3 as [ins' H3].
   assert (In pc (fn_dfs f)).
     inv H; eauto.
-  assert (forall i j, RTLutils.cfg (RTLt.fn_code f) i j -> cfg tf i j).
+  assert (forall i j, RTLutils.cfg (RTLdfs.fn_code f) i j -> cfg tf i j).
     intros i j T.
     inv T.
     generalize (H2 i); rewrite HCFG_ins; simpl.
     case_eq ((fn_code tf)!i); simpl; try congruence; intros.
     inv H6.
-    replace (RTLt.successors_instr (erase_instr size i0)) with (successors_instr i0) in *.
+    replace (RTLdfs.successors_instr (erase_instr size i0)) with (successors_instr i0) in *.
     econstructor; eauto.
     destruct i0 ; simpl ; eauto.
     destruct s0 ; simpl ; eauto.
     destruct s0 ; simpl ; eauto.
     destruct o; simpl ; eauto.
-  assert (forall i j, (RTLutils.cfg (RTLt.fn_code f))** i j -> (cfg tf)** i j).
+  assert (forall i j, (RTLutils.cfg (RTLdfs.fn_code f))** i j -> (cfg tf)** i j).
     induction 1.
     constructor 1; auto.
     constructor 2.
     constructor 3 with y; auto.
   apply H6. unfold entry.
-  replace (fn_entrypoint tf) with (RTLt.fn_entrypoint f).
-  eapply RTLdfs.fn_dfs_reached; eauto.
+  replace (fn_entrypoint tf) with (RTLdfs.fn_entrypoint f).
+  eapply fn_dfs_reached; eauto.
   
   unfold typecheck_function in H0.
   destruct Bij.valid_index; try congruence.
   destruct andb; try congruence.
   destruct check_function_inv; try (inv H0; fail).
   destruct (fold_left
-           (update_ctx size (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)
-              def def_phi (RTLt.fn_code f)
+           (update_ctx size (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)
+              def def_phi (RTLdfs.fn_code f)
               (fun pc : node => Lin f pc (Lout live)))
            (fn_dfs f) (OK (entry_Gamma f, PTree.empty instruction, nil))); try (inv H0; fail).
   destruct p; destruct p.
   destruct (fold_left
             (build_phi_block size
-               (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)
+               (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)
                (fun pc : node => Lin f pc (Lout live)) def_phi t) l
             (OK (PTree.empty phiblock))); try (inv H0; fail).
   simpl in H0.
@@ -3261,15 +3261,15 @@ Proof.
 Qed.
 
 Lemma fn_entry : forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   exists s, (fn_code tf) ! (fn_entrypoint tf) = Some (Inop s).
 Proof.
   intros.
-  exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
+  exploit typecheck_function_correct ; eauto; [ eapply fn_dfs_comp ; eauto|eapply fn_dfs_norep ; eauto|idtac].
   intros [G [HWT [HWFI [HER [H' HPHI]]]]]. inv HER.
   inv H'. unfold check_function_inv in H2.
-  case_eq (RTLt.fn_code f) ! (RTLt.fn_entrypoint f) ; intros.
+  case_eq (RTLdfs.fn_code f) ! (RTLdfs.fn_entrypoint f) ; intros.
   rewrite H1 in * ; destruct i ; try congruence.
   rewrite HCODE in H1.
   unfold erase_code in H1. rewrite PTree.gmap in H1.
@@ -3285,7 +3285,7 @@ Proof.
 Qed.
 
 Lemma fn_phicode_code : forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   forall pc block,
     (fn_phicode tf) ! pc = Some block ->
@@ -3293,15 +3293,15 @@ Lemma fn_phicode_code : forall size f tf def def_phi live ,
 Proof.
   intros.
   exploit typecheck_function_correct ; eauto;
-    [ eapply RTLdfs.fn_dfs_comp ; eauto|
-      eapply RTLdfs.fn_dfs_norep ; eauto|
+    [ eapply fn_dfs_comp ; eauto|
+      eapply fn_dfs_norep ; eauto|
       idtac].
   intros [G HH]. decompose [and] HH.
   eauto.
 Qed.
 
 Lemma fn_code_closed:forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   forall pc pc' instr, tf.(fn_code) ! pc = Some instr ->
     In pc' (successors_instr instr) ->
@@ -3312,7 +3312,7 @@ Proof.
   unfold typecheck_function in H0.
   destruct Bij.valid_index; try congruence.
   destruct andb; try congruence.
-  case_eq (check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)) ; intros Hif ; rewrite Hif in *.
+  case_eq (check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)) ; intros Hif ; rewrite Hif in *.
   assert ((erase_code size tf) ! pc = Some (erase_instr size instr)).
   unfold erase_code ; rewrite PTree.gmap ; unfold option_map ; rewrite H1.
   auto.
@@ -3333,7 +3333,7 @@ Proof.
 Qed.
 
 Lemma fn_entrypoint_inv: forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   (exists i, (tf.(fn_code) ! (tf.(fn_entrypoint)) = Some i)) /\
   ~ join_point tf.(fn_entrypoint) tf.
@@ -3341,15 +3341,15 @@ Proof.
 intros.
   exploit typecheck_function_correct_erase ; eauto. intros Herased; inv Herased.
   exploit typecheck_function_correct ; eauto.
-  eapply RTLdfs.fn_dfs_comp ; eauto.
-  eapply RTLdfs.fn_dfs_norep ; eauto.
+  eapply fn_dfs_comp ; eauto.
+  eapply fn_dfs_norep ; eauto.
   intros [_ [_ [_ [_ [_ [_ [_ [HH _]]]]]]]].
   
   unfold typecheck_function in H0.
   destruct Bij.valid_index ; try congruence.
   destruct andb; try congruence.
-  case_eq (check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)) ; intros Hif ; rewrite Hif in *.
-  assert (exists ins, (RTLt.fn_code f) ! (RTLt.fn_entrypoint f) = Some ins).
+  case_eq (check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)) ; intros Hif ; rewrite Hif in *.
+  assert (exists ins, (RTLdfs.fn_code f) ! (RTLdfs.fn_entrypoint f) = Some ins).
   eapply (check_function_inv_correct11 f) ; eauto.
   split.
   destruct H1. rewrite HCODE in H1. unfold erase_code in H1. rewrite PTree.gmap in H1.
@@ -3362,7 +3362,7 @@ intros.
 Qed.
 
 Lemma fn_code_inv2: forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   forall jp pc i, (join_point jp tf) ->
     In jp ((successors tf) !!! pc) ->
@@ -3370,19 +3370,19 @@ Lemma fn_code_inv2: forall size f tf def def_phi live ,
     tf.(fn_code) ! pc = Some (Inop jp).
 Proof.
   intros.
-  exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
+  exploit typecheck_function_correct ; eauto; [ eapply fn_dfs_comp ; eauto|eapply fn_dfs_norep ; eauto|idtac].
   intros [G [HWT [HWFI [HERASE [HNORM [[HPHI HPHI3] [HPHI4 [HJP HPHI5]]]]]]]].
   inv HNORM. inv HERASE.
-  assert ((RTLt.fn_code f) ! jp = Some (erase_instr size i)).
+  assert ((RTLdfs.fn_code f) ! jp = Some (erase_instr size i)).
   rewrite HCODE. unfold erase_code ; rewrite PTree.gmap ; unfold option_map.
   rewrite H3 ; auto.
-  assert (In jp (RTLt.successors_map f) !!! pc).
-  unfold successors_list, RTLt.successors_map. rewrite PTree.gmap1.
+  assert (In jp (RTLdfs.successors_map f) !!! pc).
+  unfold successors_list, RTLdfs.successors_map. rewrite PTree.gmap1.
   unfold option_map.
   unfold successors, successors_list in H2.
   rewrite PTree.gmap1 in H2. unfold option_map in H2.
   case_eq (fn_code tf) ! pc ; intros; rewrite H6 in *; [| inv H2].
-  assert ((RTLt.fn_code f) ! pc = Some (erase_instr size i0)).
+  assert ((RTLdfs.fn_code f) ! pc = Some (erase_instr size i0)).
   rewrite HCODE. unfold erase_code ; rewrite PTree.gmap ; unfold option_map.
   rewrite H6 ; auto.
   rewrite H7. destruct i0 ; simpl ; eauto.
@@ -3402,7 +3402,7 @@ Qed.
   
 
 Lemma fn_phicode_inv1: forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   forall phib jp i,
     tf.(fn_code) ! jp = Some i ->
@@ -3410,13 +3410,13 @@ Lemma fn_phicode_inv1: forall size f tf def def_phi live ,
     join_point jp tf.
 Proof.
   intros.
-  exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
+  exploit typecheck_function_correct ; eauto; [ eapply fn_dfs_comp ; eauto|eapply fn_dfs_norep ; eauto|idtac].
   intros [G HH]; decompose [and] HH.
   eauto.
 Qed.
 
 Lemma fn_phicode_inv2: forall size f tf def def_phi live ,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   typecheck_function f size def def_phi (fun pc => (Lin f pc (Lout live))) = OK tf ->
   forall jp i,
     join_point jp tf ->
@@ -3424,13 +3424,13 @@ Lemma fn_phicode_inv2: forall size f tf def def_phi live ,
     exists phib, tf.(fn_phicode) ! jp = Some phib.
 Proof.
   intros.
-  exploit typecheck_function_correct ; eauto; [ eapply RTLdfs.fn_dfs_comp ; eauto|eapply RTLdfs.fn_dfs_norep ; eauto|idtac].
+  exploit typecheck_function_correct ; eauto; [ eapply fn_dfs_comp ; eauto|eapply fn_dfs_norep ; eauto|idtac].
   intros [G HH]; decompose [and] HH.
   eauto.
 Qed.
 
 Lemma typecheck_function_fn_uacf : forall size f def def_phi tf live,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   (wf_live f (Lout live)) ->
   typecheck_function f size def def_phi (fun pc0 : node => Lin f pc0 (Lout live)) = OK tf ->
   ∀x : reg,
@@ -3440,8 +3440,8 @@ Lemma typecheck_function_fn_uacf : forall size f def def_phi tf live,
 Proof.
   intros.
   exploit typecheck_function_correct ; eauto.
-  eapply RTLdfs.fn_dfs_comp ; eauto.
-  eapply RTLdfs.fn_dfs_norep ; eauto.
+  eapply fn_dfs_comp ; eauto.
+  eapply fn_dfs_norep ; eauto.
   intros [G [HWT [HWFI [HER HPHI]]]]. inv HER.
   exploit wt_def_use_code_false; eauto. constructor ; eauto.
 
@@ -3459,15 +3459,15 @@ Proof.
 Qed.
 
 Lemma typecheck_function_fn_strict : forall size f def def_phi tf live,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   (wf_live f (Lout live)) ->
   typecheck_function f size def def_phi (fun pc0 : node => Lin f pc0 (Lout live)) = OK tf ->
    ∀x : reg, ∀u d : node, use tf x u → SSA.def tf x d → dom tf d u.
 Proof.
   intros.
   exploit typecheck_function_correct ; eauto.
-  eapply RTLdfs.fn_dfs_comp ; eauto.
-  eapply RTLdfs.fn_dfs_norep ; eauto.
+  eapply fn_dfs_comp ; eauto.
+  eapply fn_dfs_norep ; eauto.
   intros [G [HWT [HWFI [HER HPHI]]]]. inv HER.
   exploit wt_pdom; eauto. constructor ; eauto.
   eapply typecheck_function_correct_udef ; eauto.
@@ -3532,7 +3532,7 @@ Qed.
 
 (** * All generated function satisfy [wf_ssa_function] *)
 Lemma typecheck_function_wf_ssa_function : forall f size def def_phi tf live,
-  RTLdfs.wf_dfs_function f ->
+  RTLdfsgen.wf_dfs_function f ->
   (wf_live f (Lout live)) ->
   typecheck_function f size def def_phi (fun pc0 : node => Lin f pc0 (Lout live)) = OK tf ->
   wf_ssa_function tf.
@@ -3547,8 +3547,8 @@ Proof.
   - eapply typecheck_function_fn_strict ; eauto.
   - eapply typecheck_function_fn_uacf ; eauto.
   - exploit typecheck_function_correct ; eauto.
-    eapply RTLdfs.fn_dfs_comp ; eauto.
-    eapply RTLdfs.fn_dfs_norep ; eauto.
+    eapply fn_dfs_comp ; eauto.
+    eapply fn_dfs_norep ; eauto.
     intros [G HG]; decompose [and] HG.
     intros pc phib args x T1 T2.
     symmetry; eapply H11; eauto.
@@ -3593,12 +3593,12 @@ Proof.
     unfold typecheck_function in H1.
     destruct Bij.valid_index; try congruence.
     destruct andb; try congruence.
-    case_eq (check_function_inv f (make_predecessors (RTLt.fn_code f) RTLt.successors_instr)) ;
+    case_eq (check_function_inv f (make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)) ;
       intros Hif ; rewrite Hif in *.
     clear H1. intros.
     intro Hcont. inv Hcont.
     inv Herased.
-    assert ((RTLt.fn_code f) ! pc = (Some (erase_instr size ins))).
+    assert ((RTLdfs.fn_code f) ! pc = (Some (erase_instr size ins))).
     rewrite HCODE.
     unfold erase_code. rewrite PTree.gmap. unfold option_map. rewrite HCFG_ins. auto.
     eelim (check_function_inv_correct01 f Hif pc) ; eauto.
@@ -3628,7 +3628,7 @@ Proof.
     destruct fold_left ; try congruence.
     destruct p ; destruct p.
     monadInv H1.
-    case_eq (compute_test_dom (RTLt.fn_entrypoint f) t0); [intros domTest HHeq | intros HHeq];
+    case_eq (compute_test_dom (RTLdfs.fn_entrypoint f) t0); [intros domTest HHeq | intros HHeq];
     try rewrite HHeq in EQ0; try congruence.
     destruct check_unique_def, check_code_at_phipoints; simpl in * ; try congruence.
     inv EQ0; simpl in *.
@@ -3636,8 +3636,8 @@ Proof.
 Qed.
 
 Lemma transf_function_wf_ssa_function : forall f tf,
-  RTLdfs.wf_dfs_function f ->
-  transf_function f = OK tf -> wf_ssa_function tf.
+  RTLdfsgen.wf_dfs_function f ->
+  SSAvalid.transf_function f = OK tf -> wf_ssa_function tf.
 Proof.
   intros.
   unfold transf_function in H0. monadInv H0.
