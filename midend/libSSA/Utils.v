@@ -104,66 +104,7 @@ Qed.
 Hint Resolve option_map_some : core.
 
 (** * Properties about [PTree] *)
-Lemma add_set_or : forall i j s,
-  (PTree.set i tt s) ! j = Some tt -> i=j \/ s ! j = Some tt.
-Proof.
-  intros.
-  rewrite PTree.gsspec in H.
-  destruct peq; auto.
-Qed.
-
-Lemma xmap_assoc:
-  forall (A B C: Type) (f1: positive -> A -> B) (f2: positive -> B -> C) (m: PTree.t A) (i : positive),
-    PTree.xmap f2 (PTree.xmap f1 m i) i = 
-    PTree.xmap (fun i x => f2 i (f1 i x)) m i.
-Proof.
-  induction m; intros; destruct i; simpl; auto;
-  rewrite IHm1; rewrite IHm2;
-  destruct o; simpl; auto.
-Qed.
-
-Lemma map_assoc:
-  forall (A B C: Type) (f1: positive -> A -> B) (f2: positive -> B -> C) (m: PTree.t A),
-    PTree.map f2 (PTree.map f1 m) = 
-    PTree.map (fun i x => f2 i (f1 i x)) m.
-Proof.
-  unfold map; intros; apply xmap_assoc.
-Qed.
-
 Require Import DLib.
-
-Lemma xmap_map1_opt:
-  forall (A B: Type) (f: A -> B) (m: PTree.t A) (i: positive),
-    PTree.xmap (fun i x => f x) m i = 
-    PTree.map1 f m.  
-Proof.
-  induction m; intros. 
-  - destruct i; simpl; auto.
-  - destruct i; simpl; auto;
-    rewrite IHm1; rewrite IHm2;
-    destruct o; simpl; auto.
-Qed.
-
-Lemma map1_opt:
-  forall (A B: Type) (f: A -> B) (m: PTree.t A),
-    PTree.map (fun i x => f x) m = 
-    PTree.map1 f m.  
-Proof.
-  unfold PTree.map; intros. rewrite xmap_map1_opt.
-  auto. 
-Qed.
-  
-Lemma map1_assoc:
-  forall (A B C: Type) (f1: positive -> A -> B) (f2: B -> C) (m: PTree.t A),
-    PTree.map (fun i x => f2 (f1 i x)) m = 
-    PTree.map1 f2 (PTree.map f1 m).
-Proof.
-  intros. 
-  erewrite <- map1_opt ; eauto.
-  unfold PTree.map.
-  rewrite <- xmap_assoc at 1.
-  auto. 
-Qed.
 
 Lemma PTree_xfold_none : forall (A B:Type) (f:A->positive->B->A) (m:PTree.t B) (x:A) p',
   (forall p, m!p = None) ->
@@ -177,83 +118,11 @@ Proof.
   intros; generalize (H (xO p)); simpl; auto.
 Qed.
 
-Lemma PTree_xfold_same : forall (A B:Type) (f:A->positive->B->A) (m1 m2:PTree.t B) (x y:A) p',
-  (forall p, m1!p = m2!p) ->
-  x = y ->
-  PTree.xfold f p' m1 x = PTree.xfold f p' m2 y.
-Proof.
-  induction m1; simpl; intros; auto.
-  rewrite PTree_xfold_none; auto.
-  intros p; rewrite <- H; auto.
-  induction p; simpl; auto.
-  subst; destruct m2.
-  generalize (H xH); simpl; intros; subst.
-  repeat rewrite PTree_xfold_none; auto.
-  intros p; generalize (H (xO p)); simpl; auto.
-  intros p; generalize (H (xI p)); simpl; auto.  
-  generalize (H xH); simpl; intros; subst.
-  destruct o0.
-  apply IHm1_2.
-  intros p; generalize (H (xI p)); simpl; auto.
-  f_equal.
-  apply IHm1_1; auto.
-  intros p; generalize (H (xO p)); simpl; auto.
-  apply IHm1_2.
-  intros p; generalize (H (xI p)); simpl; auto.
-  apply IHm1_1; auto.
-  intros p; generalize (H (xO p)); simpl; auto.
-Qed.
-
-Lemma PTree_fold_same : forall (A B:Type) (f:A->positive->B->A) (m1 m2:PTree.t B) (x:A),
-  (forall p, m1!p = m2!p) ->
-  PTree.fold f m1 x = PTree.fold f m2 x.
-Proof.
-  unfold PTree.fold.
-  intros; apply PTree_xfold_same; auto.
-Qed.
-
 (** * Properties of [Regmap] *)
-
-Lemma val_eqdec: forall (v1 v2:val), {v1 = v2}+{v1 <> v2}.
-Proof.
-  repeat decide equality.
-  apply Int.eq_dec.
-  eapply Int64.eq_dec. 
-  eapply Float.eq_dec. 
-  eapply Float32.eq_dec.
-  eapply Ptrofs.eq_dec.
-Qed.
   
 Definition regset := Regmap.t val.
 
-Lemma gsregset: forall  (j: reg) (v:val) (m: regset) ,
-  (m#j) = v -> (forall r, (m#j <- v)#r = m#r).
-Proof.
-  intros. case_eq m. intros.
-  unfold Maps.PMap.set, Maps.PMap.get.
-  simpl.
-  rewrite Maps.PTree.gsspec; auto.  
-  case (peq j r); intros. rewrite e in * ; simpl in *.
-  destruct (peq r r). 
-  case_eq (Maps.PTree.get r t); intros; (unfold Maps.PMap.get in *; subst; simpl; rewrite H1; auto).
-  elim n ; auto.
-  destruct (peq r j); [elim n; auto| reflexivity].
-Qed.
   
-Lemma regset_copy: forall (rs: Maps.PMap.t val) r1 r0 r,
-  (rs # r0 <- (rs # r1)) # r0 <- (rs # r1)#r = 
-  (rs # r0 <- (rs # r1)) # r.
-Proof.
-  intros.
-  case_eq rs; intros. 
-  unfold Maps.PMap.set, Maps.PMap.get. simpl.
-  destruct (Maps.PTree.get r1 t).
-  rewrite Maps.PTree.gsident; auto. 
-  rewrite Maps.PTree.gss; auto.
-  rewrite Maps.PTree.gsident; auto.
-  rewrite Maps.PTree.gss; auto.
-Qed.
-
 Lemma ptree_set_permut: forall r  r0 r1 (v0 v1:val) t ,
   r0 <> r1 ->
   Maps.PTree.get  r (Maps.PTree.set r0 v0 (Maps.PTree.set r1 v1 t)) = 
@@ -271,24 +140,6 @@ Proof.
     try rewrite <- (gleaf A i); auto; try apply IHr; congruence.
 Qed.
   
-Lemma regset_permut: forall rs r (v:val) r1 r0,
-  r <> r0 ->  r <> r1 ->
-  forall dst, (rs # r <- v) # r0 <- (rs # r1) # dst = 
-              (rs # r0 <- (rs # r1)) # r <- v  # dst.
-Proof.
-  intros ; case_eq rs ; intros.
-  unfold Maps.PMap.get, Maps.PMap.set ; simpl.
-  destruct (Maps.PTree.get r1 t); rewrite ptree_set_permut; eauto.
-Qed.    
-
-Lemma regset_setset: forall rs r (v1 v2:val),
-  forall dst, (rs # r <- v1) # r <- v2 # dst = 
-              (rs # r <- v2) # dst.
-Proof.
-  intros ; case_eq rs ; intros.
-  unfold Maps.PMap.get, Maps.PMap.set ; simpl.
-  rewrite ptree_setset; eauto.
-Qed.    
 
 Definition forall_ptree {A:Type} (f:positive->A->bool) (m:Maps.PTree.t A) : bool :=
   Maps.PTree.fold (fun (res: bool) (i: positive) (x: A) => res && f i x) m true.
@@ -362,36 +213,6 @@ Proof.
   eelim app_cons_not_nil ; eauto.
 Qed.
 
-Lemma app_cons_help2 : forall (A:Type) (l l': list A) (n0 n1 n2 : A), 
-  n0 :: n1 :: nil = l ++ n2 :: l' ->
-  ((l = n0::nil) /\ (l' = nil))
-  \/ ((l = nil) /\ (l' = n1::nil)).
-Proof.
-  intros.
-  destruct l. simpl in H.
-  right ; intuition. inv H; auto.
-  inv H.
-  exploit app_cons_nil; eauto. intuition. 
-  left ; intuition.
-  congruence. 
-Qed.
-
-Lemma nth_error_app_length {A :Type} : forall l l' (a:A), 
-  nth_error (l++a::l') (length l) = Some a.
-Proof.
-  induction l ; intros; simpl ; auto.
-Qed.
-
-Lemma nth_error_app_length2 : forall (A: Type) (l1 l2: list A),
-  nth_error (l1 ++ l2) (S (length l1)) = 
-  nth_error (l2) 1.
-Proof.
-  induction l1; intros.
-  simpl ; auto.
-  simpl length.
-  rewrite <- IHl1 ; eauto.
-Qed.
-
 Lemma in_nth_error_some : forall (A: Type) (l: list A) (a: A), 
   In a l -> 
   (exists k, nth_error l k = Some a).
@@ -402,80 +223,11 @@ Proof.
   exists (S x) ; auto. 
 Qed.
 
-Lemma in_nth_error_app : forall (A: Type) (l l': list A)  (a: A) k,
-  In a l' ->
-  nth_error (l++l') k = Some a ->
-  (k >= length l)%nat ->
-  (exists k', (k' <= k)%nat /\ nth_error l' k' = Some a).
-Proof.
-  induction l ; intros. 
-    
-  exists k. split ; auto. 
-  simpl length in *.
-  destruct k.
-  inv H1.
-  simpl in *.
-  exploit IHl ; eauto. lia.
-  intros.
-  destruct H2 ; intuition.
-  exists x ; auto. 
-Qed.  
-
-Lemma nth_error_app_gt_in : forall (A: Type) (l l': list A) (a: A) k, 
-  nth_error (l ++ l') k = Some a ->
-  (k > (length l))%nat ->
-  In a l'.
-Proof.
-  induction l ; intros.
-  simpl in *.
-  eapply nth_error_in ; eauto.
-  simpl in *.
-  destruct k.
-  lia.
-  simpl in *.
-  eapply IHl ; eauto. lia.
-Qed.
-
 Lemma nth_error_nil_some {A: Type} : forall k (e: A), 
   nth_error nil k = Some e -> False.
 Proof.
   intros.
   destruct k ; simpl in H ; inv H.
-Qed.
-
-Lemma nth_error_some_length {A: Type} : forall (l: list A) a k, 
-  nth_error l k = Some a ->
-  (k < List.length l)%nat.
-Proof.
-  induction l ; intros.
-  eelim (@nth_error_nil_some A) ; eauto.
-  destruct k; simpl in *.
-  omega. 
-  exploit IHl ; eauto ; omega.
-Qed.
-
-Lemma nth_error_some {A:Type}: forall l k (v:A),
-  nth_error l k = Some v ->
-  forall dft, nth k l dft = v.
-Proof.
-  induction l ; intros.
-  destruct k; inv H.
-  destruct k. simpl in * ;  inv H; auto.
-  simpl in *. 
-  eapply IHl; eauto.
-Qed.
-
-Lemma nth_error_length : forall (A:Type) (l:list A) x, 
-  (x < length l)%nat -> exists y, nth_error l x = Some y.
-Proof.
-  induction l; simpl; intros x Hx.
-  apply False_ind; omega.
-  destruct x.
-  exists a; simpl; eauto.
-  elim IHl with x.
-  intros y Hy.
-  exists y; simpl; auto.
-  omega.
 Qed.
 
 Lemma nth_error_some_in: forall (A:Type), forall k (l:list A) r,
@@ -487,31 +239,6 @@ Proof.
   - inv H.
   - right; auto.
 Qed.
-
-Lemma map_cons_inv {A B:Type} : forall (f:A->B) (l:list A) (l':list B) (b:B), 
-  map f l = b :: l' ->
-  exists a, exists m, b = (f a) /\ l = a::m /\ l' = map f m.
-Proof.
-  intros.
-  destruct l. inv H. simpl in H.
-  inv H. eauto.
-Qed.
-
-Lemma map_in {A B:Type}: forall (f:A->B) (l:list A) (a:A), 
-  In a l -> In (f a) (map f l).
-Proof.
-  induction l; intros.
-  inv H. simpl in *. 
-  destruct H. left; inv H ; auto.
-  right. eapply IHl ; eauto.
-Qed.  
-
-Lemma map_length {A B : Type} : forall (f : A -> B) (l: list A), 
-  List.length l = List.length (map f l).
-Proof.
-  induction l ; intros ; simpl ; eauto.
-Qed.
-
 
 Lemma nth_error_some_same_length {A B: Type}: forall (l1: list A) (l2: list B) k e, 
   nth_error l1 k = Some e ->
@@ -598,24 +325,6 @@ Proof.
   eapply Plt_succ; eauto.
 Qed.
 
-(** * Lemmas about [bool] *)
-Lemma negb_false : forall b, negb b = false -> b = true.
-Proof.
-  destruct b ; auto. 
-Qed.
-
-Lemma negb_true : forall b, negb b = true -> b = false.
-Proof.
-  destruct b ; auto. 
-Qed.
-
-Ltac negInv := 
-  match goal with 
-    | [H : negb _ = true |- _ ] => apply negb_true in H ; negInv
-    | [H : negb _ = false |- _ ] => apply negb_false in H ; negInv
-    | _ => idtac
-  end.
-
 (** * The [nth_okp] predicate *)
 
 Inductive nth_okp {A:Type}: nat -> list A -> Prop :=
@@ -631,15 +340,6 @@ Proof.
   simpl in *.  inv H. eapply IHl ; eauto.
 Qed.
 
-Lemma nth_okp_nth {A:Type} : forall (l: list A) k e v, 
-  nth_okp k l -> 
-  nth k l v = e ->
-  nth_error l k = Some e.
-Proof.
-  induction l ; intros; inv H; auto.
-  simpl. eapply IHl ; eauto.
-Qed.
-
 Lemma nth_okp_length : forall (A B:Type) k (l1:list A),
   nth_okp k l1 -> forall  (l2:list B), length l1 = length l2 -> nth_okp k l2.
 Proof.
@@ -647,14 +347,6 @@ Proof.
   inv H0; auto.
 Qed.
 
-Lemma length_nth_ok {A: Type} : forall (l: list A) k, 
-  (k < List.length l)%nat -> nth_okp k l.
-Proof.
-  induction l; intros ; simpl in *. 
-  inv H. 
-  destruct k ; constructor.
-  assert (k < List.length l)%nat by omega; eauto.
-Qed.
 
 (** * The [inclist] predicate *)
 Inductive inclist {A:Type} : list A -> list A -> Prop:=
@@ -691,42 +383,6 @@ Qed.
 Inductive alln {A:Type} (n:A) : list A -> Prop:=
 | alln_nil : alln n nil
 | alln_cons: forall m, alln n m -> alln n (n::m).
-
-Lemma alln_is_alln {A:Type}: forall (v' n v:A) l k,
-  alln n l ->
-  nth_error l k = Some v ->
-  nth k l v' = n.
-Proof.
-  induction l; intros. 
-  destruct k; [idtac | simpl in H0] ; inv H0.
-  destruct k. simpl in *. inv H0 ; auto.
-  inv H; auto.
-  simpl in *. 
-  exploit IHl; eauto. inv H; auto.
-Qed.
-
-Lemma alln_is_alln2 {A:Type}: forall (n:A) l,
-  alln n l -> 
-  forall k, (exists r, nth_error l k = Some r) -> nth_error l k = Some n.
-Proof.
-  induction 1; intros.
-  destruct H as [x Hx]. 
-  destruct k; inv Hx.
-  destruct k.  simpl; auto. 
-  simpl; auto.
-Qed.
-
-Lemma alln_spec {A:Type}: forall (n:A) l, 
-  (forall k a, nth_error l k = Some a -> a = n) -> alln n l.
-Proof.
-  induction l; intros.
-  constructor.
-  replace a with n.
-  constructor. eapply IHl ; eauto.
-  intros.
-  exploit (H (Datatypes.S k)) ; eauto.
-  exploit (H O) ; eauto. simpl ; auto.
-Qed.
 
 (** * Additional definitions and properties of lists *)
 
@@ -860,22 +516,6 @@ Proof.
   elim H; apply In_rev; auto.
 Qed.
 
-Lemma Permutation_NoDup: forall (A:Type),
-  forall (l l': list A), Permutation l l' -> NoDup l -> NoDup l'.
-Proof.
-  induction 1; intros.
-  constructor.
-
-  inversion H0; subst. constructor; auto.
-  red; intro; elim H3. apply Permutation_in with l'; auto. apply Permutation_sym; auto.
-
-  inversion H; subst. inversion H3; subst. 
-  constructor. simpl. simpl in H2. intuition.
-  constructor. simpl in H2. intuition. auto.
-
-  auto.
-Qed.
-
 Section FORALL1.
 
 Variable A: Type.
@@ -885,28 +525,11 @@ Inductive list_forall1: list A -> Prop :=
   | list_forall1_nil: list_forall1 nil 
   | list_forall1_cons: forall a al, P a -> list_forall1 al -> list_forall1 (a :: al).
 
-Lemma list_forall1_app: forall a2 a1,
-  list_forall1 a1 -> list_forall1 a2 -> 
-  list_forall1 (a1 ++ a2).
-Proof.
-  induction 1; intros; simpl. auto. constructor; auto. 
-Qed.
 
 End FORALL1.
 
 Set Implicit Arguments.
 
-Lemma list_forall1_imply:
-  forall (A : Type) (P1: A -> Prop) (l: list A),
-  list_forall1 A P1 l ->
-  forall (P2: A -> Prop),
-  (forall v, In v l -> P1 v -> P2 v) ->
-  list_forall1 A P2 l.
-Proof.
-  induction 1; intros.
-  constructor.
-  constructor. auto with coqlib. apply IHlist_forall1; auto with datatypes. 
-Qed.
 
 Section forall3_ptree.
 
@@ -1128,14 +751,6 @@ Proof. intros A R i j k; constructor 3 with j; auto. Qed.
 
 Hint Resolve Rstar_trans Rstar_refl Rstar_R: core.
  
-Lemma Rstar_left_case : forall A R (i j:A), R** i j ->
-  i = j \/ exists k, R i k /\ R** k j.
-Proof.
-  induction 1; eauto.
-  intuition; subst; eauto.
-  decompose [ex and] H1 ; eauto.
-Qed.
-
 Lemma star_eq : forall A (R1 R2:A->A->Prop),
   (forall i j, R1 i j -> R2 i j) ->
   forall i j, R1** i j -> R2** i j.
