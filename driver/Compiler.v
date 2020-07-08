@@ -392,9 +392,6 @@ Definition CompCertSSA's_passes :=
 Definition match_prog: Csyntax.program -> Asm.program -> Prop :=
   pass_match (compose_passes CompCert's_passes).
 
-Definition match_prog_SSA: Csyntax.program -> Asm.program -> Prop :=
-  pass_match (compose_passes CompCertSSA's_passes).
-
 (** The [transf_c_program] function, when successful, produces
   assembly code that is in the [match_prog] relation with the source C program. *)
 
@@ -454,7 +451,10 @@ Proof.
 Qed.
 
 (** The [transf_c_program_via_SSA] function, when successful, produces
-  assembly code that is in the [match_prog] relation with the source C program. *)
+  assembly code that is in the [match_prog_SSA] relation with the source C program. *)
+Definition match_prog_SSA: Csyntax.program -> Asm.program -> Prop :=
+  pass_match (compose_passes CompCertSSA's_passes).
+
 Lemma simpl_total_if : forall (A: Type) (x: A) b (f: A -> A),
     OK x @@ total_if b f = OK (total_if b f x).
 Proof.
