@@ -255,8 +255,8 @@ Lemma upd_list_some : forall l (g:PTree.t index) G n,
   (~ In n l /\ (upd_list l g G) ! n = G !n).
 Proof.
   induction l; simpl; intros; auto.
-  elim IHl with g (PTree.set a g G) n; intuition.
-  rewrite PTree.gsspec in H1; destruct peq; intuition.
+  elim IHl with g (PTree.set a g G) n; intuition auto.
+  rewrite PTree.gsspec in H1; destruct peq; intuition auto.
 Qed.
 
 (** * Properties of [build_phi_block] and [update_ctx] *)
@@ -472,7 +472,7 @@ Proof.
   - intuition.
   - apply in_app_or in H0. inv H0.  
     + clear IHl.
-      induction a ; simpl in * ; intros; try intuition; try inv H; auto.
+      induction a ; simpl in * ; intros; try intuition auto; try inv H; auto.
       * rewrite <- H0 in H1.
         rewrite Bij.BIJ1 in H1; auto. inv H1. auto.
       * apply in_app_or in H2.
@@ -493,7 +493,7 @@ Proof.
   - intuition.
   - apply in_app_or in H0. inv H0.  
     + clear IHl.
-      induction a ; simpl in * ; intros; try intuition; try inv H; auto.
+      induction a ; simpl in * ; intros; try intuition auto; try inv H; auto.
       * subst. eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
       * apply in_app_or in H1.
         inv H1; eauto.
@@ -513,7 +513,7 @@ Lemma fold_build_phi_block_correct : forall size f live def_phi G jpoints m phic
 Proof.
   intros f live0 def_phi0 G.
   induction jpoints; simpl; intros.
-  inv H; intuition.
+  inv H; intuition auto.
   eauto.
   exploit fold_build_phi_block_some; eauto; intros [b Hb].
   rewrite Hb in *.
@@ -533,7 +533,6 @@ Proof.
   destruct H0; subst.
   destruct B2; eauto.
 Qed.
-
 
 Lemma map_map_erase : forall size f l,
     (forall x, Bij.valid_index size (f x) = true) ->
@@ -698,15 +697,15 @@ Lemma fold_left_update_ctx_prop: forall live
 Proof.
   induction ppoints; simpl.
   - intros G new_code juncpoints G' new_code' juncpoints' H H0 H1 HVALID.
-    repeat split; try (intuition; fail).
+    repeat split; try (intuition auto; fail).
     inv H; auto.
     inv H; auto.
     inv H; auto.
     inv H; auto.
-    inv H; intuition.
-    inv H; intuition.
-    inv H; intuition.
-    inv H; intuition.
+    inv H; intuition auto.
+    inv H; intuition auto.
+    inv H; intuition auto.
+    inv H; intuition auto.
   - intros G new_code juncpoints G' new_code' juncpoints'.
     case_eq (code ! a); [intros ins Hins|intro; simpl; kill_error].
     case_eq (G ! a); [intros g Hg|intro; simpl; kill_error].
@@ -852,6 +851,7 @@ Proof.
                 repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
                 intros Hss; inv Hss; right; repeat split; try congruence; try constructor; intros.
                 clean ; in_succ_case; clean. congruence.
+
             + intros; rewrite PTree.gsspec in H; destruct peq; subst; auto.
               eauto.
             + (* PO2 *)
@@ -915,6 +915,7 @@ Proof.
                   unfold read_gamma.
                   rewrite PTree.gso; auto.
               }
+
               assert (forall l x (i:index) g,
                          In (x,i) l ->
                          list_norepet (List.map (@fst _ _) l) ->
@@ -936,36 +937,38 @@ Proof.
                         ** destruct (peq x0 x1).
                            --- subst. unfold read_gamma.
                                rewrite PTree.gss; auto.
-                               eauto.
+                               eauto. 
                            --- unfold read_gamma.
                                rewrite PTree.gso; auto.
-                               eapply H4.
+                               apply H4.
                         ** eauto.
-                     ++ erewrite (IHl x1 i1); eauto.
-                        intros.
-                        destruct Regset.mem.
-                        ** destruct (peq x0 x2).
-                           --- subst. unfold read_gamma.
+                     ++ rewrite (IHl x1 i1); auto.
+                        ** eauto.
+                        ** intros.
+                           destruct Regset.mem.
+                           --- destruct (peq x0 x2).
+                               +++ subst. unfold read_gamma.
                                rewrite PTree.gss; auto.
                                eauto.
+                               +++ unfold read_gamma.
+                               rewrite PTree.gso; auto.
+                               case_eq (g1 ! x2); intros; auto.
+                               unfold read_gamma in H4.
+                               specialize (H4 x2); auto.
+                               rewrite H1 in H4.  auto.
+                           --- auto.
+                  -- apply (IHl x0 i); auto.
+                     ++ eauto.
+                     ++ intros. destruct Regset.mem.
+                        ** destruct (peq (fst a0) x2).
+                           --- subst. unfold read_gamma.
+                               rewrite PTree.gss; auto.
+                               apply (H3 (fst a0) (snd a0)); auto.
+                               rewrite <- surjective_pairing; auto.
                            --- unfold read_gamma.
                                rewrite PTree.gso; auto.
-                               case_eq (g1 ! x2); intros; eauto.
-                               unfold read_gamma in H4.
-                               specialize (H4 x2); eauto.
-                               rewrite H1 in H4.  auto.
+                               apply H4; auto.
                         ** eauto.
-                  -- eapply IHl; eauto.
-                     intros. destruct Regset.mem.
-                     ++ destruct (peq (fst a0) x2).
-                        ** subst. unfold read_gamma.
-                           rewrite PTree.gss; auto.
-                           eapply (H3 (fst a0) (snd a0)); eauto.
-                           rewrite <- surjective_pairing; auto.
-                        ** unfold read_gamma.
-                           rewrite PTree.gso; auto.
-                           eapply H4; eauto.
-                     ++ eauto.
               }
               inv H.
               rewrite PTree.fold_spec.
@@ -973,10 +976,11 @@ Proof.
                 by (eapply case_in_map_fst with (1:= peq); eauto).
               destruct HCASES as [HCASE|[i HCASE]].
               * rewrite H0; eauto.
-              * rewrite (H1 _ x i); eauto using PTree.elements_keys_norepet.
+              * rewrite (H1 _ x i); auto using PTree.elements_keys_norepet.
                 intros. 
                 eapply def_phi_hyp with (x:= y); eauto.
-                apply PTree.elements_complete; auto.        
+                apply PTree.elements_complete; auto.
+                eauto.
         }
       * { (* Inop + not is_joinpoint *)
         intros Heq Hln INV1 INV2 INV3 INV4 INVVALID.
@@ -1041,6 +1045,7 @@ Proof.
           + rewrite PTree.gso in H; auto.
             eapply INVVALID; eauto.
         }
+        
     + { (* Iop *)
         case_eq (def ! a); simpl; [intros df Hdef|intro; kill_error].
         case_eq (negb (Pos.eqb 1 df)); [intros Hnp|simpl; kill_error].
@@ -1082,14 +1087,15 @@ Proof.
                  ++ eapply HINVVALID with (x:= r) (i:= i0); eauto.
                     unfold read_gamma. rewrite PTree.gss; auto.
                     rewrite Bij.BIJ1 in H0; eauto. inv H0. auto.
-                 ++ eapply list_in_map_inv in H1; eauto.
+                 ++ apply list_in_map_inv in H1; auto.
                     destruct H1 as [rx [EQ Hin]]. subst.                  
-                    rewrite Bij.BIJ1 in H0; eauto. inv H0.
+                    rewrite Bij.BIJ1 in H0; auto. inv H0.
                     eapply HINVVALID with (pc:= i) (x:= r0); eauto.
+                    eauto.
               -- intros.
                  inv H.
                  ++ eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
-                 ++ eapply list_in_map_inv in H0; eauto.
+                 ++ apply list_in_map_inv in H0; auto.
                     destruct H0 as [rx [EQ Hin]]. subst.                  
                     eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
               
@@ -1154,6 +1160,7 @@ Proof.
               unfold read_gamma. rewrite H; auto.
           + rewrite PTree.gso in H; auto. eapply INVVALID; eauto.
       }
+
     + { (* Iload *)
         case_eq (def ! a); simpl; [intros df Hdef|intro; kill_error].
         case_eq (negb (Pos.eqb 1 df)); [intros Hnp|simpl; kill_error].
@@ -1192,13 +1199,14 @@ Proof.
               -- eapply HINVVALID; eauto.
                  unfold read_gamma. rewrite PTree.gss; auto.
                  rewrite Bij.BIJ1 in H0; eauto. inv H0. auto.
-              -- eapply list_in_map_inv in H1; eauto.
+              -- apply list_in_map_inv in H1; auto.
                  destruct H1 as [rx [EQ Hin]]. subst.
-                 rewrite Bij.BIJ1 in H0; eauto. inv H0.
+                 rewrite Bij.BIJ1 in H0; auto. inv H0.
                  eapply HINVVALID with (pc:= i); eauto.
+                 eauto.
             * intros. inv H.
               -- eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
-              -- eapply list_in_map_inv in H0; eauto.
+              -- apply list_in_map_inv in H0; auto.
                  destruct H0 as [rx [EQ Hin]]. subst.
                  eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
             * generalize (HINV _ _ (PTree.gss _ _ _)); intros; clean.
@@ -1297,14 +1305,14 @@ Proof.
                ++ eapply HINVVALID ; eauto.
                   rewrite Bij.BIJ1 in H0; eauto.
                   inv H0. eauto. 
-               ++ eapply list_in_map_inv in H1; eauto.
+               ++ apply list_in_map_inv in H1; auto.
                   destruct H1 as [rx [EQ Hin]]. subst.
                   eapply HINVVALID with (pc:= i); eauto.
                   rewrite Bij.BIJ1 in H0; eauto.
                   inv H0. eauto.
             -- intros. inv H.
                ++ eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
-               ++ eapply list_in_map_inv in H0; eauto.
+               ++ apply list_in_map_inv in H0; auto.
                   destruct H0 as [rx [EQ Hin]]. subst.
                   eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
                   
@@ -1382,39 +1390,45 @@ Proof.
             replace (read_gamma gj) with (update (read_gamma g) r df).
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             clean; in_succ_case; clean.
-            destruct s0; simpl; econstructor; eauto.
+            destruct s0; simpl; econstructor.
             * intros.  inv H ; try congruence.
               -- rewrite Bij.BIJ1 in H0; eauto. inv H0; auto.
               -- elim list_in_map_inv with (1:= H1); intros xx [V1 V2]; subst.
                  rewrite Bij.BIJ1 in H0; eauto. inv H0; auto.
             * rewrite Bij.BIJ1; eauto. 
             * intros. inv H.
-              -- rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto. 
+              -- rewrite Bij.BIJ1 in H0; auto. inv H0; eauto.
+                 eauto.
               -- inv H1.
-                 ++ rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto.
-                 ++ eapply list_in_map_inv in H; eauto.
+                 ++ rewrite Bij.BIJ1 in H0; auto.
+                    inv H0; eauto.
+                    eauto.
+                 ++ apply list_in_map_inv in H; auto.
                     destruct H as [rx [EQ Hin]]. subst.
-                    rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto.
+                    rewrite Bij.BIJ1 in H0; auto. inv H0; eauto.
+                    eauto.
             * intros. inv H.
               -- eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
               -- inv H0.
                  ++ eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
-                 ++ eapply list_in_map_inv in H; eauto.
+                 ++ apply list_in_map_inv in H; auto.
                     destruct H as [rx [EQ Hin]]. subst.
                     eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
-
+                    
             * intros.
               elim list_in_map_inv with (1:= H); intros xx [V1 V2]; subst.
               rewrite Bij.BIJ1 in H0; eauto. inv H0; auto.
             * rewrite Bij.BIJ1; eauto. 
             * intros. inv H.
-              -- rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto. 
-              -- eapply list_in_map_inv in H1; eauto.
+              -- rewrite Bij.BIJ1 in H0; auto. inv H0; eauto.
+                 eauto.
+              -- apply list_in_map_inv in H1; auto.
                  destruct H1 as [rx [EQ Hin]]. subst.
-                 rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto.
+                 rewrite Bij.BIJ1 in H0 by eauto; auto.
+                 inv H0; eauto.
             * intros. inv H.
               -- eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
-              -- eapply list_in_map_inv in H0; eauto.
+              -- apply list_in_map_inv in H0; auto.
                  destruct H0 as [rx [EQ Hin]]. subst.
                  eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
             * generalize (HINV _ _ (PTree.gss _ _ _)); intros; clean.
@@ -1475,6 +1489,7 @@ Proof.
               unfold read_gamma. rewrite H; auto.
           + rewrite PTree.gso in H; auto. eapply INVVALID; eauto.
       }
+
     + { (* Itailcall *)
         intros Heq Hln INV1 INV2 INV3 INV4 INVVALID.
         inversion Hln as [|a' l' Hln1 Hln2]; subst; clear Hln.
@@ -1497,29 +1512,29 @@ Proof.
           + intros i ins gi Hin Hcode Hout Hgi; destruct Hin; [subst|apply HINV5 with i;auto;fail].
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             clean.
-            destruct s0; unfold map_os ; simpl; econstructor; eauto.
+            destruct s0; unfold map_os ; simpl; econstructor.
             * intros. inv H ; try congruence.
-              rewrite Bij.BIJ1 in H0; eauto. inv H0; auto.
+              rewrite Bij.BIJ1 in H0 by eauto. inv H0; auto.
               elim list_in_map_inv with (1:= H1); intros xx [V1 V2]; subst.
               rewrite Bij.BIJ1 in H0; eauto. inv H0; auto.
             * intros. inv H.
-              -- rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto. 
-              -- eapply list_in_map_inv in H1; eauto.
+              -- rewrite Bij.BIJ1 in H0 by eauto. inv H0; eauto. 
+              -- apply list_in_map_inv in H1; auto.
                  destruct H1 as [rx [EQ Hin]]. subst.
-                 rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto.
+                 rewrite Bij.BIJ1 in H0 by eauto. inv H0; eauto.
             * intros. inv H.
               -- eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
-              -- eapply list_in_map_inv in H0; eauto.
+              -- apply list_in_map_inv in H0; auto.
                  destruct H0 as [rx [EQ Hin]]. subst.
                  eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
                  
             * intros.
               elim list_in_map_inv with (1:= H); intros xx [V1 V2]; subst.
               rewrite Bij.BIJ1 in H0; eauto. inv H0; auto.
-            * intros. eapply list_in_map_inv in H; eauto.
+            * intros. apply list_in_map_inv in H; auto.
               destruct H as [rx [EQ Hin]]. subst.
-              rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto. 
-            * intros. eapply list_in_map_inv in H; eauto.
+              rewrite Bij.BIJ1 in H0 by eauto. inv H0; eauto. 
+            * intros. apply list_in_map_inv in H; auto.
               destruct H as [rx [EQ Hin]]. subst.
               eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
               
@@ -1584,13 +1599,15 @@ Proof.
               eapply in_params_of_builtin_args_erase; eauto.
             * rewrite Bij.BIJ1; eauto.
             * intros. inv H.
-              -- rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto.
-              -- eapply in_params_of_builtin_args_valid in H1; eauto.
-                 eapply Bij.from_valid_reg_ssa_to_valid_index in H1; eauto.
+              -- rewrite Bij.BIJ1 in H0 by eauto. inv H0; eauto.
+              -- eapply in_params_of_builtin_args_valid in H1 ; auto.
+                 apply Bij.from_valid_reg_ssa_to_valid_index in H1; auto.
                  rewrite H0 in H1; simpl in H1; auto.
+                 eauto.
             * intros. inv H.
               -- eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
-              -- eapply in_params_of_builtin_args_valid in H0; eauto.
+              -- eapply in_params_of_builtin_args_valid in H0; auto.
+                 eauto.
             * clean ; in_succ_case ; clean.
               generalize (HINV _ _ (PTree.gss _ _ _)); intros; clean.
               apply extensionality; unfold update; intros; destruct peq; unfold read_gamma.
@@ -1674,16 +1691,18 @@ Proof.
           + intros i j ins gi gj Hin Hsucc1 Hsucc2 Hgi Hgj Hjun; destruct Hin; [subst|eapply HINV2;eauto;fail].
             repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
             clean; in_succ_case; clean.
-            { eapply wt_Ibuiltin; eauto.
+            { apply wt_Ibuiltin; auto.
               - discriminate.
               - intros.
                 eapply in_params_of_builtin_args_erase; eauto.
               - intros.
-                eapply in_params_of_builtin_args_valid in H; eauto.
-                eapply Bij.from_valid_reg_ssa_to_valid_index in H; eauto.
+                apply in_params_of_builtin_args_valid in H; auto.
+                apply Bij.from_valid_reg_ssa_to_valid_index in H; auto.
                 rewrite H0 in H; simpl in H; auto.
+                eauto.
               - intros.
-                eapply in_params_of_builtin_args_valid in H; eauto.                
+                apply in_params_of_builtin_args_valid in H; auto.
+                eauto.
             }
             
           + intros i ins gi Hin Hcode Hout Hgi; destruct Hin; [subst|apply HINV5 with i;auto;fail].
@@ -1763,11 +1782,13 @@ Proof.
             * intros.
               eapply in_params_of_builtin_args_erase; eauto.
             * intros.
-              eapply in_params_of_builtin_args_valid in H; eauto.
+              apply in_params_of_builtin_args_valid in H; auto.
               eapply Bij.from_valid_reg_ssa_to_valid_index in H.
               rewrite H0 in H; simpl in H; auto.
+              eauto.
             * intros.
-              eapply in_params_of_builtin_args_valid in H; eauto.
+              apply in_params_of_builtin_args_valid in H; auto.
+              eauto.
               
           + intros i ins gi Hin Hcode Hout Hgi; destruct Hin; [subst|apply HINV5 with i;auto;fail].
             clean; inv Hout.
@@ -1850,34 +1871,38 @@ Proof.
     rewrite PTree.gsspec; destruct peq; auto.
     rewrite PTree.gss; auto.
   clean.
-  econstructor; eauto.
+  econstructor; auto.
   intros.
   elim list_in_map_inv with (1:= H); intros xx [V1 V2]; subst.
   rewrite Bij.BIJ1 in H0; eauto. inv H0. auto.
   { intros.
-    eapply list_in_map_inv in H; eauto.
+    apply list_in_map_inv in H; auto.
     destruct H as [rx [EQ Hin]]. subst.
-    rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto.
+    rewrite Bij.BIJ1 in H0; auto. inv H0; eauto.
+    eauto.
   }
   { intros.
-    eapply list_in_map_inv in H; eauto.
+    apply list_in_map_inv in H; auto.
     destruct H as [rx [EQ Hin]]. subst.
-    eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
+    apply Bij.from_valid_index_to_valid_reg_ssa; auto.
+    eauto.
   }  
   generalize (HINV _ _ (PTree.gss _ _ _)); intros; clean.
-  econstructor; eauto.
+  econstructor; auto.
   intros.
   elim list_in_map_inv with (1:= H); intros xx [V1 V2]; subst.
   rewrite Bij.BIJ1 in H0; eauto. inv H0. auto.
   { intros.
-    eapply list_in_map_inv in H; eauto.
+    apply list_in_map_inv in H; auto.
     destruct H as [rx [EQ Hin]]. subst.
-    rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto.
+    rewrite Bij.BIJ1 in H0; auto. inv H0; eauto.
+    eauto.
   }
   { intros.
-    eapply list_in_map_inv in H; eauto.
+    apply list_in_map_inv in H; auto.
     destruct H as [rx [EQ Hin]]. subst.
-    eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
+    apply Bij.from_valid_index_to_valid_reg_ssa; auto.
+    eauto.
   }
   intros i ins gi Hin Hcode Hout Hgi; destruct Hin; [subst|apply HINV5 with i;auto;fail].
   clean; inv Hout.
@@ -1940,7 +1965,7 @@ Proof.
       case_eq (g0 ! x); auto; intros.
       eapply INVVALID with (pc:= a) (x:= x); eauto.
       unfold read_gamma. rewrite H; auto.
-    - rewrite PTree.gso in H; eauto.
+    - rewrite PTree.gso in H; auto.
       destruct (peq pc n).
       + subst. unfold read_gamma. rewrite PTree.gss in H. inv H.
         case_eq (g0 ! x); auto; intros.
@@ -1975,19 +2000,19 @@ Proof.
     apply HINV.
     elim upd_list_some with l g G j; destruct 1; intuition.
   clean.
-  econstructor; eauto.
+  econstructor; auto.
   intros. inv H.
-  rewrite Bij.BIJ1 in H0; eauto. inv H0 ; auto.
+  rewrite Bij.BIJ1 in H0 by eauto. inv H0 ; auto.
   inv H1.
   { intros.
     inv H.
-    - rewrite Bij.BIJ1 in H0; eauto.
+    - rewrite Bij.BIJ1 in H0 by eauto. 
       inv H0; eauto. 
     - inv H1.
   }
   { intros.
     inv H.
-    - eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
+    - apply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
     - inv H0.
   }
   intros i ins gi Hin Hcode Hout Hgi; destruct Hin; [subst|apply HINV5 with i;auto;fail].  
@@ -1996,19 +2021,20 @@ Proof.
     simpl in HINV.
     rewrite (HINV _ g) in Hgi; congruence.
   rewrite H in Hg; inv Hg.
-  econstructor; eauto.
+  econstructor; auto.
   intros ; inv H0 ; inv H1 ; auto.
-  rewrite Bij.BIJ1 in H2; eauto. inv H2. auto.
+  rewrite Bij.BIJ1 in H2 by eauto. inv H2. auto.
   inv H2.
   { intros.
     inv H0.
-    - rewrite Bij.BIJ1 in H1; eauto.
-      inv H1; eauto.
+    - rewrite Bij.BIJ1 in H1 by eauto; auto.
+      inv H1; eauto.      
     - inv H2.
   }
   { intros.
     inv H0.
-    - eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
+    - apply Bij.from_valid_index_to_valid_reg_ssa; auto.
+      eauto.
     - inv H1.
   }
   
@@ -2075,18 +2101,19 @@ Proof.
   intros i ins gi Hin Hcode Hout Hgi; destruct Hin; [subst|apply HINV5 with i;auto;fail].
   repeat match goal with id: G! _ = Some _ |- _ => generalize (Pr _ _ id); clear id; intros id end.
   clean.
-  econstructor; eauto.
+  econstructor; auto.
   intros. inv H ; inv H0 ; auto.
   rewrite Bij.BIJ1 in H1; eauto. inv H1. auto.
   inv H1.
   { intros.
     inv H.
-    - rewrite Bij.BIJ1 in H0; eauto. inv H0; eauto. 
+    - rewrite Bij.BIJ1 in H0 by eauto. inv H0; eauto. 
     - inv H1.
   }
   { intros.
     inv H.
-    - eapply Bij.from_valid_index_to_valid_reg_ssa; eauto. 
+    - apply Bij.from_valid_index_to_valid_reg_ssa; auto.
+      eauto.
     - inv H0.
   }  
   intros i j ins gi gj dpi Hin Hsucc1 Hsucc2 Hgi Hgj Hjun Hdefphi; destruct Hin; [subst|eapply HINV3;eauto;fail].
@@ -2600,7 +2627,7 @@ Proof.
                     inv Has.
                     destruct (assigned_fold_Iphi_map _ _ _ _ _ _ _ H12) as [r' [idx [R1 [R2 [R3 R4]]]]].
                     intros; subst.
-                    rewrite Bij.BIJ1 in H15; eauto. inv H15.
+                    rewrite Bij.BIJ1 in H15; auto. inv H15.
                     generalize (Hd2 _ _ R1); auto.
                     boolInv.
                     eapply check_valid_index_phis_correct; eauto.
@@ -2652,7 +2679,7 @@ Proof.
                       exploit fold_build_phi_block_value; eauto.
                       intros Hp; rewrite Hphi0 in Hp; inv Hp.
                       destruct (assigned_fold_Iphi_map _ _ _ _ _ _ _ X) as [x' [xdef [D1 [D2 [D3 D4]]]]] ; subst.
-                      eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
+                      apply Bij.from_valid_index_to_valid_reg_ssa; auto.
                       boolInv; eapply check_valid_index_phis_correct; eauto.
 
                     + intros ri r i0 Ha Hb.    
@@ -2727,17 +2754,18 @@ Proof.
                       * constructor; auto.
                       * destruct (G!a) eqn:EQ; simpl; auto;
                          [ destruct (t!r) eqn:EQ'; simpl; auto|].
-                        -- eapply phiu_cons with (i:= read_gamma t r); eauto.
+                        -- eapply phiu_cons with (i:= read_gamma t r); auto.
                            rewrite Bij.BIJ1; eauto.
+                           eauto.
                            eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
                         -- unfold read_gamma. rewrite EQ'.
-                           eapply phiu_cons with (i:= dft_pos); eauto.
-                           rewrite Bij.BIJ1; eauto.
+                           eapply phiu_cons with (i:= dft_pos); auto.
+                           rewrite Bij.BIJ1; auto.
                            eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
                            rewrite EQ'; auto.
                         -- unfold read_gamma. rewrite PTree.gempty.
-                           eapply phiu_cons with (i:= dft_pos); eauto.
-                           rewrite Bij.BIJ1; eauto.
+                           eapply phiu_cons with (i:= dft_pos); auto.
+                           rewrite Bij.BIJ1; auto.
                            eapply Bij.from_valid_index_to_valid_reg_ssa; eauto.
                     + unfold successors_list.
                       erewrite <- (same_successors_same_predecessors _ _ (RTLdfs.fn_code f) new_code); 
