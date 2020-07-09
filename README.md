@@ -16,6 +16,20 @@ features, installation instructions, using the compiler, etc), please
 refer to the [Web site](http://compcert.inria.fr/) and especially
 the [user's manual](http://compcert.inria.fr/man/).
 
+## CompCertSSA version
+
+This development is a version of CompCert extended with an SSA
+middle-end:
+
+- construction of the SSA form, from RTL
+- SSA-based optimizations
+- SSA-related librairies on dominance and dominators
+- SSA destruction with coalescing, on the Conventional SSA form
+
+The following people contibuted to this extension (alphabetic order):
+Sandrine Blazy, Delphine Demange, Yon Fernandez de Retana, David
+Pichardie, Léo Stefanesco.
+
 ## License
 CompCert is not free software.  This non-commercial release can only
 be used for evaluation, research, educational and personal purposes.
@@ -29,6 +43,8 @@ The CompCert verified compiler is Copyright Institut National de
 Recherche en Informatique et en Automatique (INRIA) and 
 AbsInt Angewandte Informatik GmbH.
 
+The additions related to the SSA middle-end are Copyright Univ Rennes,
+Inria, IRISA.
 
 ## Contact
 General discussions on CompCert take place on the
@@ -37,3 +53,6 @@ mailing list.
 
 For inquiries on the commercial version of CompCert, please contact
 info@absint.com
+
+For inquiries on the SSA-specific additions, please contact Delphine
+Demange.
