@@ -4,10 +4,9 @@
   SSA is the Single Static Assignment form of RTL.
 
   SSA code is organized as instructions and phi-blocks, functions and
-  programs.  Instructions are those of RTL, phi-blocks are sequences
-  of phi-instructions. All instructions manipulates pseudo-registers,
-  as in RTL.
- *)
+  programs.  Instructions are those of RTL, phi-blocks are lists of
+  phi-instructions with a parallel semantics. All instructions
+  manipulates pseudo-registers, as in RTL.  *)
 
 Require Import Coqlib.
 Require Import Maps.
@@ -29,6 +28,7 @@ Require Import Classical.
 Require Import Relations.Relation_Definitions.
 Require Import DLib.
 Require Import Dom.
+Require Import Utils.
 
 Unset Allow StrictProp.
 
@@ -40,7 +40,7 @@ Unset Allow StrictProp.
 
 Definition node := positive.
 
-Variant instruction: Type :=
+Variant instruction: Type := 
   | Inop: node -> instruction
       (** No operation -- just branch to the successor. *)
   | Iop: operation -> list reg -> reg -> node -> instruction
@@ -89,29 +89,8 @@ Variant phiinstruction: Type :=
 (** [Iphi args dst] copies the value of the k-th register of [args], 
    where k is the index of the predecessor of the current point. *)
 
-(** Phi blocks are lists of phi-instructions *)
+(** Phi-blocks are lists of phi-instructions *)
 Definition phiblock:= list phiinstruction.
-
-(** A function description comprises a control-flow graph (CFG)
-    [fn_code] (a partial finite mapping from nodes to instructions)
-    and a phi-block graph [fn_phicode] (a partial finite mapping from
-    nodes to phi-blocks. Consequently, whenever a abstract program
-    point is a junction point holding a phi-block, the phi-block can
-    be retrieved in [fn_phicode], while its regular instruction is
-    stored in [fn_code].
-
-    As in Cminor, [fn_sig] is the function signature and
-    [fn_stacksize] the number of bytes for its stack-allocated
-    activation record.  [fn_params] is the list of registers that are
-    bound to the values of arguments at call time.  [fn_entrypoint] is
-    the node of the first instruction of the function in the CFG.
-    
-    [fn_ext_params] is a list of all SSA registers that are used in
-    the function but not defined in it. It includes all the function's
-    parameters.
-
-    [fn_dom_dest] is a dominance test between two CFG nodes for the
-    function. *)
 
 Definition code: Type := PTree.t instruction.
 
@@ -131,6 +110,26 @@ Record function: Type := mkfunction {
   fn_dom_test: node -> node -> bool 
 }.
 
+(** A function description comprises a control-flow graph (CFG)
+    [fn_code], a partial finite mapping from nodes to instructions and
+    a phi-block graph [fn_phicode], a partial finite mapping from
+    nodes to phi-blocks. Consequently, whenever a program point is a
+    junction point with a phi-block, the phi-block can be retrieved in
+    [fn_phicode], while its regular instruction is stored in
+    [fn_code].
+
+    As in RTL, [fn_sig] is the function signature and [fn_stacksize]
+    the number of bytes for its stack-allocated activation record.
+    [fn_params] is the list of registers that are bound to the values
+    of arguments at call time.  [fn_entrypoint] is the node of the
+    first instruction of the function in the CFG.
+    
+    [fn_ext_params] is a list of all registers that are used in the
+    function but not defined in it. It includes all the function's
+    parameters.
+
+    [fn_dom_dest] is a dominance test between two CFG nodes for the
+    function. *)
 
 Definition fundef := AST.fundef function.
 Definition program := AST.program fundef unit.
@@ -155,283 +154,30 @@ Definition successors_instr (i: instruction) : list node :=
   | Ireturn optarg => nil
   end.
 
-Notation preds :=
-  (fun f pc => (make_predecessors (fn_code f) successors_instr) !!! pc).
-
 Inductive join_point (jp: node) (f:function) : Prop :=
   | jp_cons : forall l,
       forall (Hpreds: (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
-             (Hl: (length l > 1)%nat), 
+             (Hl: length l > 1), 
         join_point jp f.
 
-Fixpoint get_index_acc (l:list node) (a:node) acc : option nat :=
-  match l with 
-    | nil => None
-    | x::m => if (peq x a) 
-      then Some acc
-      else get_index_acc m a (acc+1)%nat
-  end.
-
-Definition get_index (l:list node) (a:node) :=
-  get_index_acc l a O.
-
 Definition index_pred (predsf: PTree.t (list node)):=
-  fun (i:node) (j:node)  => 
-    let predsj := predsf !!! j in  
-      match  predsj with
-        | nil => None 
-        | _ => get_index predsj i 
-      end.
-
-(** * Use and definition of registers *)
-Section UDEF.
-
-(** [assigned_code_spec code pc r] holds if the register [r] is
-assigned at point [pc] in the code [code] *)
-Inductive assigned_code_spec (code:code) (pc:node) : reg -> Prop :=
-| AIop: forall op args dst succ,
-  code!pc = Some (Iop op args dst succ)  ->
-  assigned_code_spec code pc dst
-| AIload: forall chunk addr args dst succ,
-  code!pc = Some (Iload chunk addr args dst succ) ->
-  assigned_code_spec code pc dst
-| AIcall: forall sig fn args dst succ,
-  code!pc = Some (Icall sig fn args dst succ) ->
-  assigned_code_spec code pc dst
-| AIbuiltin: forall fn args dst succ,
-    code!pc = Some (Ibuiltin fn args (BR dst) succ) ->
-    assigned_code_spec code pc dst.
-
-(** [assigned_phi_spec phicode pc r] holds if the register [r] is
-    assigned at point [pc] in the phi-code [phicode] *)
-Variant assigned_phi_spec (phicode: phicode) (pc: node): reg -> Prop :=
-  APhi: forall phiinstr dst, 
-    (phicode!pc) = Some phiinstr ->
-    (exists args, List.In (Iphi args dst) phiinstr) -> 
-    assigned_phi_spec phicode pc dst.
-
-Variable f : function.
-  
-(** [use_code f r pc] holds whenever register [r] is used at [pc] in the regular code of [f] *)
-Inductive use_code : reg -> node -> Prop := 
-| UIop: forall pc arg op args dst s, 
-  (fn_code f) !pc = Some (Iop op args dst s)  -> In arg args -> use_code arg pc
-| UIload: forall pc arg chk adr args dst s,
-  (fn_code f) !pc = Some (Iload chk adr args dst s) -> In arg args -> use_code arg pc
-| UIcond: forall pc arg cond args s s',
-  (fn_code f) !pc = Some (Icond cond args s s') -> In arg args -> use_code arg pc 
-| UIbuiltin: forall pc arg ef args dst s,
-  (fn_code f) !pc = Some (Ibuiltin ef args dst s) -> In arg (params_of_builtin_args args) -> use_code arg pc
-| UIstore: forall pc arg chk adr args src s,
-  (fn_code f) !pc = Some (Istore chk adr args src s) -> In arg (src::args) -> use_code arg pc
-| UIcall: forall pc arg sig r args dst s,
-  (fn_code f) !pc = Some (Icall sig (inl ident r) args dst s) -> In arg (r::args) -> use_code arg pc
-| UItailcall: forall pc arg sig r args,
-  (fn_code f) !pc = Some (Itailcall sig (inl ident r) args) -> In arg (r::args) -> use_code arg pc
-| UIcall2: forall pc arg sig id args dst s,
-  (fn_code f) !pc = Some (Icall sig (inr reg id) args dst s) -> In arg args -> use_code arg pc
-| UItailcall2: forall pc arg sig id args,
-  (fn_code f) !pc = Some (Itailcall sig (inr reg id) args) -> In arg args -> use_code arg pc
-| UIjump: forall pc arg tbl, 
-  (fn_code f) !pc = Some (Ijumptable arg tbl) -> use_code arg pc
-| UIret: forall pc arg,
-  (fn_code f) !pc = Some (Ireturn (Some arg)) -> use_code arg pc.
-
-(** [use_phicode f r pc] holds whenever register [r] is used at [pc] in the phi-code of [f] *)
-Variant use_phicode : reg -> node -> Prop := 
-| upc_intro : forall pc pred k arg args dst phib
-  (PHIB: (fn_phicode f) ! pc = Some phib)
-  (ASSIG : In (Iphi args dst) phib)
-  (KARG : nth_error args k = Some arg)
-  (KPRED : index_pred (make_predecessors (fn_code f) successors_instr) pred pc = Some k),
-  use_phicode arg pred.
-
-(** A register is used either in the code or in the phicode of a function *)  
-Variant use : reg -> node -> Prop := 
-| u_code : forall x pc, use_code x pc -> use x pc
-| u_phicode : forall x pc, use_phicode x pc -> use x pc.
-
-(** Special definition point for function parameters and registers
-    that are used in the function without having been defined anywhere
-    in the function *)
-Variant ext_params (x: reg) : Prop :=
-| ext_params_params : 
-  In x (fn_params f) -> ext_params x
-| ext_params_undef : 
-  (exists pc, use x pc) ->
-  (forall pc, ~ assigned_phi_spec (fn_phicode f) pc x) ->
-  (forall pc, ~ assigned_code_spec (fn_code f) pc x) ->
-  ext_params x.
-Hint Constructors ext_params: core.
-
-(** [def r pc] holds if register [r] is defined at node [pc] *)
-Variant def : reg -> node -> Prop := 
-| def_params : forall x,
-  ext_params x -> def x (fn_entrypoint f)
-| def_code : forall x pc, assigned_code_spec (fn_code f) pc x -> def x pc
-| def_phicode : forall x pc, assigned_phi_spec (fn_phicode f) pc x -> def x pc.
-
-End UDEF.
-
-Hint Constructors ext_params def assigned_code_spec assigned_phi_spec: core.
-
-(** * Formalization of Dominators *)
-Section DOMINATORS.  
-  
-  Variable f : function.
-
-  Definition entry := (fn_entrypoint f).
-  Notation code := (fn_code f).
-  
-  (** [cfg i j] holds if [j] is a successor of [i] in the code of [f] *)
-  Variant _cfg (i j:node) : Prop :=
-  | CFG : forall ins
-    (HCFG_ins: code !i = Some ins)
-    (HCFG_in : In j (successors_instr ins)),
-    _cfg i j.
-  
-  Definition exit (pc: node) : Prop :=
-  match code ! pc with
-  | Some (Itailcall _ _ _) => True
-  | Some (Ireturn _) => True
-  | Some (Ijumptable _ succs) => succs = nil
-  | _ => False
-  end.
-
-  Definition cfg := _cfg.
-  
-  Definition dom := dom cfg exit entry.
-
-End DOMINATORS.
-
-Notation SSApath := (fun f => Dom.path (cfg f) (exit f) (entry f)).
-
-(** * Well-formed SSA functions *)
-
-(** Every variable is assigned as most once *)
-Definition unique_def_spec (f : function) :=
-  (forall (r:reg) (pc pc':node), 
-    (assigned_code_spec (f.(fn_code)) pc r ->
-      assigned_code_spec (f.(fn_code)) pc' r ->
-      pc = pc')
-    /\
-    (assigned_phi_spec (f.(fn_phicode)) pc r ->
-      assigned_phi_spec (f.(fn_phicode)) pc' r ->
-      pc = pc')
-    /\
-    ((assigned_code_spec (f.(fn_code)) pc r ->
-      ~ assigned_phi_spec (f.(fn_phicode)) pc' r)
-    /\ (assigned_phi_spec (f.(fn_phicode)) pc r ->
-      ~ assigned_code_spec (f.(fn_code)) pc' r)))
-  /\ 
-  (forall pc phiinstr, 
-    (f.(fn_phicode))!pc = Some phiinstr ->
-    ( (NoDup phiinstr)
-      /\ (forall r args args', 
-          In (Iphi args r) phiinstr -> In (Iphi args' r) phiinstr -> args = args'))
-  ).
-
-
-(** All phi-instruction have the right numbers of phi-arguments *)
-Definition block_nb_args (f: function) : Prop :=
-  forall pc block args  x, 
-    (fn_phicode f) ! pc = Some block -> 
-    In (Iphi args x) block ->
-    (length (preds f pc)) = (length args).
-
-Definition successors (f: function) : PTree.t (list positive) :=
-  PTree.map1 successors_instr (fn_code f).
-
-Notation succs := (fun f pc => (successors f) !!! pc).
-
-(** Well-formed SSA functions *)  
-
-Notation reached := (fun f => (reached (cfg f) (entry f))).
-Notation sdom := (fun f => (sdom (cfg f) (exit f) (entry f))).
-
-Record wf_ssa_function (f:function) : Prop := {
-  fn_ssa : unique_def_spec f; 
-  
-  fn_ssa_params : forall x, In x (fn_params f) -> 
-    (forall pc, ~ assigned_code_spec (fn_code f) pc x) /\ 
-    (forall pc, ~ assigned_phi_spec (fn_phicode f) pc x);
-    
-  fn_strict : forall x u d, use f x u -> def f x d -> dom f d u; 
-      
-  fn_use_def_code : forall x pc, 
-    use_code f x pc -> 
-    assigned_code_spec (fn_code f) pc x -> False; 
-
-  fn_wf_block: block_nb_args f;
-  
-  fn_normalized: forall jp pc, 
-                   (join_point jp f) ->
-                   In jp (succs f pc) -> (fn_code f) ! pc = Some (Inop jp); 
-  
-  fn_phicode_inv: forall jp,
-    join_point jp f <->
-    f.(fn_phicode) ! jp <> None;
-    
-  fn_code_reached: forall pc ins, (fn_code f) ! pc = Some ins -> reached f pc;
-
-  fn_code_closed:
-    forall pc pc' instr, (fn_code f) ! pc = Some instr ->
-    In pc' (successors_instr instr) -> 
-    exists instr', (fn_code f) ! pc' = Some instr'; 
-
-  fn_entry : exists s, (fn_code f) ! (fn_entrypoint f) = Some (Inop s); 
-  fn_entry_pred: forall pc, ~ cfg f pc (fn_entrypoint f);
-
-  fn_ext_params_complete: forall r,
-    ext_params f r -> In r (fn_ext_params f);
-
-  fn_dom_test_correct : forall n d,
-    reached f n -> fn_dom_test f d n = true -> dom f d n
-}.
-
-Require Import KildallComp.
-
-Lemma no_assigned_phi_spec_fn_entrypoint: forall f,
-  wf_ssa_function f -> forall x,
-    ~ assigned_phi_spec (fn_phicode f) (fn_entrypoint f) x.
-Proof.
-  red; intros.
-  inv H0.
-  assert (join_point (fn_entrypoint f) f).
-  { rewrite fn_phicode_inv; auto.
-    congruence.
-  }
-  inv H0. 
-  destruct l.
-  simpl in Hl; apply False_ind; omega.
-  exploit @make_predecessors_some; eauto. intros [pins Hpins].  
-  assert (In (fn_entrypoint f) (successors_instr pins)).
-  { 
-    eapply @make_predecessors_correct2; eauto.
-    unfold Kildall.successors_list.
-    unfold make_preds.
-    rewrite Hpreds.
-    left; auto.
-  }   
-  elim (fn_entry_pred _ H p).
-  econstructor; eauto.
-Qed.
-
-(** Well-formed SSA function definitions *)
-Inductive wf_ssa_fundef: fundef -> Prop :=
-  | wf_ssa_fundef_external: forall ef,
-      wf_ssa_fundef (External ef)
-  | wf_ssa_function_internal: forall f,
-      wf_ssa_function f ->
-      wf_ssa_fundef (Internal f).
-
-(** Well-formed SSA programs *)
-Definition wf_ssa_program (p: program) : Prop := 
-  forall f id, In (id, Gfun f) (prog_defs p) -> wf_ssa_fundef f.
+  fun (i:node) (j:node) =>
+    let predsj := predsf !!! j in
+    match predsj with
+    | nil => None 
+    | _ => get_index predsj i 
+    end.
 
 (** * Operational semantics *)
 
 Definition genv := Genv.t fundef unit.
+Definition regset := Regmap.t val.
+
+Fixpoint init_regs (vl: list val) (rl: list reg) {struct rl} : regset :=
+  match rl, vl with
+  | r1 :: rs, v1 :: vs => PMap.set r1 v1 (init_regs vs rs)
+  | _, _ => PMap.init Vundef
+  end.
 
 (** The dynamic semantics of SSA is given in small-step style for
   basic instructions, as a set of transitions between states, and in a
@@ -467,8 +213,6 @@ a function call in progress.
 [pc] is the program point for the instruction that follows the call.
 [rs] is the state of registers in the calling function.
 *)
-
-Definition regset := Regmap.t val.
 
 Variant stackframe : Type :=
   | Stackframe:
@@ -517,7 +261,7 @@ Definition find_function
 
 (** Definition of the effect of a phi-block on a register set, when
    the control flow comes from the k-th predecessor of the current
-   program point. Phi-blocks are given a parallel semantics *)
+   program point. Phi-blocks are given a parallel semantics. *)
 Fixpoint phi_store k phib (rs:regset) :=
   match phib with
     | nil => rs
@@ -528,17 +272,10 @@ Fixpoint phi_store k phib (rs:regset) :=
       end
   end.
 
-            
 (** The transitions are presented as an inductive predicate
   [step ge st1 t st2], where [ge] is the global environment,
   [st1] the initial state, [st2] the final state, and [t] the trace
   of system calls performed during this transition. *)
-
-Fixpoint init_regs (vl: list val) (rl: list reg) {struct rl} : regset :=
-  match rl, vl with
-  | r1 :: rs, v1 :: vs => PMap.set r1 v1 (init_regs vs rs)
-  | _, _ => PMap.init Vundef
-  end.
 
 Inductive step: state -> trace -> state -> Prop :=
 | exec_Inop_njp:
@@ -670,3 +407,242 @@ Variant final_state: state -> int -> Prop :=
 Definition semantics (p: program) :=
   Semantics step (initial_state p) final_state (Genv.globalenv p).
 
+(** * Use and definition of registers *)
+Section UDEF.
+
+  (** [assigned_code_spec code pc r] holds if the register [r] is
+      assigned at point [pc] in the code [code] *)
+  Inductive assigned_code_spec (code:code) (pc:node) : reg -> Prop :=
+  | AIop: forall op args dst succ,
+      code!pc = Some (Iop op args dst succ)  ->
+      assigned_code_spec code pc dst
+  | AIload: forall chunk addr args dst succ,
+      code!pc = Some (Iload chunk addr args dst succ) ->
+      assigned_code_spec code pc dst
+  | AIcall: forall sig fn args dst succ,
+      code!pc = Some (Icall sig fn args dst succ) ->
+      assigned_code_spec code pc dst
+  | AIbuiltin: forall fn args dst succ,
+      code!pc = Some (Ibuiltin fn args (BR dst) succ) ->
+      assigned_code_spec code pc dst.
+
+  (** [assigned_phi_spec phicode pc r] holds if the register [r] is
+      assigned at point [pc] in the phi-code [phicode] *)
+  Variant assigned_phi_spec (phicode: phicode) (pc: node): reg -> Prop :=
+    APhi: forall phiinstr dst, 
+      (phicode!pc) = Some phiinstr ->
+      (exists args, List.In (Iphi args dst) phiinstr) -> 
+      assigned_phi_spec phicode pc dst.
+
+  Variable f : function.
+  
+  (** [use_code f r pc] holds whenever register [r] is used at [pc] in
+      the code of [f] *) 
+  Inductive use_code : reg -> node -> Prop := 
+  | UIop: forall pc arg op args dst s, 
+      (fn_code f) !pc = Some (Iop op args dst s) ->
+      In arg args ->
+      use_code arg pc
+  | UIload: forall pc arg chk adr args dst s,
+      (fn_code f) !pc = Some (Iload chk adr args dst s) ->
+      In arg args ->
+      use_code arg pc
+  | UIcond: forall pc arg cond args s s',
+      (fn_code f) !pc = Some (Icond cond args s s') ->
+      In arg args ->
+      use_code arg pc 
+  | UIbuiltin: forall pc arg ef args dst s,
+      (fn_code f) !pc = Some (Ibuiltin ef args dst s) ->
+      In arg (params_of_builtin_args args) ->
+      use_code arg pc
+  | UIstore: forall pc arg chk adr args src s,
+      (fn_code f) !pc = Some (Istore chk adr args src s) ->
+      In arg (src::args) ->
+      use_code arg pc
+  | UIcall: forall pc arg sig r args dst s,
+      (fn_code f) !pc = Some (Icall sig (inl ident r) args dst s) ->
+      In arg (r::args) ->
+      use_code arg pc
+  | UItailcall: forall pc arg sig r args,
+      (fn_code f) !pc = Some (Itailcall sig (inl ident r) args) ->
+      In arg (r::args) ->
+      use_code arg pc
+  | UIcall2: forall pc arg sig id args dst s,
+      (fn_code f) !pc = Some (Icall sig (inr reg id) args dst s) ->
+      In arg args ->
+      use_code arg pc
+  | UItailcall2: forall pc arg sig id args,
+      (fn_code f) !pc = Some (Itailcall sig (inr reg id) args) ->
+      In arg args ->
+      use_code arg pc
+  | UIjump: forall pc arg tbl, 
+      (fn_code f) !pc = Some (Ijumptable arg tbl) ->
+      use_code arg pc
+  | UIret: forall pc arg,
+      (fn_code f) !pc = Some (Ireturn (Some arg)) ->
+      use_code arg pc.
+
+  (** [use_phicode f r pc] holds whenever register [r] is used at [pc]
+      in the phi-code of [f] *)
+  Variant use_phicode : reg -> node -> Prop := 
+  | upc_intro : forall pc pred k arg args dst phib,
+      forall (PHIB: (fn_phicode f) ! pc = Some phib)
+             (ASSIG : In (Iphi args dst) phib)
+             (KARG : nth_error args k = Some arg)
+             (KPRED : index_pred (make_predecessors (fn_code f) successors_instr) pred pc = Some k),
+        use_phicode arg pred.
+
+  (** A register is used either in the code or in the phicode of a function *)  
+  Variant use : reg -> node -> Prop := 
+  | u_code : forall x pc, use_code x pc -> use x pc
+  | u_phicode : forall x pc, use_phicode x pc -> use x pc.
+  
+  (** Special definition point for function parameters and registers
+      that are used in the function without having been defined anywhere
+      in the function *)
+  Variant ext_params (x: reg) : Prop :=
+  | ext_params_params : 
+      In x (fn_params f) ->
+      ext_params x
+  | ext_params_undef : 
+      (exists pc, use x pc) ->
+      (forall pc, ~ assigned_phi_spec (fn_phicode f) pc x) ->
+      (forall pc, ~ assigned_code_spec (fn_code f) pc x) ->
+      ext_params x.
+  Hint Constructors ext_params: core.
+
+  (** [def r pc] holds if register [r] is defined at node [pc] *)
+  Variant def : reg -> node -> Prop := 
+  | def_params : forall x,
+      ext_params x ->
+      def x (fn_entrypoint f)
+  | def_code : forall x pc,
+      assigned_code_spec (fn_code f) pc x ->
+      def x pc
+  | def_phicode : forall x pc,
+      assigned_phi_spec (fn_phicode f) pc x ->
+      def x pc.
+
+End UDEF.
+
+Hint Constructors ext_params def assigned_code_spec assigned_phi_spec: core.
+
+(** * Dominators *)
+Section DOMINATORS.  
+  
+  Variable f : function.  
+  
+  (** [cfg i j] holds if [j] is a successor of [i] in the code of [f] *)
+  Variant cfg (i j:node) : Prop :=
+  | CFG : forall ins,
+      forall (HCFG_ins: (fn_code f) !i = Some ins)
+             (HCFG_in : In j (successors_instr ins)),
+        cfg i j.
+  
+  Definition exit (pc: node) : Prop :=
+    match (fn_code f) ! pc with
+    | Some (Itailcall _ _ _) => True
+    | Some (Ireturn _) => True
+    | Some (Ijumptable _ succs) => succs = nil
+    | _ => False
+    end.
+  
+  Definition dom := dom cfg exit (fn_entrypoint f).
+
+End DOMINATORS.
+
+Notation SSApath := (fun f => Dom.path (cfg f) (exit f) (fn_entrypoint f)).
+
+(** * Well-formed SSA functions *)
+
+(** Every variable is assigned at most once *)
+Definition unique_def_spec (f : function) :=
+  (forall (r:reg) (pc pc':node), 
+    (assigned_code_spec (f.(fn_code)) pc r ->
+     assigned_code_spec (f.(fn_code)) pc' r ->
+     pc = pc')
+    /\
+    (assigned_phi_spec (f.(fn_phicode)) pc r ->
+     assigned_phi_spec (f.(fn_phicode)) pc' r ->
+     pc = pc')
+    /\
+    (assigned_code_spec (f.(fn_code)) pc r ->
+     ~ assigned_phi_spec (f.(fn_phicode)) pc' r)
+    /\
+    (assigned_phi_spec (f.(fn_phicode)) pc r ->
+     ~ assigned_code_spec (f.(fn_code)) pc' r))
+  /\ 
+  (forall pc phiinstr, 
+      (fn_phicode f)!pc = Some phiinstr ->
+      NoDup phiinstr /\ (forall r args args', 
+                            In (Iphi args r) phiinstr ->
+                            In (Iphi args' r) phiinstr ->
+                            args = args')).
+
+Notation preds := (fun f pc => (make_predecessors (fn_code f) successors_instr) !!! pc).
+Notation reached := (fun f => (reached (cfg f) (fn_entrypoint f))).
+Notation sdom := (fun f => (sdom (cfg f) (exit f) (fn_entrypoint f))).
+
+(** All phi-instruction have the right numbers of phi-arguments *)
+Definition block_nb_args (f: function) : Prop :=
+  forall pc block args  x, 
+    (fn_phicode f) ! pc = Some block -> 
+    In (Iphi args x) block ->
+    (length (preds f pc)) = (length args).
+
+(** Well-formed SSA functions *)
+Definition successors (f: function) : PTree.t (list positive) :=
+  PTree.map1 successors_instr (fn_code f).
+Notation succs := (fun f pc => (successors f) !!! pc).
+
+Record wf_ssa_function (f:function) : Prop := {
+  fn_ssa : unique_def_spec f; 
+  
+  fn_ssa_params : forall x, In x (fn_params f) -> 
+    (forall pc, ~ assigned_code_spec (fn_code f) pc x) /\ 
+    (forall pc, ~ assigned_phi_spec (fn_phicode f) pc x);
+    
+  fn_strict : forall x u d, use f x u -> def f x d -> dom f d u; 
+      
+  fn_use_def_code : forall x pc, 
+    use_code f x pc -> 
+    assigned_code_spec (fn_code f) pc x -> False; 
+
+  fn_wf_block: block_nb_args f;
+  
+  fn_normalized: forall jp pc, 
+                   (join_point jp f) ->
+                   In jp (succs f pc) -> (fn_code f) ! pc = Some (Inop jp); 
+  
+  fn_phicode_inv: forall jp,
+    join_point jp f <->
+    f.(fn_phicode) ! jp <> None;
+    
+  fn_code_reached: forall pc ins, (fn_code f) ! pc = Some ins -> reached f pc;
+
+  fn_code_closed:
+    forall pc pc' instr, (fn_code f) ! pc = Some instr ->
+    In pc' (successors_instr instr) -> 
+    exists instr', (fn_code f) ! pc' = Some instr'; 
+
+  fn_entry : exists s, (fn_code f) ! (fn_entrypoint f) = Some (Inop s); 
+  fn_entry_pred: forall pc, ~ cfg f pc (fn_entrypoint f);
+
+  fn_ext_params_complete: forall r,
+    ext_params f r -> In r (fn_ext_params f);
+
+  fn_dom_test_correct : forall n d,
+    reached f n -> fn_dom_test f d n = true -> dom f d n
+}.
+
+(** Well-formed SSA function definitions *)
+Variant wf_ssa_fundef: fundef -> Prop :=
+  | wf_ssa_fundef_external: forall ef,
+      wf_ssa_fundef (External ef)
+  | wf_ssa_function_internal: forall f,
+      wf_ssa_function f ->
+      wf_ssa_fundef (Internal f).
+
+(** Well-formed SSA programs *)
+Definition wf_ssa_program (p: program) : Prop := 
+  forall f id, In (id, Gfun f) (prog_defs p) -> wf_ssa_fundef f.

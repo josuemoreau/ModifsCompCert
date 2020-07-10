@@ -28,7 +28,7 @@ Require Import Bijection.
 
 Unset Allow StrictProp.
 
-Notation path_step := (fun f => path_step (cfg f) (exit f) (entry f)).
+Notation path_step := (fun f => path_step (cfg f) (exit f) (fn_entrypoint f)).
 
 Section WT_FUNCTION.
 

@@ -2917,8 +2917,8 @@ Lemma cssa_path_path :
   transl_function f = Errors.OK tf ->
   normalized_jp f ->
   wf_ssa_function f ->
-  Dom.path (CSSA.cfg tf) (CSSA.exit tf) (entry f) pc l pc' ->
-  Dom.path (cfg f) (exit f) (entry f) pc l pc'.
+  Dom.path (CSSA.cfg tf) (CSSA.exit tf) (fn_entrypoint f) pc l pc' ->
+  Dom.path (cfg f) (exit f) (fn_entrypoint f) pc l pc'.
 Proof.
   intros.
   induction H2.
@@ -2928,14 +2928,14 @@ Proof.
     - inv STEP.
       { constructor.
         eapply cssa_reached_reached_2; eauto.
-        replace (CSSA.entry tf) with (entry f).
+        replace (CSSA.entry tf) with (fn_entrypoint f).
         auto.
         unfold transl_function in H.
         flatten H; simpl; auto.
         eapply cssa_cfg_cfg_2; eauto. }
       { constructor 2.
         eapply cssa_reached_reached_2; eauto.
-        replace (CSSA.entry tf) with (entry f).
+        replace (CSSA.entry tf) with (fn_entrypoint f).
         auto.
         unfold transl_function in H.
         flatten H; simpl; auto.

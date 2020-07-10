@@ -3262,7 +3262,7 @@ Proof.
     constructor 1; auto.
     constructor 2.
     constructor 3 with y; auto.
-  apply H6. unfold entry.
+  apply H6. 
   replace (fn_entrypoint tf) with (RTLdfs.fn_entrypoint f).
   eapply fn_dfs_reached; eauto.
   
@@ -3517,8 +3517,8 @@ Import SSADomTest.
 Lemma check_D_eq_correct : forall f sn itvm,
   let l := extern_d (fn_entrypoint f) (fn_code f) in 
   let D := SSADomTest.make_D_fun l in 
-   SSADomTest.build_succs (entry f) l = Some sn -> 
-   SSADomTest.build_itv_map (entry f) sn = Some itvm ->
+   SSADomTest.build_succs (fn_entrypoint f) l = Some sn -> 
+   SSADomTest.build_itv_map (fn_entrypoint f) sn = Some itvm ->
    check_D_eq (fn_entrypoint f) (fn_code f) D (fun i j => SSADomTest.is_ancestor itvm (D j) i) = true -> 
    SSADomTest.D_spec (fn_entrypoint f) (SSA.cfg f) D.
 Proof.

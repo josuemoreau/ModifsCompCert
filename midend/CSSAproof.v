@@ -2402,7 +2402,7 @@ Lemma nodupnth_get_index :
   forall l pc k,
   NoDup l ->
   nth_error l k = Some pc ->
-  SSA.get_index l pc = Some k.
+  get_index l pc = Some k.
 Proof.
   induction l; intros.
   + destruct k; simpl in *.
@@ -2412,14 +2412,14 @@ Proof.
     - unfold value in *.
       assert (RW: a = pc) by congruence.
       rewrite RW in *.
-      unfold SSA.get_index.
+      unfold get_index.
       simpl.
       flatten.
-    - assert (SSA.get_index l pc = Some k).
+    - assert (get_index l pc = Some k).
       inv H. auto.
       assert (HIn: In pc l) by eauto.
       inv H.
-      unfold SSA.get_index in *.
+      unfold get_index in *.
       simpl in *.
       flatten.
       assert (EQ1: 1 = 0 + 1) by auto.

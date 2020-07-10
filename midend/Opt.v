@@ -467,7 +467,7 @@ Proof.
   split; intros.
   - inv H; constructor.
     + rewrite <- reached_transf_function; auto.
-    + unfold entry in *. intros.
+    + intros.
       apply PATH.
       rewrite ssa_path_transf_function; auto.
       rewrite fn_entrypoint_transf_function in *.
@@ -478,7 +478,7 @@ Proof.
       apply PATH.
       rewrite <- ssa_path_transf_function; auto.
       rewrite fn_entrypoint_transf_function in *.
-      unfold entry in *; auto.      
+      auto. 
 Qed.
 
 Lemma transf_function_Inop : forall (f:function) (Hwf:wf_ssa_function f) pc jp,

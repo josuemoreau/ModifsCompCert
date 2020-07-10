@@ -18,6 +18,7 @@ Require String.
 Require Import Relation_Operators.
 Require Psatz.
 Require Import Permutation.
+Require Import List.
 
 (** * Tactics *)
 Ltac exploit_dstr x := 
@@ -117,11 +118,6 @@ Proof.
   intros; generalize (H (xI p)); simpl; auto.
   intros; generalize (H (xO p)); simpl; auto.
 Qed.
-
-(** * Properties of [Regmap] *)
-  
-Definition regset := Regmap.t val.
-
   
 Lemma ptree_set_permut: forall r  r0 r1 (v0 v1:val) t ,
   r0 <> r1 ->
@@ -184,7 +180,202 @@ Notation "a #2 b <- c" := (P2Map.set b c a) (at level 1, b at next level).
 Notation "a !!2 b" := (P2Map.get b a) (at level 1).
 Notation p2eq :=  P2Map.elt_eq.
 
-(** * Lemmas about lists *)
+(** * Getting the index of an element in a list *)
+Fixpoint get_index_acc (l:list positive) (a:positive) (acc: nat) : option nat :=
+  match l with 
+    | nil => None
+    | x::m =>
+      if (peq x a) 
+      then Some acc
+      else get_index_acc m a (acc+1)
+  end.
+
+Definition get_index (l:list positive) (a:positive) :=
+  get_index_acc l a O.
+
+(** The [nth_okp] predicate *)
+
+Inductive nth_okp {A:Type}: nat -> list A -> Prop :=
+  | nth_okp_headO : forall l e, nth_okp 0 (e::l)
+  | nth_okp_headS : forall l e n, nth_okp n l -> nth_okp (S n) (e::l).
+
+Lemma nth_okp_exists {A:Type}: forall (l: list A) k, 
+  nth_okp k l -> exists v, nth_error l k = Some v.
+Proof.
+  induction l; intros.
+  inv H. 
+  destruct k. exists a ; auto.
+  simpl in *.  inv H. eapply IHl ; eauto.
+Qed.
+
+Lemma nth_okp_length : forall (A B:Type) k (l1:list A),
+  nth_okp k l1 -> forall  (l2:list B), length l1 = length l2 -> nth_okp k l2.
+Proof.
+  induction 1; destruct l2; try constructor; simpl; try congruence.
+  inv H0; auto.
+Qed.
+
+(** Utility lemmas about [get_index_acc] and [get_index] *)
+
+Lemma get_index_acc_progress: forall (l: list positive) (a b:positive) acc k,
+  b <> a ->
+  get_index_acc (b::l) a acc = Some k ->
+  get_index_acc l a (acc+1) = Some k.
+Proof.
+  induction l; intros.
+  inv H0.
+  destruct (peq b a). 
+  elim H ; auto.
+  inv H2.
+  simpl in *. 
+  destruct (peq b a0).
+  elim H ; auto.
+  auto. 
+Qed.
+
+Lemma get_index_acc_ge_acc: forall l e acc k, 
+  get_index_acc l e acc = Some k ->
+  ge k acc.
+Proof.
+  induction l; intros.
+  inv H. 
+  simpl in H.
+  destruct (peq a e).  inv H; auto.
+  assert (IHl' := IHl e (acc+1)%nat k H). 
+  omega.
+Qed.
+
+Lemma get_index_acc_inv2 : forall l a (acc acc' :nat) x,
+  get_index_acc l a (acc+acc') = Some (x+acc')%nat ->
+  get_index_acc l a acc = Some x.
+Proof.
+  induction l; intros.
+  inv H. simpl in *.
+  destruct (peq a a0). inv H. 
+  assert (acc = x) by omega. inv H1; auto. 
+  assert (Hacc : (acc+acc'+1)%nat = (acc+1+acc')%nat) by omega.
+  rewrite Hacc in *. 
+  eapply IHl; eauto.
+Qed.
+
+Lemma get_index_some_sn: forall l a e k acc,
+  a <> e ->
+  get_index_acc (a :: l) e acc = Some ((k+1)%nat) ->
+  get_index_acc l e acc = Some k.
+Proof.
+  destruct l; intros.
+  simpl in H0.
+  case_eq (peq a e) ; intros; ((rewrite peq_false in H0 ; auto); inv H0). 
+  eapply get_index_acc_progress in H0; auto.
+  eapply get_index_acc_inv2; eauto.
+Qed.  
+  
+Lemma get_index_some_in: forall l e k, 
+  get_index l e = Some k ->
+  In e l.
+Proof.
+  induction l; intros.
+  - inv H.
+  - destruct (peq a e); intros. 
+    + subst. constructor; auto.
+    + right.
+      destruct k. 
+      * unfold get_index in *.
+        simpl in H. rewrite peq_false in H; auto. 
+        eapply get_index_acc_ge_acc in H. inv H.
+      * eapply IHl with (k:= k); eauto.
+        replace (Datatypes.S k) with ((k+1)%nat) in *.   
+        eapply get_index_some_sn ;  eauto.
+        omega.
+Qed.
+
+Lemma get_index_acc_inv : forall l a (acc acc' :nat) x,
+  get_index_acc l a acc = Some x ->
+  get_index_acc l a (acc+acc') = Some (x+acc')%nat.
+Proof.
+  induction l; intros.
+  inv  H.
+  simpl in *.  
+  case_eq (peq a a0); intros.
+  rewrite H0 in H.
+  inversion H. auto.
+  rewrite H0 in H. 
+  assert ( (acc + acc' + 1)%nat = (acc + 1 + acc')%nat) by omega.  
+  rewrite H1.
+  eapply IHl  ; eauto.
+Qed.
+  
+Lemma in_get_index_some: forall l a, 
+  In a l -> exists k, get_index l a = Some k.
+Proof.
+  induction l ; intros.
+  inv H.
+  inv H. exists O. unfold get_index.  simpl.
+  rewrite peq_true ; auto.
+  assert (Ha0 := IHl a0 H0). 
+  destruct Ha0.
+  unfold get_index in *. 
+  unfold get_index_acc.  
+  case_eq (peq a a0); intros. 
+  exists O ; auto.
+  generalize (get_index_acc_progress l a0 a 0 (x+1)) ; intros.
+  exists (x+1)%nat. eapply H2 ; eauto.
+  simpl. rewrite H1.
+  eapply get_index_acc_inv with (acc:= O); eauto.
+Qed.  
+
+Lemma get_index_some : forall l pc k, 
+  get_index l pc = Some k ->
+  (k < length l)%nat.
+Proof.
+  induction l ; intros.
+  inv H.
+  destruct k ; simpl in * ;  auto. omega.
+  destruct (peq a pc). inv e.
+  unfold get_index in * ; simpl in *.
+  rewrite peq_true in H ; eauto. inv H.
+  unfold get_index in *.
+  replace (Datatypes.S k) with (k+1)%nat in *; try omega.
+  eapply get_index_some_sn in H ; eauto.
+  exploit IHl ; eauto. intros. omega. 
+Qed.
+
+Lemma get_index_nth_error: forall pc l k, 
+  get_index l pc = Some k ->
+  nth_error l k = Some pc.
+Proof.
+  induction l; intros.
+  inv H. unfold get_index in H.
+  destruct (peq a pc). simpl in *.  inv e; auto. rewrite peq_true in H ; auto. inv H. auto.
+  destruct k. simpl in H. rewrite peq_false in H ; auto.
+  eapply get_index_acc_ge_acc in H ; eauto. inv H.
+  replace (Datatypes.S k) with (k+1)%nat in H; try omega.
+  eapply get_index_some_sn  in H ; eauto. 
+Qed.
+
+Lemma get_index_acc_nth_okp_aux : forall pc l k k',
+  get_index_acc l pc k' = Some (k'+k)%nat -> nth_okp k l.
+Proof.
+  induction l; simpl.
+  congruence.
+  intros; destruct peq.
+  assert (k=O).
+    inversion H. omega.
+  subst; constructor.
+  destruct k.
+  constructor.
+  replace (k' + Datatypes.S k)%nat with ((k'+1)+k)%nat in * by omega.
+  constructor 2; eauto.
+Qed.
+
+Lemma get_index_acc_nth_okp : forall pc l k,
+  get_index l pc = Some k -> nth_okp k l.
+Proof.
+  unfold get_index; intros.
+  apply get_index_acc_nth_okp_aux with pc O.
+  simpl; auto.
+Qed.
+
 Lemma in_tl_in_cons: forall (A:Type) (l: list A) (a e:A), 
   In e l -> In e (a::l).
 Proof.
@@ -323,28 +514,6 @@ Proof.
   intros.
   eapply Ple_Plt_trans ; eauto.
   eapply Plt_succ; eauto.
-Qed.
-
-(** * The [nth_okp] predicate *)
-
-Inductive nth_okp {A:Type}: nat -> list A -> Prop :=
-  | nth_okp_headO : forall l e, nth_okp 0 (e::l)
-  | nth_okp_headS : forall l e n, nth_okp n l -> nth_okp (Datatypes.S n) (e::l).
-
-Lemma nth_okp_exists {A:Type}: forall (l: list A) k, 
-  nth_okp k l -> exists v, nth_error l k = Some v.
-Proof.
-  induction l; intros.
-  inv H. 
-  destruct k. exists a ; auto.
-  simpl in *.  inv H. eapply IHl ; eauto.
-Qed.
-
-Lemma nth_okp_length : forall (A B:Type) k (l1:list A),
-  nth_okp k l1 -> forall  (l2:list B), length l1 = length l2 -> nth_okp k l2.
-Proof.
-  induction 1; destruct l2; try constructor; simpl; try congruence.
-  inv H0; auto.
 Qed.
 
 

@@ -23,7 +23,6 @@ Require Import FSets.
 Require Import DLib.
 Require FSetAVL.
 Hint Extern 4 (In _ (successors_instr _)) => simpl successors_instr: core.
-Hint Unfold entry: core.
 
 Unset Allow StrictProp.
 
@@ -337,8 +336,7 @@ Proof.
   exploit (dom_entry peq); eauto.
   intros; subst.
   inv H3; auto.
-  - unfold entry in *.
-    inv H6; try congruence. 
+  - inv H6; try congruence. 
   - eelim no_assigned_phi_spec_fn_entrypoint; eauto.
 Qed.
 
@@ -384,107 +382,3 @@ Proof.
     inv H0.
     congruence.
 Qed.
-
-(*
-Lemma dsd2_pred_not_join_point : forall f, 
-  wf_ssa_function f -> forall n1 n2 x y,
-  reached f n1 -> 
-  cfg f n1 n2 ->
-  dsd f x n2 ->
-  dsd f y n2 ->
-  ~ join_point n2 f -> 
-  (ext_params f x /\ ext_params f y /\ n1 = fn_entrypoint f) \/
-  (dsd f x n1 /\ dsd f y n1 /\ ~ assigned_code_spec (fn_code f) n1 x /\
-     ~ assigned_code_spec (fn_code f) n1 y) \/
-  (assigned_code_spec (fn_code f) n1 x /\ ~ assigned_phi_spec (fn_phicode f) n1 x /\ dsd f y n1 /\ x<>y) \/
-  (assigned_code_spec (fn_code f) n1 y /\ ~ assigned_phi_spec (fn_phicode f) n1 y /\ dsd f x n1 /\ y<>x) \/ x=y.
-Proof.
-  intros.
-  destruct (p2eq x y).
-  repeat right; auto.
-  destruct dsd_pred_not_join_point with f n1 n2 x as [[Dx Dx']|[[Dx Dx']|[Dx Dx']]]; eauto;
-  destruct dsd_pred_not_join_point with f n1 n2 y as [[Dy Dy']|[[Dy Dy']|[Dy Dy']]];
-    intuition eauto.
-  subst; inv Dy.
-  eelim (entry_sdom peq); eauto.
-  eelim no_assigned_phi_spec_fn_entrypoint; eauto.
-  inv Dy; simp_entry f.
-  inv Dx.
-  eelim (entry_sdom peq); eauto.
-  eelim no_assigned_phi_spec_fn_entrypoint; eauto.
-  subst; inv Dx; simp_entry f.
-  repeat right.
-  inv Dx; inv Dy; congruence.
-Qed.
-*)
-
-(*
-Lemma dsd_pred_join_point : forall f, 
-  wf_ssa_function f -> forall n1 n2 x,
-  reached f n1 -> 
-  cfg f n1 n2 ->
-  dsd f x n2 ->
-  join_point n2 f -> 
-  (ext_params f x /\ n1 = fn_entrypoint f /\ ~ assigned_phi_spec (fn_phicode f) n2 x) \/
-  (dsd f x n1 /\ ~ assigned_phi_spec (fn_phicode f) n2 x) \/
-  (assigned_phi_spec (fn_phicode f) n2 x).
-Proof.
-  intros.
-  destruct (peq n1 (fn_entrypoint f)).
-  subst.
-  inv H2.  
-  inv H4; auto.
-  left; repeat split; auto.
-  exploit (sdom_dom_pred peq); eauto; intros.
-  exploit (dom_entry peq); eauto; intros.
-  subst.
-  inv H2; simp_entry f.
-  left; repeat split; auto.
-  exploit (sdom_dom_pred peq); eauto; intros.
-  exploit (dom_entry peq); eauto; intros.
-  subst.
-  inv H1.
-  exploit fn_entry; eauto.
-  intros (s&Hs).
-  rewrite Hs in *.
-  rename HCFG_in into V.
-  inv HCFG_ins.
-  simpl in V; intuition; subst.
-  eapply dsd_entry_ext_param; eauto.
-  intuition.
-
-  inv H2; [idtac|intuition].  
-  exploit (sdom_dom_pred peq); eauto; go; intros.
-  right; left; split; auto.
-  destruct (classic (assigned_phi_spec (fn_phicode f) n1 x)).
-  econstructor 2; eauto.
-  econstructor 1; eauto.
-  split; auto.
-  intro; subst.
-  inv H4; [intuition|idtac|intuition].
-  inv H1.
-  exploit (fn_normalized _ H n2 n1); eauto.
-  unfold Kildall.successors_list, successors; 
-    rewrite PTree.gmap1; erewrite HCFG_ins; simpl; auto.
-  intros; inv H8; congruence.
-Qed.
-*)
-
-(*
-Lemma not_used_transparent: forall pc pc' r f,
-  wf_ssa_function f ->
-  reached f pc -> 
-  cfg f pc pc'  ->
-  dsd f r pc' -> 
-  ~ join_point pc' f ->
-  ~ assigned_code_spec (fn_code f) pc r -> 
-  dsd f r pc \/ pc = fn_entrypoint f.
-Proof.
-  intros.
-  exploit dsd_pred_not_join_point; eauto; go.
-  intros [Hcase1| [Hcase2 | Hcase3]]. 
-  + intuition. 
-  + intuition.
-  + invh and. congruence. 
-Qed.   
-*)

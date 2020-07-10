@@ -520,28 +520,13 @@ Module DataflowSolver: DATAFLOW_SOLVER.
     L.ge (lv # r) (lv # xi).
 
    Hint Resolve bge_correct: core.
-
-   Remark get_index_cons_succ: forall x xs k y,
-     SSA.get_index (x::xs) y = Some (Datatypes.S k) -> SSA.get_index xs y = Some k.
-   Proof.
-     intros.
-     unfold SSA.get_index in *.
-     simpl in *.
-     flatten H.
-     eapply get_index_some_sn; eauto.
-     simpl in *.
-     flatten; eauto.
-     assert ((k+1)%nat = Datatypes.S k). omega.
-     rewrite H0 in *.
-     assumption.
-   Qed.
    
    Remark check_phiinstruction_correct: forall lv es pb r l pc' preds,
      (fn_phicode f) ! pc' = Some pb ->
      check_phiinstruction lv es r l preds  pc' = true->
      forall pc xi k,
      (k < length preds)%nat ->
-     SSA.get_index preds pc = Some k ->
+     Utils.get_index preds pc = Some k ->
      es #2 (pc, pc') = true ->
      nth_error l k = Some xi ->
      L.ge (lv # r) (lv # xi).
@@ -564,8 +549,7 @@ Module DataflowSolver: DATAFLOW_SOLVER.
          apply get_index_nth_error in H2.
          unfold nth_error in *. simpl in *. inv H2. reflexivity.
          subst. simpl in *. flatten H0.
-          * apply bge_correct. apply andb_true_iff in H0. intuition.
-          * unfold node in *. congruence.
+         apply bge_correct. apply andb_true_iff in H0. intuition.
        - assert (exists k0, k = Datatypes.S k0) as [k0 Hk].
            destruct (O_or_S k). inv s. exists x. auto.
            congruence.
@@ -618,16 +602,16 @@ Module DataflowSolver: DATAFLOW_SOLVER.
      apply forall_ptree_true; auto.
      destruct (classic (executable_node pc es)); intuition.
      destruct ((fn_code f) ! pc) eqn:eq.
-     + unfold cfg in *. specialize (H0 pc' i EX_INS).
+     + specialize (H0 pc' i EX_INS).
        eapply forallb_forall with (x := pc) in H0; eauto.
        flatten H0; eauto.
-       - unfold check_non_exec_edge in H0. unfold cfg in *. rewrite eq in H0.
+       - unfold check_non_exec_edge in H0. rewrite eq in H0.
          flatten H0; right; intuition.
          * exists n. intuition. 
          * exists n. intuition. 
        - left. intro contra; apply bexecutable_node_correct in contra. congruence.
-       - invh _cfg. eapply make_predecessors_correct_1; eauto.
-     + invh SSA.cfg. unfold fn_code in *. rewrite eq in HCFG_ins. congruence.
+       - invh cfg. eapply make_predecessors_correct_1; eauto.
+     + invh cfg. unfold fn_code in *. rewrite eq in HCFG_ins. congruence.
    Qed.
 
    Remark top_is_post_fixpoint:

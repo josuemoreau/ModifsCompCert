@@ -23,167 +23,6 @@ Require Import FSets.
 Require Import DLib.
 Require FSetAVL.
 Unset Allow StrictProp.
-
-(** * Utility lemmas about [get_index_acc] and [get_index] *)
-
-Lemma get_index_acc_progress: forall (l: list node) (a b:node) acc k,
-  b <> a ->
-  get_index_acc (b::l) a acc = Some k ->
-  get_index_acc l a (acc+1) = Some k.
-Proof.
-  induction l; intros.
-  inv H0.
-  destruct (peq b a). 
-  elim H ; auto.
-  inv H2.
-  simpl in *. 
-  destruct (peq b a0).
-  elim H ; auto.
-  auto. 
-Qed.
-
-Lemma get_index_acc_ge_acc: forall l e acc k, 
-  get_index_acc l e acc = Some k ->
-  ge k acc.
-Proof.
-  induction l; intros.
-  inv H. 
-  simpl in H.
-  destruct (peq a e).  inv H; auto.
-  assert (IHl' := IHl e (acc+1)%nat k H). 
-  omega.
-Qed.
-
-Lemma get_index_acc_inv2 : forall l a (acc acc' :nat) x,
-  get_index_acc l a (acc+acc') = Some (x+acc')%nat ->
-  get_index_acc l a acc = Some x.
-Proof.
-  induction l; intros.
-  inv H. simpl in *.
-  destruct (peq a a0). inv H. 
-  assert (acc = x) by omega. inv H1; auto. 
-  assert (Hacc : (acc+acc'+1)%nat = (acc+1+acc')%nat) by omega.
-  rewrite Hacc in *. 
-  eapply IHl; eauto.
-Qed.
-
-Lemma get_index_some_sn: forall l a e k acc,
-  a <> e ->
-  get_index_acc (a :: l) e acc = Some ((k+1)%nat) ->
-  get_index_acc l e acc = Some k.
-Proof.
-  destruct l; intros.
-  simpl in H0.
-  case_eq (peq a e) ; intros; ((rewrite peq_false in H0 ; auto); inv H0). 
-  eapply get_index_acc_progress in H0; auto.
-  eapply get_index_acc_inv2; eauto.
-Qed.  
-  
-Lemma get_index_some_in: forall l e k, 
-  get_index l e = Some k ->
-  In e l.
-Proof.
-  induction l; intros.
-  inv H.
-  case_eq (peq a e); intros. 
-  inversion e0 ; auto.
-  right.    
-  destruct k. 
-  unfold get_index in *.
-  simpl in H. rewrite peq_false in H; auto. 
-  eapply get_index_acc_ge_acc in H. inv H.
-  eapply IHl with (k:= k); eauto.
-  replace (Datatypes.S k) with ((k+1)%nat) in *.   
-  eapply get_index_some_sn ;  eauto.
-  omega.
-Qed.
-
-Lemma get_index_acc_inv : forall l a (acc acc' :nat) x,
-  get_index_acc l a acc = Some x ->
-  get_index_acc l a (acc+acc') = Some (x+acc')%nat.
-Proof.
-  induction l; intros.
-  inv  H.
-  simpl in *.  
-  case_eq (peq a a0); intros.
-  rewrite H0 in H.
-  inversion H. auto.
-  rewrite H0 in H. 
-  assert ( (acc + acc' + 1)%nat = (acc + 1 + acc')%nat) by omega.  
-  rewrite H1.
-  eapply IHl  ; eauto.
-Qed.
-  
-Lemma in_get_index_some: forall l a, 
-  In a l -> exists k, get_index l a = Some k.
-Proof.
-  induction l ; intros.
-  inv H.
-  inv H. exists O. unfold get_index.  simpl.
-  rewrite peq_true ; auto.
-  assert (Ha0 := IHl a0 H0). 
-  destruct Ha0.
-  unfold get_index in *. 
-  unfold get_index_acc.  
-  case_eq (peq a a0); intros. 
-  exists O ; auto.
-  generalize (get_index_acc_progress l a0 a 0 (x+1)) ; intros.
-  exists (x+1)%nat. eapply H2 ; eauto.
-  simpl. rewrite H1.
-  eapply get_index_acc_inv with (acc:= O); eauto.
-Qed.  
-
-Lemma get_index_some : forall l pc k, 
-  get_index l pc = Some k ->
-  (k < length l)%nat.
-Proof.
-  induction l ; intros.
-  inv H.
-  destruct k ; simpl in * ;  auto. omega.
-  destruct (peq a pc). inv e.
-  unfold get_index in * ; simpl in *.
-  rewrite peq_true in H ; eauto. inv H.
-  unfold get_index in *.
-  replace (Datatypes.S k) with (k+1)%nat in *; try omega.
-  eapply get_index_some_sn in H ; eauto.
-  exploit IHl ; eauto. intros. omega. 
-Qed.
-
-Lemma get_index_nth_error: forall pc l k, 
-  get_index l pc = Some k ->
-  nth_error l k = Some pc.
-Proof.
-  induction l; intros.
-  inv H. unfold get_index in H.
-  destruct (peq a pc). simpl in *.  inv e; auto. rewrite peq_true in H ; auto. inv H. auto.
-  destruct k. simpl in H. rewrite peq_false in H ; auto.
-  eapply get_index_acc_ge_acc in H ; eauto. inv H.
-  replace (Datatypes.S k) with (k+1)%nat in H; try omega.
-  eapply get_index_some_sn  in H ; eauto. 
-Qed.
-
-Lemma get_index_acc_nth_okp_aux : forall pc l k k',
-  SSA.get_index_acc l pc k' = Some (k'+k)%nat -> nth_okp k l.
-Proof.
-  induction l; simpl.
-  congruence.
-  intros; destruct peq.
-  assert (k=O).
-    inversion H. omega.
-  subst; constructor.
-  destruct k.
-  constructor.
-  replace (k' + Datatypes.S k)%nat with ((k'+1)+k)%nat in * by omega.
-  constructor 2; eauto.
-Qed.
-
-Lemma get_index_acc_nth_okp : forall pc l k,
-  get_index l pc = Some k -> nth_okp k l.
-Proof.
-  unfold SSA.get_index; intros.
-  apply get_index_acc_nth_okp_aux with pc O.
-  simpl; auto.
-Qed.
     
 (** * Utility lemmas about [index_pred] *)
 Lemma index_pred_some : forall pc t k pc0,
@@ -238,9 +77,52 @@ Proof.
   destruct l. inv H2.
   eapply (in_get_index_some) ; eauto.  
   rewrite H3 in H2. inv H2.
-  Qed.
+Qed.
+
+Lemma get_index_cons_succ: forall x xs k y,
+    get_index (x::xs) y = Some (Datatypes.S k) -> get_index xs y = Some k.
+Proof.
+  intros.
+  unfold Utils.get_index in *.
+  simpl in *.
+  flatten H.
+  eapply get_index_some_sn; eauto.
+  simpl in *.
+  flatten; eauto.
+  assert ((k+1)%nat = Datatypes.S k). omega.
+  rewrite H0 in *.
+  assumption.
+Qed.
 
 (** * Utility lemmas about [wf_ssa_function] *)
+
+Lemma no_assigned_phi_spec_fn_entrypoint: forall f,
+  wf_ssa_function f -> forall x,
+    ~ assigned_phi_spec (fn_phicode f) (fn_entrypoint f) x.
+Proof.
+  red; intros.
+  inv H0.
+  assert (join_point (fn_entrypoint f) f).
+  { rewrite fn_phicode_inv; auto.
+    congruence.
+  }
+  inv H0. 
+  destruct l.
+  simpl in Hl; apply False_ind; omega.
+  exploit @make_predecessors_some; eauto. intros [pins Hpins].  
+  assert (In (fn_entrypoint f) (successors_instr pins)).
+  { 
+    eapply @make_predecessors_correct2; eauto.
+    unfold Kildall.successors_list.
+    unfold make_preds.
+    rewrite Hpreds.
+    left; auto.
+  }   
+  elim (fn_entry_pred _ H p).
+  econstructor; eauto.
+Qed.
+
+
 Lemma fn_phiargs: forall f, 
   wf_ssa_function f -> 
   forall pc block x args pred k, 
@@ -419,8 +301,8 @@ Lemma unique_def_spec_def : forall f x d1 d2
   def f x d2 ->
   d1 <> d2 -> False.
 Proof.
-  intros.
-  destruct (fn_ssa f) as [Hssa1 Hssa2]; auto.  
+  intros. 
+  destruct (fn_ssa f) as [Hssa1 Hssa2]; auto.
   generalize (fn_entry f HWF) ; intros. destruct H2 as [succ Hentry].
   generalize (fn_ssa_params f HWF); intros Hparams.
   inv H ; inv H0;  inv H ; inv H2;
@@ -429,8 +311,8 @@ Proof.
     | exploit Hparams ; eauto
     | exploit Hparams ; eauto ; (intuition; go)
     | exploit H3 ; eauto 
-    | exploit H4 ; eauto; intuition
-    |   (eelim (Hssa1 x d1 d2) ; eauto; intuition ; eauto)].
+    | exploit H4 ; eauto; intuition auto
+    |   (eelim (Hssa1 x d1 d2) ; eauto; intuition auto ; eauto)].
 Qed.  
 
 Lemma def_def_eq : forall f x d1 d2
@@ -480,7 +362,6 @@ Proof.
   intros.
   def_def f x d1 d2.
 Qed.
-
 
 Lemma assigned_code_and_phi: forall f,
   wf_ssa_function f -> forall r pc pc',
