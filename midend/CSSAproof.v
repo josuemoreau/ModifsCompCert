@@ -2439,11 +2439,8 @@ Proof.
   unfold index_pred.
   unfold successors_list.
   flatten.
-  + flatten Eq.
-    destruct k; simpl in *; intros; try congruence.
-  + flatten Eq.
-    apply nodupnth_get_index; auto.
-    inv H ; go.
+  apply nodupnth_get_index; auto.
+  inv H ; go.
 Qed.
 
 Lemma handle_phi_block_spec_from_handle_phi_block :
@@ -3682,7 +3679,8 @@ Proof.
   intros.
   unfold index_pred in *.
   case_eq (preds !!! succ); intros.
-  + rewrite H2 in *. congruence.
+  + unfold get_index in *.
+    rewrite H2 in *. inv H0. 
   + rewrite H2 in *.
     eapply index_acc_inj; eauto.
 Qed.

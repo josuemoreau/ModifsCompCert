@@ -134,7 +134,7 @@ Record function: Type := mkfunction {
 Definition fundef := AST.fundef function.
 Definition program := AST.program fundef unit.
 
-Definition funsig (fd: fundef) :=
+Definition funsig (fd: fundef): signature :=
   match fd with
   | Internal f => fn_sig f
   | External ef => ef_sig ef
@@ -160,13 +160,8 @@ Inductive join_point (jp: node) (f:function) : Prop :=
              (Hl: length l > 1), 
         join_point jp f.
 
-Definition index_pred (predsf: PTree.t (list node)):=
-  fun (i:node) (j:node) =>
-    let predsj := predsf !!! j in
-    match predsj with
-    | nil => None 
-    | _ => get_index predsj i 
-    end.
+Definition index_pred (predsf: PTree.t (list node)): node -> node -> option nat :=
+  fun (i:node) (j:node) => get_index (predsf !!! j) i.
 
 (** * Operational semantics *)
 
@@ -248,8 +243,7 @@ Section RELSEM.
 
 Variable ge: genv.
 
-Definition find_function 
-      (ros: reg + ident) (rs: regset) : option fundef :=
+Definition find_function (ros: reg + ident) (rs: regset) : option fundef :=
       match ros with
         | inl r => Genv.find_funct ge (rs # r)
         | inr symb =>
@@ -259,10 +253,10 @@ Definition find_function
           end
       end.
 
-(** Definition of the effect of a phi-block on a register set, when
-   the control flow comes from the k-th predecessor of the current
-   program point. Phi-blocks are given a parallel semantics. *)
-Fixpoint phi_store k phib (rs:regset) :=
+(** The effect of a phi-block on a register set, when the control flow
+   comes from the k-th predecessor of the current program
+   point. Phi-blocks have a parallel semantics. *)
+Fixpoint phi_store (k: nat) (phib: phiblock) (rs:regset): regset :=
   match phib with
     | nil => rs
     | (Iphi args dst)::phib =>
@@ -528,28 +522,25 @@ End UDEF.
 Hint Constructors ext_params def assigned_code_spec assigned_phi_spec: core.
 
 (** * Dominators *)
-Section DOMINATORS.  
-  
-  Variable f : function.  
-  
-  (** [cfg i j] holds if [j] is a successor of [i] in the code of [f] *)
-  Variant cfg (i j:node) : Prop :=
-  | CFG : forall ins,
-      forall (HCFG_ins: (fn_code f) !i = Some ins)
-             (HCFG_in : In j (successors_instr ins)),
-        cfg i j.
-  
-  Definition exit (pc: node) : Prop :=
-    match (fn_code f) ! pc with
-    | Some (Itailcall _ _ _) => True
-    | Some (Ireturn _) => True
-    | Some (Ijumptable _ succs) => succs = nil
-    | _ => False
-    end.
-  
-  Definition dom := dom cfg exit (fn_entrypoint f).
 
-End DOMINATORS.
+(** [cfg f i j] holds if [j] is a successor of [i] in the code of [f] *)
+Variant cfg (f: function) (i j:node) : Prop :=
+| CFG : forall ins,
+    forall (HCFG_ins: (fn_code f) !i = Some ins)
+           (HCFG_in : In j (successors_instr ins)),
+      cfg f i j.
+
+(** [exit f pc] holds if [pc] is an exit point in the CFG of [F] *)
+Definition exit (f: function) (pc: node) : Prop :=
+  match (fn_code f) ! pc with
+  | Some (Itailcall _ _ _) => True
+  | Some (Ireturn _) => True
+  | Some (Ijumptable _ succs) => succs = nil
+  | _ => False
+  end.
+
+(** The dominance relation on SSA control-flow graph *)
+Definition dom (f: function) := Dom.dom (cfg f) (exit f) (fn_entrypoint f).
 
 Notation SSApath := (fun f => Dom.path (cfg f) (exit f) (fn_entrypoint f)).
 
@@ -583,7 +574,7 @@ Notation preds := (fun f pc => (make_predecessors (fn_code f) successors_instr) 
 Notation reached := (fun f => (reached (cfg f) (fn_entrypoint f))).
 Notation sdom := (fun f => (sdom (cfg f) (exit f) (fn_entrypoint f))).
 
-(** All phi-instruction have the right numbers of phi-arguments *)
+(** All phi-instructions have the right numbers of phi-arguments *)
 Definition block_nb_args (f: function) : Prop :=
   forall pc block args  x, 
     (fn_phicode f) ! pc = Some block -> 

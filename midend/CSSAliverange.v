@@ -335,6 +335,8 @@ Proof.
     erewrite <- instructions_preserved in Hnop; eauto.
     invh is_edge ; allinv; simpl in * ; try invh or ; go. 
     erewrite <- instructions_preserved; eauto.
+    Unshelve.
+    all: go.
 Qed.
 
 Theorem cssa_phi_live :

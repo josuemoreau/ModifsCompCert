@@ -701,13 +701,11 @@ Lemma pred_is_edge_help: forall code i j k,
 Proof.
   intros. 
   unfold index_pred in *. 
-  flatten H. 
   exploit get_index_some_in ; eauto ; intros.
   exploit (make_predecessors_some code successors_instr j); eauto.
   unfold make_preds, successors_list in *.
-  flatten Eq. 
+  flatten Eq. inv H0.
   intros (ins & Hins).
-  rewrite <- Eq in *.
   assert (HH:= make_predecessors_correct2 code successors_instr i ins j Hins H0); auto. 
   eapply Edge; eauto. 
 Qed.

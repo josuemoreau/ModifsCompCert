@@ -571,7 +571,6 @@ Module DataflowSolver: DATAFLOW_SOLVER.
      flatten H.
      eapply check_phiinstruction_correct; eauto.
      eapply index_pred_some; eauto.
-     unfold index_pred in *. flatten H3.
    Qed.
 
    Definition exec_flags_sound lv es :=

@@ -2874,15 +2874,15 @@ Proof.
         intros.
         inv H16.
         assert (nth_okp k l).
-        destruct l; try congruence.
-        eapply get_index_acc_nth_okp; eauto.
+        { eapply get_index_acc_nth_okp; eauto. }
         rewrite HH10 in H18; inv H18.
+        
         generalize (In_Iphi_fold2 _ _ _ _ _ _ _ H13); eauto.
 
         - (* *) 
           erewrite same_successors_same_predecessors; eauto.
           eapply aux_same_succ; eauto.
-        - congruence.
+        - inv H15. 
       }
       
       { intros pc block; simpl; intros.
