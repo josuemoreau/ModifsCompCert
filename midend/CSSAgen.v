@@ -149,7 +149,7 @@ Qed.
 Definition add_parcopy (parcopy: CSSA.parcopy) (pc: node) : mon unit :=
   fun s =>
     match PTree.get pc (st_parcopycode s) with
-    | None => Error (Errors.msg "")
+    | None => Error (Errors.msg "CSSAgen - 1")
     | Some parcopies =>
       let new_parcb := parcopy :: parcopies
       in
@@ -188,7 +188,7 @@ Definition add_new_phi (dst': reg ) (args': list reg)
     (pc: node) :=
   fun s =>
   match PTree.get pc (st_phicode s) with
-    | None => Error (Errors.msg "")
+    | None => Error (Errors.msg "CSSAgen - 2")
     | Some phib' =>
         OK tt 
           (mkstate
