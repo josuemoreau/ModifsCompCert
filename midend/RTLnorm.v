@@ -87,7 +87,7 @@ Definition add_nop (pc':node) : mon node :=
   fun s =>
     let pc_new := s.(st_nextnode) in
       if peq pc' s.(st_entry)
-      then Error (Errors.msg "")
+      then Error (Errors.msg "RTLnorm - 1")
       else OK pc_new
               (mkstate (Pos.succ pc_new) 
                        (st_entry s) 
@@ -126,7 +126,7 @@ Definition upd_pred (preds_pc : list node) (pc pcnew: node) : mon unit :=
                     OK tt (mkstate (st_nextnode s)
                                    (st_entry s)
                                    (PTree.set pred (ch_successors i pc pcnew) (st_code s))) 
-                  | None => Error (Errors.msg "")
+                  | None => Error (Errors.msg "RTLnorm - 2")
                 end) 
              preds_pc.
 
@@ -189,7 +189,7 @@ Definition upd_succ (pc: node) (newsucc:node) (k: nat): mon nat :=
                      (mkstate (st_nextnode s)
                               (st_entry s)
                               (PTree.set pc (ins_newsucc i newsucc k) s.(st_code)))
-      | None => Error (Errors.msg "")
+      | None => Error (Errors.msg "RTLnorm - 3")
     end.
 
 (** [modif_ksucc] changes the instruction at [pc] concerning its
@@ -200,7 +200,7 @@ Definition modif_ksucc (is_jp:node->bool) (pc: node) (succ:node) (k: nat) : mon 
       match (st_code s) ! pc with
         | None 
         | Some (Ireturn _) 
-        | Some (Itailcall _ _ _) => (Error (Errors.msg ""))
+        | Some (Itailcall _ _ _) => (Error (Errors.msg "RTLnorm - 4"))
         | _ =>
           if is_jp succ
             then
@@ -361,9 +361,10 @@ Definition checker (c: code) (tc: code) : bool :=
   PTree.fold (fun res pc i => res && (check_pc c tc pc i)) c true. 
 
 Definition check_entry (f tf: function) : bool := 
-  match (fn_code tf) ! (fn_entrypoint tf) with 
-      | Some (Inop ts) => peq ts (fn_entrypoint f)
-      | _ => false
+  match (fn_code tf) ! (fn_entrypoint tf) with
+  | Some (Inop s) =>
+    (peq s (fn_entrypoint f)) || inop_tunel 3 (fn_code tf) (fn_entrypoint f) s
+  | _ => false
   end.
 
 Definition transl_function (f: RTL.function) : Errors.res RTL.function :=
@@ -387,9 +388,11 @@ Definition transl_function (f: RTL.function) : Errors.res RTL.function :=
                            f.(RTL.fn_stacksize)
                            s''.(st_code)
                            s''.(st_entry)) in 
-              if (checker (fn_code f) (fn_code tf) && check_entry f tf) then
-                Errors.OK tf
-              else Errors.Error (Errors.msg "")
+              if checker (fn_code f) (fn_code tf) then
+                if (check_entry f tf)
+                then Errors.OK tf
+                else Errors.Error (Errors.msg "RTLnorm - 5")
+              else Errors.Error (Errors.msg "RTLnorm - 6")
           end
       end
   end.

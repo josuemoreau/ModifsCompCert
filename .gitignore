@@ -74,6 +74,12 @@
 .DS_Store
 # Test generated data
 /test/clightgen/*.v
+/test/picosat-965/picogcnf
+/test/picosat-965/picomcs
+/test/picosat-965/picomus
+/test/picosat-965/picosat
+/test/picosat-965/config.h
+/test/picosat-965/makefile
 # Coq caches
 .lia.cache
 .nia.cache

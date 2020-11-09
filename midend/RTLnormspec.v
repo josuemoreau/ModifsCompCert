@@ -71,7 +71,55 @@ Proof.
   destruct i, i'; go. 
   simpl. intros ; boolInv; auto.
 Qed.
- 
+
+Lemma inop_tunel_reach_nops : forall code n s1 s2,
+    inop_tunel n code s1 s2 = true ->
+    (s2 = s1) \/ exists aux, reach_nops code s2 s1 aux.
+Proof.
+  unfold inop_tunel.
+  induction n; intros.
+  - rewrite orb_false_r in H.
+    destruct peq in H.
+    + subst; auto.
+    + inv H.
+  - fold inop_tunel in *.
+    destruct peq in H.
+    + subst. auto.
+    + rewrite orb_false_l in H.
+      flatten H; try congruence.
+      subst.
+      eapply IHn in H; eauto.
+      inv H.
+      * right.
+        exists nil.
+        econstructor; eauto.
+      * right.
+        destruct H0 as [aux Haux].
+        exists (n1::aux).
+        econstructor; eauto.
+Qed.
+
+Lemma check_entry_correct : forall f tf,
+    check_entry f tf = true ->
+    exists aux, reach_nops (fn_code tf) (fn_entrypoint tf) (fn_entrypoint f) aux.
+Proof.
+  unfold check_entry; intros.
+  flatten H. subst.
+  apply orb_true_iff in H. inv H.
+  - destruct peq.
+    + subst.
+      exists nil.
+      constructor; auto.
+    + inv H0.
+  - eapply inop_tunel_reach_nops in H0; eauto.
+    inv H0.
+    + exists nil.
+      constructor; auto.
+    + destruct H as [aux Haux].
+      exists (n::aux).
+      econstructor; eauto.
+Qed.
+
 Lemma check_mks_spec_correct: forall code tcode pc i ti,
   code ! pc = Some i ->
   tcode ! pc = Some ti ->
@@ -84,21 +132,8 @@ Proof.
   econstructor ; eauto.
   intros k succ succ' SUCC SUCC'.
   exploit ch_succ_same_length; eauto. intros LENGTH.
-  exploit @forall_list2_nth_error; eauto. simpl; intros.
-  destruct (peq succ succ') eqn: EQ ; subst.
-  + auto. 
-  + right.  
-    unfold inop_tunel in H.
-    flatten H; subst;
-    (repeat (match goal with 
-                | id : _ || _ = true |- _ => 
-                  eapply orb_prop in id; invh or
-              end); 
-      repeat (match goal with 
-                | id : _ = true |- _ => 
-                  apply proj_sumbool_true in id ; subst
-              end); go).
-    exists (n0::n1::nil); go.
+  exploit @forall_list2_nth_error; eauto.
+  eapply inop_tunel_reach_nops; eauto.
 Qed.
 
 Lemma checker_correct : forall code tcode pc i,
@@ -112,17 +147,16 @@ Proof.
   flatten CHECK; try congruence. boolInv.
   eapply check_mks_spec_correct ; eauto ; go.
 Qed.    
-    
+  
 Lemma transl_function_spec_ok : forall f tf, 
   transl_function f = Errors.OK tf -> 
   transl_function_spec f tf.
 Proof.
   unfold transl_function ; intros f tf TRANS. 
   flatten TRANS. boolInv. simpl in *.
-  eapply transl_function_spec_intro ; eauto. 
-  - intros. simpl in *.
-    eapply checker_correct; eauto.
-  - unfold check_entry in *. 
-    flatten H5; try congruence.
-    destruct peq; go. 
+  eapply check_entry_correct in Eq3; eauto.
+  destruct Eq3 as [aux Hentry]. 
+  eapply transl_function_spec_intro; eauto.
+  intros.
+  eapply checker_correct; eauto.
 Qed.

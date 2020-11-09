@@ -239,7 +239,7 @@ Definition update_ctx (size: nat) (preds: PTree.t (list positive))
                     OK (G,
                         PTree.set pc (Inop l) new_code,
                         juncpoints)
-                  else Error (msg "SSAvalid 1") 
+                  else Error (msg "SSAvalid - 1") 
               end
             else
               OK (PTree.set l g G, 
@@ -264,7 +264,7 @@ Definition update_ctx (size: nat) (preds: PTree.t (list positive))
               OK (PTree.set succ (PTree.set dest i g) G,
                   PTree.set pc (Iop op (map use args) dest' succ) new_code,
                   juncpoints)
-            else Error (msg "SSAvalid 2")
+            else Error (msg "SSAvalid - 2")
           | RTL.Iload chunk addr args dest succ => 
             do i <- get_option (def ! pc) "" ; 
             let dest' := Bij.pamr size (dest,i) in
@@ -272,7 +272,7 @@ Definition update_ctx (size: nat) (preds: PTree.t (list positive))
               OK (PTree.set succ (PTree.set dest i g) G,
                   PTree.set pc (Iload chunk addr (map use args) dest' succ) new_code,
                   juncpoints)
-            else Error (msg "SSAvalid 3")
+            else Error (msg "SSAvalid - 3")
           | RTL.Icall sig fn args dest succ => 
             do i <- get_option (def ! pc) "" ;
             let dest' := Bij.pamr size (dest,i) in
@@ -280,7 +280,7 @@ Definition update_ctx (size: nat) (preds: PTree.t (list positive))
               OK (PTree.set succ (PTree.set dest i g) G,
                   PTree.set pc (Icall sig (map_os use fn) (map use args) dest' succ) new_code,
                   juncpoints)
-            else Error (msg "SSAvalid 4")
+            else Error (msg "SSAvalid - 4")
           | RTL.Itailcall sig fn args => 
             OK (G,
                 PTree.set pc (Itailcall sig (map_os use fn) (map use args)) new_code,
@@ -348,7 +348,7 @@ Definition build_phi_block (size:nat) (preds: PTree.t (list positive))
           | Error msg => Error msg
           | OK acc => OK (PTree.set pc new_phi_block acc)
         end
-        else Error (msg "SSAvalid 7").
+        else Error (msg "SSAvalid - 7").
 
 
 (** Computing dominator-test and so-called external parameters of an SSA function. *)
@@ -428,11 +428,11 @@ Definition typecheck_function (f: RTLdfs.function) (max_index:nat)
                         ) in
              if check_unique_def fwo && check_code_at_phipoints fwo
              then OK fwo
-             else Errors.Error (msg "SSAvalid 8") (* Function is not in SSA *)
+             else Errors.Error (msg "Code not in SSA") (* Function is not in SSA *)
            | None => Error (msg "Could not compute dominators")
            end
          end)
-      else Error (msg "SSAvalid 9") (* Program code is not well normalized *)
+      else Error (msg "Code should be normalized")
     else Error (msg "Wrong index for definition")
   else Error (msg "Wrong maximum index")
 . 
