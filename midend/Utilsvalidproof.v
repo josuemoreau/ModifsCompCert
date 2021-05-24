@@ -386,8 +386,8 @@ Proof.
   - inv H.
     unfold is_joinpoint. 
     rewrite Hpreds.
-    destruct l ; simpl in *; try omega.
-    destruct l; simpl in *; try (apply False_ind; omega).
+    destruct l ; simpl in *; try lia.
+    destruct l; simpl in *; try (apply False_ind; lia).
     auto.    
   - unfold is_joinpoint in *.
     case_eq ((make_predecessors (fn_code f) SSA.successors_instr)!jp).
@@ -396,7 +396,7 @@ Proof.
       destruct l' ; simpl in *; try congruence.
       destruct l' ; simpl in *; try congruence.
       econstructor; eauto.
-      simpl; omega.
+      simpl; lia.
     * intros Hc. rewrite Hc in *.
       congruence. 
 Qed.
@@ -409,8 +409,8 @@ Proof.
   - inv H.
     unfold is_joinpoint. 
     rewrite Hpreds.
-    destruct l ; simpl in *; try omega.
-    destruct l; simpl in *; try (apply False_ind; omega).
+    destruct l ; simpl in *; try lia.
+    destruct l; simpl in *; try (apply False_ind; lia).
     auto.    
   - unfold is_joinpoint in *.
     case_eq ((make_predecessors (RTLdfs.fn_code f) RTLdfs.successors_instr)!jp).
@@ -419,7 +419,7 @@ Proof.
       destruct l' ; simpl in *; try congruence.
       destruct l' ; simpl in *; try congruence.
       econstructor; eauto.
-      simpl; omega.
+      simpl; lia.
     * intros Hc. rewrite Hc in *.
       congruence. 
 Qed.
@@ -472,7 +472,7 @@ Proof.
   induction 2; rewrite PTree.gso in H0; eauto.
 Qed.
 
-Hint Resolve assigned_code_preserved: core.
+Global Hint Resolve assigned_code_preserved: core.
 
 Lemma fold_record_preserve: forall t l pc r,
     t ! r = Some l ->

@@ -16,7 +16,7 @@ Require Import Coqlib.
 Require Import Registers.
 
 Require Import List.
-Require Import Omega.
+Require Import Lia.
 Require Import Bool.
 
 Require Import FunInd.
@@ -67,7 +67,7 @@ Lemma length_complete : forall n l,
 Proof.
   intros; unfold complete.
   rewrite length_fill.
-  omega.
+  lia.
 Qed.
 
 Fixpoint remove_first_zeros (l:list bool) : list bool :=
@@ -146,9 +146,9 @@ Lemma log_lower_length_pos2list : forall p n,
   log_lower p n = true -> length (pos2list p) <= n.
 Proof.
   intros p n.
-  functional induction (log_lower p n); intros; simpl; try congruence; try omega.
-  apply IHb in H; omega.
-  apply IHb in H; omega.
+  functional induction (log_lower p n); intros; simpl; try congruence; try lia.
+  apply IHb in H; lia.
+  apply IHb in H; lia.
 Qed.
 
 
@@ -156,7 +156,7 @@ Lemma log_lower_Pdouble_minus_one : forall p n,
   log_lower p n = true -> log_lower (Pdouble_minus_one p) (S n) = true.
 Proof.
   intros p n.
-  functional induction (log_lower p n); intros; simpl; try congruence; try omega.
+  functional induction (log_lower p n); intros; simpl; try congruence; try lia.
   case_eq (Pdouble_minus_one p0); intros; auto.
   rewrite H0 in IHb; simpl in IHb; auto.
   rewrite H0 in IHb; simpl in IHb; auto.
@@ -166,7 +166,7 @@ Lemma log_lower_pred : forall p n,
   log_lower p n = true -> log_lower (Pos.pred p) n = true.
 Proof.
   intros p n.
-  functional induction (log_lower p n); intros; simpl; try congruence; try omega.
+  functional induction (log_lower p n); intros; simpl; try congruence; try lia.
   destruct n; auto.
   case_eq (Pdouble_minus_one p0); intros; auto.
   generalize (log_lower_Pdouble_minus_one _ _ H); rewrite H0; simpl; auto.
@@ -179,13 +179,13 @@ Proof.
   unfold encode; intros.
   destruct Reg.eq.
   unfold complete; rewrite length_fill.
-  simpl; omega.
+  simpl; lia.
   unfold complete; rewrite length_fill.
   assert (length (true :: pos2list (Pos.pred p)) <= S n).
   generalize (log_lower_pred _ _ H); intros.
   generalize (log_lower_length_pos2list _ _ H0).
-  simpl; omega.
-  omega.
+  simpl; lia.
+  lia.
 Qed.
 
 Lemma remove_first_zeros_nil : forall n l,
@@ -202,7 +202,7 @@ Lemma length_remove_first_zeros : forall l,
   length l >= length (remove_first_zeros l).
 Proof.
   induction l; simpl; auto.
-  destruct a; simpl; omega.
+  destruct a; simpl; lia.
 Qed.
 
 Lemma remove_first_zeros_not_nil : forall n l l0,
@@ -213,10 +213,10 @@ Proof.
   induction n; destruct l; simpl; intros; try congruence.
   destruct b; try congruence.
   generalize (length_remove_first_zeros l); rewrite H0; simpl.
-  intros; apply False_ind; omega.
+  intros; apply False_ind; lia.
   destruct b; try congruence.
   inversion H0; clear H0; subst.
-  apply False_ind; omega.
+  apply False_ind; lia.
   rewrite (IHn l l0); auto.
 Qed.
 
@@ -235,7 +235,7 @@ Proof.
   case_eq (remove_first_zeros l); intros.
   destruct Reg.eq.
   unfold complete; apply remove_first_zeros_nil; auto.
-  simpl; omega.
+  simpl; lia.
   intuition.
   destruct b.
   destruct Reg.eq.
@@ -245,7 +245,7 @@ Proof.
   unfold complete; apply remove_first_zeros_not_nil; auto.
   generalize (length_remove_first_zeros l).
   rewrite H0.
-  simpl; omega.
+  simpl; lia.
   destruct Reg.eq.
   elim remove_first_zeros_not_false with l l0; auto.
   intuition.
@@ -283,9 +283,9 @@ Lemma length_fst_split : forall n l,
   (n <= length l)%nat -> length (fst (split n l)) = n.
 Proof.
   induction n; destruct l; simpl; intros; auto; try congruence.
-  omega.
+  lia.
   generalize (IHn l); destruct (split n l); simpl; intros.
-  omega.
+  lia.
 Qed.
 
 Definition toPair (n:nat) (p:positive) : positive * positive :=
@@ -383,24 +383,24 @@ Lemma log_greater_length_pos2list : forall p n,
   log_greater p n = true -> n <= length (pos2list p).
 Proof.
   intros p n.
-  functional induction (log_greater p n); simpl; intros; try omega; try congruence.
-  apply IHb in H; omega.
-  apply IHb in H; omega.
+  functional induction (log_greater p n); simpl; intros; try lia; try congruence.
+  apply IHb in H; lia.
+  apply IHb in H; lia.
 Qed.
 
 Lemma log_greater_length_pos2list_inv : forall n p,
   n <= length (pos2list p) -> log_greater p n = true.
 Proof.
   induction n; destruct p; simpl; intros; auto with arith.
-  apply False_ind; omega.
+  apply False_ind; lia.
 Qed.
 
 Lemma log_lower_length_pos2list_inv : forall n p,
   length (pos2list p) <= n -> log_lower p n = true.
 Proof.
   induction n; destruct p; simpl; intros; auto with arith.
-  apply False_ind; omega.
-  apply False_ind; omega.
+  apply False_ind; lia.
+  apply False_ind; lia.
 Qed.
 
 Fixpoint not_all_one (p:positive) : bool :=
@@ -419,18 +419,18 @@ Proof.
   rewrite pos2list_list2pos.
   unfold encode.
   destruct Reg.eq; rewrite app_length.
-  rewrite length_complete; simpl; omega.
-  rewrite length_complete; simpl; try omega.
+  rewrite length_complete; simpl; lia.
+  rewrite length_complete; simpl; try lia.
   assert (length (pos2list (Pos.pred p1)) <= n).
   apply log_lower_length_pos2list.
   apply log_lower_pred; auto.
-  omega.
+  lia.
 Qed.
 
 Lemma length_pos2list_Psucc : forall p,
   length (pos2list (Pos.succ p)) <= S (length (pos2list p)).
 Proof.
-  induction p; simpl; try omega.
+  induction p; simpl; try lia.
 Qed.
 
 Lemma fromPair_toPair : forall n p,

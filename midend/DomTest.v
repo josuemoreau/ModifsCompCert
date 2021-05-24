@@ -55,7 +55,7 @@ Module Type INT.
   Proof.
     auto using int_lt_le, int_lt_succ. 
   Qed.
-  Hint Resolve int_le_refl int_le_trans int_le_lt_trans 
+  Global Hint Resolve int_le_refl int_le_trans int_le_lt_trans 
     int_lt_le_trans int_lt_le int_le_succ int_lt_succ: core.
 End INT.
 
@@ -1285,38 +1285,38 @@ Module Z <: INT.
     intros x y.
     destruct (Z_le_dec x y).
     - left; auto.
-    - right; unfold int_lt; omega.
+    - right; unfold int_lt; lia.
   Defined.
   Lemma int_le_refl : forall i, int_le i i.
-  Proof. unfold int_le; intros; omega. Qed.
+  Proof. unfold int_le; intros; lia. Qed.
   Lemma int_le_trans : forall i1 i2 i3,
   int_le i1 i2 -> int_le i2 i3 -> int_le i1 i3.
-  Proof. unfold int_le; intros; omega. Qed.
+  Proof. unfold int_le; intros; lia. Qed.
 
   Lemma int_le_lt_trans : forall i1 i2 i3,
   int_le i1 i2 -> int_lt i2 i3 -> int_lt i1 i3.
-  Proof. unfold int_le, int_lt; intros; omega. Qed.
+  Proof. unfold int_le, int_lt; intros; lia. Qed.
 
   Lemma int_lt_le_trans : forall i1 i2 i3,
   int_lt i1 i2 -> int_le i2 i3 -> int_lt i1 i3.
-  Proof. unfold int_le, int_lt; intros; omega. Qed.
+  Proof. unfold int_le, int_lt; intros; lia. Qed.
 
   Lemma int_lt_le : forall i1 i2,
   int_lt i1 i2 -> int_le i1 i2.
-  Proof. unfold int_le, int_lt; intros; omega. Qed.
+  Proof. unfold int_le, int_lt; intros; lia. Qed.
 
   Lemma int_le_not_lt : forall i1 i2,
   int_le i1 i2 -> ~ int_lt i2 i1.
-  Proof. unfold int_le, int_lt; intros; omega. Qed.
+  Proof. unfold int_le, int_lt; intros; lia. Qed.
 
   Lemma int_lt_succ : forall i i', int_succ i = Some i' -> int_lt i i'.
-  Proof. unfold int_succ, int_lt; intros. inv H; omega. Qed.
+  Proof. unfold int_succ, int_lt; intros. inv H; lia. Qed.
 
   Lemma int_le_succ : forall i i', int_succ i = Some i' -> int_le i i'.
   Proof.
     auto using int_lt_le, int_lt_succ. 
   Qed.
-  Hint Resolve int_le_refl int_le_trans int_le_lt_trans 
+  Global Hint Resolve int_le_refl int_le_trans int_le_lt_trans 
     int_lt_le_trans int_lt_le int_le_succ int_lt_succ: core.
 End Z.
 

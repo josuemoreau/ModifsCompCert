@@ -230,5 +230,5 @@ Qed.
 
 End WF_LIVE.
 
-Hint Constructors wf_live: core.
+Global Hint Constructors wf_live: core.
 

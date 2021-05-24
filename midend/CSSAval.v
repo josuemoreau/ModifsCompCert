@@ -550,7 +550,7 @@ Proof.
     + eapply def_reached; eauto.
 Qed.
 
-Hint Resolve ident_eq: core.
+Global Hint Resolve ident_eq: core.
 
 Lemma cssaval_spec_jp_until_phi :
   forall f pc parcb pc' pc'' phib parcb' rs get_cssaval k,
@@ -673,7 +673,7 @@ Proof.
   - invh assigned_phi_spec; invh ex; allinv.
     assert (get_cssaval r' = r') by (invh cssaval_spec; go).
     congruence.
-Grab Existential Variables.
+Unshelve.
 auto.
 Qed.
 
@@ -929,7 +929,7 @@ Variant sf_inv (ge: genv) : stackframe -> Prop :=
                 rs # r = rs # (cssaval f r))
     (SINS: (fn_code f) ! pred = Some (Icall sig ros args res pc)),
     sf_inv ge (Stackframe res f sp pc rs).
-Hint Constructors sf_inv: core.
+Global Hint Constructors sf_inv: core.
 
 Inductive sfl_inv (ge: genv) : list stackframe -> Prop :=
 | sfl_nil : sfl_inv ge nil
@@ -953,7 +953,7 @@ Variant s_inv (ge: genv) : state -> Prop :=
     (SFINV: sfl_inv ge s),
     s_inv ge (Returnstate s v m).
 
-Hint Constructors s_inv: core.
+Global Hint Constructors s_inv: core.
 
 Section INV.
 

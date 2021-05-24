@@ -167,7 +167,7 @@ Proof.
   eapply (get_max_fold_aux'); eauto.
 Qed.  
 
-Ltac sz := unfold Plt, Ple in * ; zify ; omega.
+Ltac sz := unfold Plt, Ple in * ; zify ; lia.
 
 Notation plus_2 :=  (fun p => (Pos.succ (Pos.succ p))). 
 
@@ -197,7 +197,7 @@ Lemma init_state_wf_next : forall (f: RTLpar.function),
       (plus_2 (fst (get_max (RTLpar.fn_code f)))).
 Proof.
 intros.
-generalize (min_max (fn_code f)) ; intros ; sz ; omega.
+generalize (min_max (fn_code f)) ; intros ; sz ; lia.
 Qed.
 
 Lemma init_state_wf :
@@ -591,7 +591,7 @@ Definition copy_wwo_add (tmp_reg: reg)  (preds: PTree.t (list node)) (code : SSA
 Lemma Ple_total : forall p1 p2, Ple p1 p2 \/ Ple p2 p1.
 Proof.
   intros.
-  unfold Ple. zify ; omega.
+  unfold Ple. zify ; lia.
 Qed.
 
 Lemma Ple_dec : forall p1 p2, {Ple p1 p2} + {~ Ple p1 p2}.

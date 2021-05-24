@@ -266,7 +266,7 @@ Proof.
         | eapply get_max_reg_in_parcb_dst_correct; eauto])).
 Qed.  
 
-Ltac sz := unfold Plt, Ple in * ; (zify; omega).
+Ltac sz := unfold Plt, Ple in * ; (zify; lia).
 Ltac allinv := 
   repeat 
     match goal with 
@@ -354,8 +354,8 @@ Proof.
 Qed.
 
 (** Monotonicity properties of the state *)
-Hint Resolve state_incr_refl: dessa.
-Hint Resolve state_incr_trans : dessa.
+Global Hint Resolve state_incr_refl: dessa.
+Global Hint Resolve state_incr_trans : dessa.
 
 (** The following tactic saturates the hypotheses with
   [state_incr] properties that follow by transitivity from
@@ -402,7 +402,7 @@ Proof.
     + apply Plt_ne in H ; auto. congruence.
     + intuition.
       generalize (st_wf_next_fs s1) (st_wf_next s1) ; intros.
-      unfold Plt, Ple, Pos.succ in *. zify ; omega. 
+      unfold Plt, Ple, Pos.succ in *. zify ; lia. 
 Qed.
 
 Lemma copy_ins_at_renum:
@@ -421,7 +421,7 @@ Proof.
   - intros. rewrite PTree.gso ; auto.
 Qed.
 
-Hint Resolve copy_ins_at: dessa.
+Global Hint Resolve copy_ins_at: dessa.
 
 Lemma reach_moves_incr : forall lnew s1 s2 succ' lastnew block ,
   reach_moves (st_code s1) succ' lastnew block lnew ->
@@ -1637,7 +1637,7 @@ Proof.
           intro Hcont.
           invh join_point.
           destruct l. 
-          + simpl in *. omega.
+          + simpl in *. lia.
           + generalize (KildallComp.make_predecessors_correct2 (fn_code f) successors_instr).
             intros Hcont.
             exploit @KildallComp.make_predecessors_some; eauto.

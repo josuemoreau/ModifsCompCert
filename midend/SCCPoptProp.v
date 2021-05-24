@@ -432,8 +432,6 @@ Proof.
         exploit GAMMA; eauto.
       * unfold fn_code in *.
         invh assigned_code_spec; try congruence.
-Unshelve. 
-go. go. go. go. 
 Qed.
 
 Import Dom.

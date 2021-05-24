@@ -89,7 +89,7 @@ Proof.
   eapply get_index_some_sn; eauto.
   simpl in *.
   flatten; eauto.
-  assert ((k+1)%nat = Datatypes.S k). omega.
+  assert ((k+1)%nat = Datatypes.S k). lia.
   rewrite H0 in *.
   assumption.
 Qed.
@@ -108,7 +108,7 @@ Proof.
   }
   inv H0. 
   destruct l.
-  simpl in Hl; apply False_ind; omega.
+  simpl in Hl; apply False_ind; lia.
   exploit @make_predecessors_some; eauto. intros [pins Hpins].  
   assert (In (fn_entrypoint f) (successors_instr pins)).
   { 
@@ -150,7 +150,7 @@ Proof.
   
   assert ((make_predecessors (fn_code f) successors_instr) !!! pc = l). 	 
   { unfold successors_list. rewrite Hpreds. auto. }
-  assert (exists pred, In pred l). destruct l.  simpl in *. omega. 
+  assert (exists pred, In pred l). destruct l.  simpl in *. lia. 
   exists p ; eauto. destruct H2. 	 
   exploit @make_predecessors_some; eauto. intros [i Hi].
   assert (In pc (successors_instr i)). 	 
@@ -173,7 +173,7 @@ Proof.
   split;  eauto.
 
   intro Hcont. inv Hcont. 
-  destruct l. simpl in *. omega.
+  destruct l. simpl in *. lia.
   
   generalize (make_predecessors_correct2 (fn_code f) successors_instr).
   intros Hcont. 
@@ -263,7 +263,7 @@ Lemma wf_ssa_reached : forall f,
 Proof.
   intros. inv H ; eauto.
 Qed.
-Hint Resolve wf_ssa_reached: core.
+Global Hint Resolve wf_ssa_reached: core.
 
 Lemma ssa_def_use_code_false : forall f,
   wf_ssa_function f ->
@@ -520,7 +520,7 @@ Proof.
   intros. 
   intro ; exploit (H args); eauto. 
 Qed.
-Hint Resolve notin_cons_notin: core.
+Global Hint Resolve notin_cons_notin: core.
     
 Lemma phi_store_notin_preserved: forall k  block rs dst,
   (forall args, ~ (In (Iphi args dst) block)) ->

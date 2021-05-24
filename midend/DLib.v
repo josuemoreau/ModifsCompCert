@@ -1,5 +1,6 @@
 Require Export ZArith.
 Require Export List.
+Require Export Lia.
 Require Export Coq.Program.Equality. (**r Necessary for 'dependent induction'. *)
 
 Ltac autoinjection :=
@@ -18,7 +19,7 @@ Ltac go :=
          end ;
   autoinjection ;
   try (congruence);
-  try omega;
+  try lia;
   subst;
   eauto 4 with zarith datatypes;
   try (once (econstructor; solve[go])).

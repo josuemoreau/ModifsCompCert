@@ -22,7 +22,7 @@ Require Import Ordered.
 Require Import FSets.
 Require Import DLib.
 Require FSetAVL.
-Hint Extern 4 (In _ (successors_instr _)) => simpl successors_instr: core.
+Global Hint Extern 4 (In _ (successors_instr _)) => simpl successors_instr: core.
 
 Unset Allow StrictProp.
 
@@ -256,7 +256,7 @@ Proof.
   econstructor ; eauto.
 Qed.
 
-Hint Constructors ext_params dsd: core.
+Global Hint Constructors ext_params dsd: core.
 
 Lemma def_match_ins : forall f x pc,
   wf_ssa_function f -> 

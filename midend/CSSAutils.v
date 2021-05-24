@@ -122,7 +122,7 @@ Proof.
 
   intro Hcont. inv Hcont.
   destruct l. 
-  - simpl in *. omega.
+  - simpl in *. lia.
   - generalize (KildallComp.make_predecessors_correct2 (fn_code f) successors_instr).
     intros Hcont.
     exploit @KildallComp.make_predecessors_some; eauto.
@@ -771,7 +771,7 @@ Proof.
   destruct H; go.
 Qed.
 
-Hint Resolve parc_dst_in: core.
+Global Hint Resolve parc_dst_in: core.
 
 (* Stores *)
 

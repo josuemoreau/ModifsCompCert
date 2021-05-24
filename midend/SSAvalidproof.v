@@ -46,13 +46,13 @@ Ltac elimAndb :=
 
 Ltac conv := simpl erase_reg in *.
 
-Hint Constructors rtl_cfg: core.
-Hint Constructors use_rtl_code: core.
-Hint Constructors wf_live: core.
-Hint Constructors RTLutils.assigned_code_spec: core.
-Hint Constructors SSA.assigned_code_spec: core.
-Hint Extern 4 (In _ (RTLdfs.successors_instr _)) => simpl RTLdfs.successors_instr: core.
-Hint Extern 4 (In _ (SSA.successors_instr _)) => simpl SSA.successors_instr: core.
+Global Hint Constructors rtl_cfg: core.
+Global Hint Constructors use_rtl_code: core.
+Global Hint Constructors wf_live: core.
+Global Hint Constructors RTLutils.assigned_code_spec: core.
+Global Hint Constructors SSA.assigned_code_spec: core.
+Global Hint Extern 4 (In _ (RTLdfs.successors_instr _)) => simpl RTLdfs.successors_instr: core.
+Global Hint Extern 4 (In _ (SSA.successors_instr _)) => simpl SSA.successors_instr: core.
 
 Ltac well_typed :=
   match goal with

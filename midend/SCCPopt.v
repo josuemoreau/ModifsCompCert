@@ -534,7 +534,7 @@ Module DataflowSolver: DATAFLOW_SOLVER.
      intros.
      generalize dependent l.
      induction preds.
-     + simpl in *. intros. omega.
+     + simpl in *. intros. lia.
      + simpl in *. intros.
        destruct l.
        simpl in *. congruence.
@@ -555,7 +555,7 @@ Module DataflowSolver: DATAFLOW_SOLVER.
            congruence.
          subst.
          eapply IHpreds with (k := k0) (l := l); eauto.
-         * omega.
+         * lia.
          * eapply get_index_cons_succ; eauto.
    Qed.
 

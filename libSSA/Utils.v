@@ -102,7 +102,7 @@ Proof.
   destruct x; inv H; eauto.
 Qed.
 
-Hint Resolve option_map_some : core.
+Global Hint Resolve option_map_some : core.
 
 (** * Properties about [PTree] *)
 Require Import DLib.
@@ -242,7 +242,7 @@ Proof.
   simpl in H.
   destruct (peq a e).  inv H; auto.
   assert (IHl' := IHl e (acc+1)%nat k H). 
-  omega.
+  lia.
 Qed.
 
 Lemma get_index_acc_inv2 : forall l a (acc acc' :nat) x,
@@ -252,8 +252,8 @@ Proof.
   induction l; intros.
   inv H. simpl in *.
   destruct (peq a a0). inv H. 
-  assert (acc = x) by omega. inv H1; auto. 
-  assert (Hacc : (acc+acc'+1)%nat = (acc+1+acc')%nat) by omega.
+  assert (acc = x) by lia. inv H1; auto. 
+  assert (Hacc : (acc+acc'+1)%nat = (acc+1+acc')%nat) by lia.
   rewrite Hacc in *. 
   eapply IHl; eauto.
 Qed.
@@ -286,7 +286,7 @@ Proof.
       * eapply IHl with (k:= k); eauto.
         replace (Datatypes.S k) with ((k+1)%nat) in *.   
         eapply get_index_some_sn ;  eauto.
-        omega.
+        lia.
 Qed.
 
 Lemma get_index_acc_inv : forall l a (acc acc' :nat) x,
@@ -300,7 +300,7 @@ Proof.
   rewrite H0 in H.
   inversion H. auto.
   rewrite H0 in H. 
-  assert ( (acc + acc' + 1)%nat = (acc + 1 + acc')%nat) by omega.  
+  assert ( (acc + acc' + 1)%nat = (acc + 1 + acc')%nat) by lia.  
   rewrite H1.
   eapply IHl  ; eauto.
 Qed.
@@ -330,14 +330,14 @@ Lemma get_index_some : forall l pc k,
 Proof.
   induction l ; intros.
   inv H.
-  destruct k ; simpl in * ;  auto. omega.
+  destruct k ; simpl in * ;  auto. lia.
   destruct (peq a pc). inv e.
   unfold get_index in * ; simpl in *.
   rewrite peq_true in H ; eauto. inv H.
   unfold get_index in *.
-  replace (Datatypes.S k) with (k+1)%nat in *; try omega.
+  replace (Datatypes.S k) with (k+1)%nat in *; try lia.
   eapply get_index_some_sn in H ; eauto.
-  exploit IHl ; eauto. intros. omega. 
+  exploit IHl ; eauto. intros. lia. 
 Qed.
 
 Lemma get_index_nth_error: forall pc l k, 
@@ -349,7 +349,7 @@ Proof.
   destruct (peq a pc). simpl in *.  inv e; auto. rewrite peq_true in H ; auto. inv H. auto.
   destruct k. simpl in H. rewrite peq_false in H ; auto.
   eapply get_index_acc_ge_acc in H ; eauto. inv H.
-  replace (Datatypes.S k) with (k+1)%nat in H; try omega.
+  replace (Datatypes.S k) with (k+1)%nat in H; try lia.
   eapply get_index_some_sn  in H ; eauto. 
 Qed.
 
@@ -360,11 +360,11 @@ Proof.
   congruence.
   intros; destruct peq.
   assert (k=O).
-    inversion H. omega.
+    inversion H. lia.
   subst; constructor.
   destruct k.
   constructor.
-  replace (k' + Datatypes.S k)%nat with ((k'+1)+k)%nat in * by omega.
+  replace (k' + Datatypes.S k)%nat with ((k'+1)+k)%nat in * by lia.
   constructor 2; eauto.
 Qed.
 
@@ -388,8 +388,8 @@ Proof.
   intros; constructor ; auto.
 Qed.
 
-Hint Resolve in_tl_in_cons: core.
-Hint Resolve in_hd_in_cons: core.
+Global Hint Resolve in_tl_in_cons: core.
+Global Hint Resolve in_hd_in_cons: core.
 
 Lemma app_cons_nil : forall (A:Type) (l l': list A) (n1 n2 : A), 
   n1 :: nil = l ++ n2 :: l' ->
@@ -505,7 +505,7 @@ Lemma Ple_Plt_trans:
   forall (p q r: positive), Ple p q -> Plt q r -> Plt p r.
 Proof.
   unfold Plt, Ple; intros.
-  zify ; omega.
+  zify ; lia.
 Qed.
 
 Lemma Ple_Plt_succ: forall p1 p2,
@@ -918,7 +918,7 @@ Lemma Rstar_trans : forall A (R:A->A->Prop) (i j k:A),
   R** i j -> R** j k -> R** i k.
 Proof. intros A R i j k; constructor 3 with j; auto. Qed.
 
-Hint Resolve Rstar_trans Rstar_refl Rstar_R: core.
+Global Hint Resolve Rstar_trans Rstar_refl Rstar_R: core.
  
 Lemma star_eq : forall A (R1 R2:A->A->Prop),
   (forall i j, R1 i j -> R2 i j) ->

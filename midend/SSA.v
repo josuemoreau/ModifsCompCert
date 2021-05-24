@@ -519,7 +519,7 @@ Section UDEF.
 
 End UDEF.
 
-Hint Constructors ext_params def assigned_code_spec assigned_phi_spec: core.
+Global Hint Constructors ext_params def assigned_code_spec assigned_phi_spec: core.
 
 (** * Dominators *)
 

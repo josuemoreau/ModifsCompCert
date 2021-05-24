@@ -334,7 +334,7 @@ Inductive match_stackframes : list CSSA.stackframe -> list RTLpar.stackframe -> 
       (Stackframe res f sp pc rs :: s)
       (RTLpar.Stackframe (regrepr res) tf sp pc rs' :: ts).
 
-Hint Constructors match_stackframes: core.
+Global Hint Constructors match_stackframes: core.
 
 Set Implicit Arguments.
 
@@ -1622,7 +1622,7 @@ Lemma cssaval_contradiction_in_Ibuiltin :
 Proof.
   intros.
   eapply cssaval_contradiction_in_Ioporbuiltin; eauto 7.
-  Grab Existential Variables. go.
+  Unshelve. go.
 Qed.
 
 Lemma cssaval_contradiction_in_Icall :
@@ -3337,7 +3337,7 @@ Proof.
     exploit fn_code_closed; eauto. intros [instr' CODESUCC].
     exploit transl_function_ins; eauto.
 
-Grab Existential Variables.
+Unshelve. 
 go. go. go. go.
 go. go. go. go.
 go. go. go. 

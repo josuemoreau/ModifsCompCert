@@ -123,8 +123,8 @@ Proof.
   rewrite peq_true in *.
   boolInv.
   rewrite Hpreds in *.
-  destruct l; simpl in *; try omega.
-  destruct l; simpl in *; try omega.
+  destruct l; simpl in *; try lia.
+  destruct l; simpl in *; try lia.
   congruence.
 Qed.
 
@@ -152,14 +152,14 @@ Proof.
   rewrite Hi in *.  rewrite Hpreds in *. 
   destruct (peq (RTLdfs.fn_entrypoint tf) jp).
   - boolInv. 
-    destruct l; simpl in *; try (apply False_ind; omega).
-    destruct l; simpl in *; try (apply False_ind; omega).
+    destruct l; simpl in *; try (apply False_ind; lia).
+    destruct l; simpl in *; try (apply False_ind; lia).
     congruence.
     
   - boolInv.
     
     destruct l. congruence. 
-    destruct l. simpl in *. omega.
+    destruct l. simpl in *. lia.
 
     assert (In pc ((make_predecessors (RTLdfs.fn_code tf) RTLdfs.successors_instr)!!! jp)).
     { 
@@ -2520,7 +2520,7 @@ Proof.
     destruct l; simpl in *.
     intuition subst.
     intuition.
-    simpl; omega.
+    simpl; lia.
     rewrite H5 in *.
     elim T3.
 
@@ -3596,7 +3596,7 @@ Proof.
     intro Hcont.
     inv H2.
     assert (exists p, In p l).
-    destruct l. simpl in * . omega. eauto. destruct H2.
+    destruct l. simpl in * . lia. eauto. destruct H2.
     assert ((make_predecessors (fn_code tf) successors_instr) !!! jp = l).
     unfold successors_list ; rewrite Hpreds ; simpl ; auto.
     exploit @make_predecessors_some; eauto. intros [ix Hix].

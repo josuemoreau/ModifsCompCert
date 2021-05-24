@@ -405,7 +405,7 @@ Proof.
              index_pred (make_predecessors (fn_code f) successors_instr) d pc = Some k).
   { assert (exists d, In d l).
     destruct l; simpl in *.
-    apply False_ind; omega.
+    apply False_ind; lia.
     eauto.
     destruct H0 as [pc' H1].
     exists pc'.
@@ -571,7 +571,7 @@ Proof.
                index_pred (make_predecessors (fn_code f) successors_instr) pc d = Some k).
     { assert (exists pc, In pc l).
       destruct l; simpl in *.
-      apply False_ind; omega.
+      apply False_ind; lia.
       eauto.
       destruct H1 as [pc H1].
       exists pc.

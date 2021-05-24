@@ -88,9 +88,9 @@ Ltac simpl_succs :=
   | UIret: forall pc arg,
     (RTLdfs.fn_code f) !pc = Some (RTL.Ireturn (Some arg)) -> use_rtl_code f arg pc.
   
-  Hint Constructors use_rtl_code: core.
-  Hint Extern 4 (In _ (RTL.successors_instr _)) => simpl successors_instr: core.
-  Hint Constructors cfg: core.
+  Global Hint Constructors use_rtl_code: core.
+  Global Hint Extern 4 (In _ (RTL.successors_instr _)) => simpl successors_instr: core.
+  Global Hint Constructors cfg: core.
 
   Variant join_point (jp : node) (f : function) : Prop :=
   |  jp_cons : forall l,
