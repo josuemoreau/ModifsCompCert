@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -50,8 +51,7 @@ let bitfield_table =
       (Hashtbl.create 57: (ident * string, bitfield_info) Hashtbl.t)
 
 let is_bitfield structid fieldname =
-  try Some (Hashtbl.find bitfield_table (structid, fieldname))
-  with Not_found -> None
+  Hashtbl.find_opt bitfield_table (structid, fieldname)
 
 (* Mapping struct/union identifier -> list of members after transformation,
    including the carrier fields, but without the bit fields.
@@ -189,10 +189,12 @@ let rec transf_union_members env id count = function
           { fld_name = carrier; fld_typ = carrier_typ; fld_bitfield = None; fld_anonymous = false;}
           :: transf_union_members env id (count + 1) ms)
 
-let transf_composite env su id attr ml =
+let transf_composite env loc su id attr ml =
   if List.for_all (fun f -> f.fld_bitfield = None) ml then
     (attr, ml)
   else begin
+    if find_custom_attributes ["packed";"__packed__"] attr <> [] then
+      Diagnostics.error loc "bitfields in packed structs not allowed";
     let ml' =
       match su with
       | Struct -> transf_struct_members env id 1 ml
@@ -266,7 +268,7 @@ let bitfield_extract env bf carrier =
 unsigned int bitfield_insert(unsigned int x, int ofs, int sz, unsigned int y)
 {
   unsigned int mask = ((1U << sz) - 1) << ofs;
-  return (x & ~mask) | ((y << ofs) & mask);
+  return ((y << ofs) & mask) | (x & ~mask);
 }
 
 If the bitfield is of type _Bool, the new value (y above) must be converted
@@ -283,7 +285,7 @@ let bitfield_assign env bf carrier newval =
     eshift env Oshl newval_casted (intconst (Int64.of_int bf.bf_pos) IUInt) in
   let newval_masked = ebinint env Oand newval_shifted msk
   and oldval_masked = ebinint env Oand carrier notmsk in
-  ebinint env Oor oldval_masked newval_masked
+  ebinint env Oor newval_masked oldval_masked
 
 (* Initialize a bitfield *)
 
@@ -550,7 +552,7 @@ and transf_init env i =
 
 (* Declarations *)
 
-let transf_decl env (sto, id, ty, init_opt) =
+let transf_decl env loc (sto, id, ty, init_opt) =
   (sto, id, ty,
    match init_opt with None -> None | Some i -> Some(transf_init env i))
 
@@ -559,12 +561,12 @@ let transf_decl env (sto, id, ty, init_opt) =
 let transf_stmt env s =
   Transform.stmt
      ~expr:(fun loc env ctx e -> transf_exp env ctx e)
-     ~decl:transf_decl
+     ~decl:(fun env (sto, id, ty, init_opt) -> transf_decl env s.sloc (sto, id, ty, init_opt))
      env s
 
 (* Functions *)
 
-let transf_fundef env f =
+let transf_fundef env loc f =
   Transform.fundef transf_stmt env f
 
 (* Programs *)

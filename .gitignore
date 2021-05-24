@@ -26,11 +26,13 @@
 /Makefile.config
 /.merlin
 /_CoqProject
+/compile.pl
 # Generated files
 /.depend
 /.depend.extr
 /midend/SSA/.depend
 /compcert.ini
+/compcert.config
 /x86/ConstpropOp.v
 /x86/SelectOp.v
 /x86/SelectLong.v

@@ -6,14 +6,21 @@
 #                                                                     #
 #  Copyright Institut National de Recherche en Informatique et en     #
 #  Automatique.  All rights reserved.  This file is distributed       #
-#  under the terms of the GNU General Public License as published by  #
-#  the Free Software Foundation, either version 2 of the License, or  #
-#  (at your option) any later version.  This file is also distributed #
-#  under the terms of the INRIA Non-Commercial License Agreement.     #
+#  under the terms of the GNU Lesser General Public License as        #
+#  published by the Free Software Foundation, either version 2.1 of   #
+#  the License, or (at your option) any later version.                #
+#  This file is also distributed under the terms of the               #
+#  INRIA Non-Commercial License Agreement.                            #
 #                                                                     #
 #######################################################################
 
 include Makefile.config
+include VERSION
+
+BUILDVERSION ?= $(version)
+BUILDNR ?= $(buildnr)
+TAG ?= $(tag)
+BRANCH ?= $(branch)
 
 ifeq ($(wildcard $(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
@@ -21,20 +28,39 @@ else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 
-DIRS=lib common $(ARCHDIRS) backend \
-  midend midend/libSSA \
-  cfrontend driver \
-  flocq/Core flocq/Prop flocq/Calc flocq/IEEE754 \
-  exportclight MenhirLib cparser
+DIRS := lib common $(ARCHDIRS) backend \
+  midend libSSA \
+  cfrontend driver exportclight cparser
 
-RECDIRS=lib common $(ARCHDIRS) backend \
-  midend \
-  cfrontend driver flocq exportclight \
-  MenhirLib cparser
+COQINCLUDES := $(foreach d, $(DIRS), -R $(d) compcert.$(d))
 
-COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) compcert.$(d))
+ifeq ($(LIBRARY_FLOCQ),local)
+DIRS += flocq/Core flocq/Prop flocq/Calc flocq/IEEE754
+COQINCLUDES += -R flocq Flocq
+endif
 
-COQCOPTS ?= -w -undeclared-scope
+ifeq ($(LIBRARY_MENHIRLIB),local)
+DIRS += MenhirLib
+COQINCLUDES += -R MenhirLib MenhirLib
+endif
+
+# Notes on silenced Coq warnings:
+#
+# undeclared-scope:
+#    warning introduced in 8.12
+#    suggested change (use `Declare Scope`) supported since 8.12
+# unused-pattern-matching-variable:
+#    warning introduced in 8.13
+#    the code rewrite that avoids the warning is not desirable
+# deprecated-ident-entry:
+#    warning introduced in 8.13
+#    suggested change (use `name` instead of `ident`) supported since 8.13
+
+COQCOPTS ?= \
+  -w -undeclared-scope \
+  -w -unused-pattern-matching-variable \
+  -w -deprecated-ident-entry
+
 COQC="$(COQBIN)coqc" -q $(COQINCLUDES) $(COQCOPTS)
 COQDEP="$(COQBIN)coqdep" $(COQINCLUDES)
 COQDOC="$(COQBIN)coqdoc"
@@ -48,13 +74,18 @@ GPATH=$(DIRS)
 
 # Flocq
 
+ifeq ($(LIBRARY_FLOCQ),local)
 FLOCQ=\
+  SpecFloatCompat.v \
   Raux.v Zaux.v Defs.v Digits.v Float_prop.v FIX.v FLT.v FLX.v FTZ.v \
   Generic_fmt.v Round_pred.v Round_NE.v Ulp.v Core.v \
   Bracket.v Div.v Operations.v Round.v Sqrt.v \
   Div_sqrt_error.v Mult_error.v Plus_error.v \
   Relative.v Sterbenz.v Round_odd.v Double_rounding.v \
   Binary.v Bits.v
+else
+FLOCQ=
+endif
 
 # General-purpose libraries (in lib/)
 
@@ -139,9 +170,13 @@ PARSER=Cabs.v Parser.v
 
 # MenhirLib
 
+ifeq ($(LIBRARY_MENHIRLIB),local)
 MENHIRLIB=Alphabet.v Automaton.v Grammar.v Interpreter_complete.v \
   Interpreter_correct.v Interpreter.v Main.v Validator_complete.v \
   Validator_safe.v Validator_classes.v
+else
+MENHIRLIB=
+endif
 
 # Putting everything together (in driver/)
 
@@ -172,6 +207,9 @@ ifeq ($(HAS_RUNTIME_LIB),true)
 endif
 ifeq ($(CLIGHTGEN),true)
 	$(MAKE) clightgen
+endif
+ifeq ($(INSTALL_COQDEV),true)
+	$(MAKE) compcert.config
 endif
 
 proof: $(FILES:.v=.vo)
@@ -213,9 +251,18 @@ documentation: $(FILES)
           $(filter-out doc/coq2html cparser/Parser.v, $^)
 
 tools/ndfun: tools/ndfun.ml
+ifeq ($(OCAML_NATIVE_COMP),true)
 	ocamlopt -o tools/ndfun str.cmxa tools/ndfun.ml
+else
+	ocamlc -o tools/ndfun str.cma tools/ndfun.ml
+endif
+
 tools/modorder: tools/modorder.ml
+ifeq ($(OCAML_NATIVE_COMP),true)
 	ocamlopt -o tools/modorder str.cmxa tools/modorder.ml
+else
+	ocamlc -o tools/modorder str.cma tools/modorder.ml
+endif
 
 latexdoc:
 	cd doc; $(COQDOC) --latex -o doc/doc.tex -g $(FILES)
@@ -250,14 +297,29 @@ compcert.ini: Makefile.config
 	 echo "response_file_style=$(RESPONSEFILE)";) \
         > compcert.ini
 
+compcert.config: Makefile.config
+	(echo "# CompCert configuration parameters"; \
+        echo "COMPCERT_ARCH=$(ARCH)"; \
+        echo "COMPCERT_MODEL=$(MODEL)"; \
+        echo "COMPCERT_ABI=$(ABI)"; \
+        echo "COMPCERT_ENDIANNESS=$(ENDIANNESS)"; \
+        echo "COMPCERT_BITSIZE=$(BITSIZE)"; \
+        echo "COMPCERT_SYSTEM=$(SYSTEM)"; \
+        echo "COMPCERT_VERSION=$(BUILDVERSION)"; \
+        echo "COMPCERT_BUILDNR=$(BUILDNR)"; \
+        echo "COMPCERT_TAG=$(TAG)"; \
+        echo "COMPCERT_BRANCH=$(BRANCH)" \
+        ) > compcert.config
+
 driver/Version.ml: VERSION
-	cat VERSION \
-	| sed -e 's|\(.*\)=\(.*\)|let \1 = \"\2\"|g' \
-	>driver/Version.ml
+	(echo 'let version = "$(BUILDVERSION)"'; \
+         echo 'let buildnr = "$(BUILDNR)"'; \
+         echo 'let tag = "$(TAG)"'; \
+         echo 'let branch = "$(BRANCH)"') > driver/Version.ml
 
 cparser/Parser.v: cparser/Parser.vy
 	@rm -f $@
-	$(MENHIR) --coq --coq-lib-path compcert.MenhirLib --coq-no-version-check cparser/Parser.vy
+	$(MENHIR) --coq --coq-no-version-check cparser/Parser.vy
 	@chmod a-w $@
 
 depend: $(GENERATED) depend1
@@ -284,6 +346,7 @@ ifeq ($(INSTALL_COQDEV),true)
           install -m 0644 $$d/*.vo $(DESTDIR)$(COQDEVDIR)/$$d/; \
 	done
 	install -m 0644 ./VERSION $(DESTDIR)$(COQDEVDIR)
+	install -m 0644 ./compcert.config $(DESTDIR)$(COQDEVDIR)
 	@(echo "To use, pass the following to coq_makefile or add the following to _CoqProject:"; echo "-R $(COQDEVDIR) compcert") > $(DESTDIR)$(COQDEVDIR)/README
 endif
 
@@ -294,7 +357,7 @@ clean:
 	rm -f $(patsubst %, %/*~, $(DIRS))
 	rm -rf doc/html doc/*.glob
 	rm -f driver/Version.ml
-	rm -f compcert.ini
+	rm -f compcert.ini compcert.config
 	rm -f extraction/STAMP extraction/*.ml extraction/*.mli .depend.extr
 	rm -f tools/ndfun tools/modorder tools/*.cm? tools/*.o
 	rm -f $(GENERATED) .depend
@@ -328,6 +391,9 @@ check-proof: $(FILES)
 
 print-includes:
 	@echo $(COQINCLUDES)
+
+CoqProject:
+	@echo $(COQINCLUDES) > _CoqProject
 
 -include .depend
 

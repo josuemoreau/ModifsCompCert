@@ -101,7 +101,7 @@ after IRC elimination, when assigning a stack slot to a spilled variable. *)
 
 let name_of_loc = function
   | R r ->
-      begin match Machregsaux.name_of_register r with
+      begin match Machregsnames.name_of_register r with
                 | None -> "fixed-reg"
                 | Some s -> s
       end
@@ -252,12 +252,10 @@ let class_of_loc = function
 
 let no_spill_class = 2
 
-let reserved_registers = ref ([]: mreg list)
-
 let rec remove_reserved = function
   | [] -> []
   | hd :: tl ->
-      if List.mem hd !reserved_registers
+      if List.mem hd !CPragmas.reserved_registers
       then remove_reserved tl
       else hd :: remove_reserved tl
 

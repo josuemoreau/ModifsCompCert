@@ -45,10 +45,10 @@ Qed.
 
 Hint Extern 2 (_ = _) => congruence : va.
 Hint Extern 2 (_ <> _) => congruence : va.
-Hint Extern 2 (_ < _) => xomega : va.
-Hint Extern 2 (_ <= _) => xomega : va.
-Hint Extern 2 (_ > _) => xomega : va.
-Hint Extern 2 (_ >= _) => xomega : va.
+Hint Extern 2 (_ < _) => extlia : va.
+Hint Extern 2 (_ <= _) => extlia : va.
+Hint Extern 2 (_ > _) => extlia : va.
+Hint Extern 2 (_ >= _) => extlia : va.
 
 Section MATCH.
 
@@ -660,7 +660,7 @@ Lemma is_zero_ext_uns:
   is_uns m i \/ n <= m -> is_uns m (Int.zero_ext n i).
 Proof.
   intros. red; intros. rewrite Int.bits_zero_ext by omega.
-  destruct (zlt m0 n); auto. destruct H. apply H; omega. omegaContradiction.
+  destruct (zlt m0 n); auto. destruct H. apply H; omega. extlia.
 Qed.
 
 Lemma is_zero_ext_sgn:
@@ -691,7 +691,7 @@ Proof.
   intros. apply is_sgn_sign_ext; auto.
   destruct (zlt m n). destruct H1. apply is_sgn_sign_ext in H1; auto.
   rewrite <- H1. rewrite (Int.sign_ext_widen i) by omega. apply Int.sign_ext_idem; auto.
-  omegaContradiction.
+  extlia.
   apply Int.sign_ext_widen; omega.
 Qed.
 
@@ -975,12 +975,12 @@ Proof.
   unfold vlub; destruct x, y; eauto using pge_lub_l with va.
 - predSpec Int.eq Int.eq_spec n n0. auto with va.
   destruct (Int.lt n Int.zero || Int.lt n0 Int.zero).
-  apply vge_sgn_i'. generalize (ssize_pos n); xomega. eauto with va.
-  apply vge_uns_i'. generalize (usize_pos n); xomega. eauto with va.
+  apply vge_sgn_i'. generalize (ssize_pos n); extlia. eauto with va.
+  apply vge_uns_i'. generalize (usize_pos n); extlia. eauto with va.
 - destruct (Int.lt n Int.zero).
-  apply vge_sgn_i'. generalize (ssize_pos n); xomega. eauto with va.
-  apply vge_uns_i'. generalize (usize_pos n); xomega. eauto with va.
-- apply vge_sgn_i'. generalize (ssize_pos n); xomega. eauto with va.
+  apply vge_sgn_i'. generalize (ssize_pos n); extlia. eauto with va.
+  apply vge_uns_i'. generalize (usize_pos n); extlia. eauto with va.
+- apply vge_sgn_i'. generalize (ssize_pos n); extlia. eauto with va.
 - destruct (Int.lt n0 Int.zero).
   eapply vge_trans. apply vge_sgn_sgn'.
   apply vge_trans with (Sgn p (n + 1)); eauto with va.
@@ -1270,7 +1270,7 @@ Proof.
   exploit Int.ltu_inv; eauto. intros RANGE.
   inv H; auto with va.
 - apply vmatch_uns'. red; intros. rewrite Int.bits_shl by omega.
-  destruct (zlt m (Int.unsigned n)). auto. apply H1; xomega.
+  destruct (zlt m (Int.unsigned n)). auto. apply H1; extlia.
 - apply vmatch_sgn'. red; intros. zify.
   rewrite ! Int.bits_shl by omega.
   rewrite ! zlt_false by omega.
@@ -1418,12 +1418,12 @@ Proof.
   assert (UNS: forall i j n m, is_uns n i -> is_uns m j -> is_uns (Z.max n m) (Int.or i j)).
   {
     intros; red; intros. rewrite Int.bits_or by auto.
-    rewrite H by xomega. rewrite H0 by xomega. auto.
+    rewrite H by extlia. rewrite H0 by extlia. auto.
   }
   assert (SGN: forall i j n m, is_sgn n i -> is_sgn m j -> is_sgn (Z.max n m) (Int.or i j)).
   {
-    intros; red; intros. rewrite ! Int.bits_or by xomega.
-    rewrite H by xomega. rewrite H0 by xomega. auto.
+    intros; red; intros. rewrite ! Int.bits_or by extlia.
+    rewrite H by extlia. rewrite H0 by extlia. auto.
   }
   intros. unfold or, Val.or; inv H; eauto with va; inv H0; eauto with va.
 Qed.
@@ -1443,12 +1443,12 @@ Proof.
   assert (UNS: forall i j n m, is_uns n i -> is_uns m j -> is_uns (Z.max n m) (Int.xor i j)).
   {
     intros; red; intros. rewrite Int.bits_xor by auto.
-    rewrite H by xomega. rewrite H0 by xomega. auto.
+    rewrite H by extlia. rewrite H0 by extlia. auto.
   }
   assert (SGN: forall i j n m, is_sgn n i -> is_sgn m j -> is_sgn (Z.max n m) (Int.xor i j)).
   {
-    intros; red; intros. rewrite ! Int.bits_xor by xomega.
-    rewrite H by xomega. rewrite H0 by xomega. auto.
+    intros; red; intros. rewrite ! Int.bits_xor by extlia.
+    rewrite H by extlia. rewrite H0 by extlia. auto.
   }
   intros. unfold xor, Val.xor; inv H; eauto with va; inv H0; eauto with va.
 Qed.
@@ -2942,16 +2942,16 @@ Proof.
 - destruct (zlt n 8); constructor; auto with va.
   apply is_sign_ext_uns; auto.
   apply is_sign_ext_sgn; auto with va.
-- constructor. xomega. apply is_zero_ext_uns. apply Z.min_case; auto with va.
+- constructor. extlia. apply is_zero_ext_uns. apply Z.min_case; auto with va.
 - destruct (zlt n 16); constructor; auto with va.
   apply is_sign_ext_uns; auto.
   apply is_sign_ext_sgn; auto with va.
-- constructor. xomega. apply is_zero_ext_uns. apply Z.min_case; auto with va.
+- constructor. extlia. apply is_zero_ext_uns. apply Z.min_case; auto with va.
 - destruct (zlt n 8); auto with va.
 - destruct (zlt n 16); auto with va.
-- constructor. xomega. apply is_sign_ext_sgn; auto with va. apply Z.min_case; auto with va.
+- constructor. extlia. apply is_sign_ext_sgn; auto with va. apply Z.min_case; auto with va.
 - constructor. omega. apply is_zero_ext_uns; auto with va.
-- constructor. xomega. apply is_sign_ext_sgn; auto with va. apply Z.min_case; auto with va.
+- constructor. extlia. apply is_sign_ext_sgn; auto with va. apply Z.min_case; auto with va.
 - constructor. omega. apply is_zero_ext_uns; auto with va.
 - destruct ptr64; auto with va.
 - destruct ptr64; auto with va.
@@ -3499,7 +3499,7 @@ Proof.
   unfold inval_if in A. destruct (c##lo) as [[chunk0 v0]|] eqn:C; auto.
   destruct (zle (lo + size_chunk chunk0) hi); auto.
   rewrite ZTree.gro in A; auto.
-- omegaContradiction.
+- extlia.
 Qed.
 
 Lemma max_size_chunk: forall chunk, size_chunk chunk <= 8.
@@ -3604,7 +3604,7 @@ Proof.
   unfold ablock_storebytes; simpl; intros.
   exploit inval_before_contents; eauto. clear H. intros [A B].
   exploit inval_after_contents; eauto. clear A. intros [C D].
-  split. auto. xomega.
+  split. auto. extlia.
 Qed.
 
 Lemma ablock_storebytes_sound:
@@ -4184,7 +4184,7 @@ Proof.
 - apply bmatch_ext with m; eauto with va.
 - apply smatch_ext with m; auto with va.
 - apply smatch_ext with m; auto with va.
-- red; intros. exploit mmatch_below0; eauto. xomega.
+- red; intros. exploit mmatch_below0; eauto. extlia.
 Qed.
 
 Lemma mmatch_free:
@@ -4195,7 +4195,7 @@ Lemma mmatch_free:
 Proof.
   intros. apply mmatch_ext with m; auto.
   intros. eapply Mem.loadbytes_free_2; eauto.
-  erewrite <- Mem.nextblock_free by eauto. xomega.
+  erewrite <- Mem.nextblock_free by eauto. extlia.
 Qed.
 
 Lemma mmatch_top':
