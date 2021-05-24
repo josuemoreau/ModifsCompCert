@@ -16,6 +16,7 @@ render: $(OBJS)
 
 clean:
 	rm -f *.o *.parsed.c *.light.c *.s *.sdump *.ppm render
+	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9]
 
 include .depend
 

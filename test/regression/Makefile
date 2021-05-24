@@ -62,6 +62,7 @@ interop1.s: interop1.c
 clean:
 	rm -f *.compcert
 	rm -f *.parsed.c *.compcert.c *.light.c *.s *.o *.sdump *~ 
+	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9]
 
 test:
 	@echo "----------- Compiled tests -------------"
