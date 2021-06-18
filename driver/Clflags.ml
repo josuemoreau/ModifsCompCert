@@ -51,9 +51,10 @@ let option_dasm = ref false
 let option_sdump = ref false
 
 (* Midend flags *)
-let option_ddssa = ref false
-let option_dssa = ref false
 let option_drtlnorm = ref false
+let option_dssa = ref false
+let option_dcssa = ref false
+let option_drtlpar = ref false
 let ssa_mode = ref "off"
 let option_full_inlining = ref false
 (* end of Midend flags *)

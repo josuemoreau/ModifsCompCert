@@ -56,6 +56,8 @@ let compile_c_file sourcename ifile ofile =
   (* Pretty printers for SSA stages *)
   set_dest PrintRTLdfs.destination_drtlnorm option_drtlnorm ".rtl.norm";
   set_dest PrintSSA.destination_ssa option_dssa ".ssa";
+  set_dest PrintCSSA.destination_cssa option_dcssa ".cssa";
+  set_dest PrintRTLpar.destination_rtlpar option_drtlpar ".rtlpar";
 
   (* Parse the ast *)
   let csyntax = parse_c_file sourcename ifile in
@@ -63,9 +65,6 @@ let compile_c_file sourcename ifile ofile =
   (* Whether to use SSA mode or not *)
   let compiler_wwo_ssa = match !ssa_mode with
     | "off" ->
-       option_dssa := false ;
-       option_drtlnorm := false ;
-       option_ddssa := false ;
        Compiler.transf_c_program
     | "on" ->
        Compiler.transf_c_program_via_SSA
@@ -238,7 +237,8 @@ Code generation options: (use -fno-<opt> to turn off -f<opt>)
   -drtl          Save RTL at various optimization points in <file>.rtl.<n>
   -drtlnorm      Save unoptimized normalized generated RTL in <file>.rtl.norm
   -dssa          Save SSA at various optimization points in <file>.ssa.<n>
-  -ddssa         Save generated RTL from SSA form in <file>.rtl.dssa
+  -dcssa         Save conventional SSA (CSSA) form in <file>.rtl.cssa
+  -drtlpar       Save generated RTLpar code in <file>.rltpar
   -dltl          Save LTL after register allocation in <file>.ltl
   -dmach         Save generated Mach code in <file>.mach
   -dasm          Save generated assembly in <file>.s
@@ -365,7 +365,8 @@ let cmdline_actions =
   Exact "-drtl", Set option_drtl;
   Exact "-drtlnorm", Set option_drtlnorm;
   Exact "-dssa", Set option_dssa;
-  Exact "-ddssa", Set option_ddssa;
+  Exact "-dcssa", Set option_dcssa;
+  Exact "-drtlpar", Set option_drtlpar;
   Exact "-dltl", Set option_dltl;
   Exact "-dalloctrace", Set option_dalloctrace;
   Exact "-dmach", Set option_dmach;
@@ -379,7 +380,8 @@ let cmdline_actions =
     option_drtl := true;
     option_drtlnorm := true;
     option_dssa := true;
-    option_ddssa := true;
+    option_dcssa := true;
+    option_drtlpar := true;
     option_dltl := true;
     option_dalloctrace := true;
     option_dmach := true;
