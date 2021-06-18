@@ -57,4 +57,4 @@ bench:
 clean:
 	rm -f *.compcert *.gcc
 	rm -f *.compcert.c *.light.c *.parsed.c *.s *.o *.sdump *~
-	rm -f *.rtl.[0-9] *.ssa.[0-9] *.rtl.norm
+	rm -f *.rtl.[0-9] *.ssa.[0-9] *.rtl.norm *.cssa *.rtlpar

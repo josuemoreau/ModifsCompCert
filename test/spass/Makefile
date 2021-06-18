@@ -24,7 +24,7 @@ ssa:
 clean:
 	rm -f spass
 	rm -f *.o *.s *.parsed.c *.light.c *.sdump
-	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9]
+	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9] *.cssa *.rtlpar
 
 test:
 	$(SIMU) ./spass small_problem.dfg | grep 'Proof found'

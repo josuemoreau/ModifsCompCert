@@ -55,7 +55,7 @@ all_s: $(TESTS:%=%.s) $(TESTS_COMP:%=%.s) $(TESTS_DIFF:%=%.s) $(EXTRAS:%=%.s)
 clean:
 	rm -f *.compcert
 	rm -f *.parsed.c *.compcert.c *.light.c *.s *.o *.sdump *~ 
-	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9]
+	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9] *.rtlpar *.cssa
 
 test:
 	@echo "----------- Compiled tests -------------"

@@ -56,7 +56,7 @@ include .depend
 
 clean:
 	rm -f *.o *.light.c *.s *.sdump $(EXE)
-	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9]
+	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9] *.cssa  *.rtlpar
 
 depend:
 	gcc -MM *.c > .depend
