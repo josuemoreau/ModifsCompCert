@@ -161,7 +161,7 @@ Section Graph.
     eapply rt_refl ; eauto.  
   Qed.  
 
-  (** Dominance relation: [dom pc pc'] holds if node [pc'] dominates node [pc] *)
+  (** Dominance relation: [dom pc pc'] holds if node [pc] dominates node [pc'] *)
   Variant dom : node -> node -> Prop :=
   | dom_eq : forall pc, dom pc pc
   | dom_path : forall pc pc'
@@ -197,7 +197,7 @@ Section Graph.
     intros. eapply in_app ; eauto.
   Qed.  
 
-  (** Strict dominance [sdom pc pc'] holds if [pc'] strictly dominates [pc] *)
+  (** Strict dominance [sdom pc pc'] holds if [pc] strictly dominates [pc'] *)
   Inductive sdom (pc pc' : node) : Prop := 
     | sdom_intro : forall (DOM : (dom pc pc')) (NEQ : pc <> pc'), sdom pc pc'.
 
