@@ -11,7 +11,7 @@ Require Import Smallstep.
 Require Import Op.
 Require Import Registers.
 Require Import Floats.
-Require Import Kildall. 
+Require Import Kildall.
 Require Import KildallComp.
 Require Import SSA.
 Require Import Utils.
@@ -23,7 +23,7 @@ Require Import FSets.
 Require Import DLib.
 Require FSetAVL.
 Unset Allow StrictProp.
-    
+
 (** * Utility lemmas about [index_pred] *)
 Lemma index_pred_some : forall pc t k pc0,
   index_pred t pc0 pc = Some k ->
@@ -33,21 +33,21 @@ Proof.
   unfold index_pred in H.
   destruct t!!!pc; inv H.
   eapply get_index_some ; eauto.
-Qed.  
+Qed.
 
-Lemma index_pred_some_nth: forall pc t k pc0, 
+Lemma index_pred_some_nth: forall pc t k pc0,
   index_pred t pc0 pc = Some k ->
   nth_error (t!!!pc) k = Some pc0.
 Proof.
   intros.
   unfold index_pred in H.
-  destruct t !!! pc. 
+  destruct t !!! pc.
   inv H.
   eapply get_index_nth_error ; eauto.
 Qed.
 
 (** * Utility lemmas about [successors] *)
-Lemma successors_instr_succs : forall f pc pc' instr, 
+Lemma successors_instr_succs : forall f pc pc' instr,
 (fn_code f) ! pc = Some instr ->
 In pc' (successors_instr instr) ->
 exists succs, (successors f) ! pc = Some succs /\ In pc' succs .
@@ -58,13 +58,13 @@ Proof.
   exists (successors_instr instr) ; auto.
 Qed.
 
-Lemma index_pred_instr_some : 
-  forall instr pc' f pc  , 
-    (fn_code f)!pc = Some instr -> 
+Lemma index_pred_instr_some :
+  forall instr pc' f pc  ,
+    (fn_code f)!pc = Some instr ->
     In pc' (successors_instr instr) ->
     (exists k, index_pred (make_predecessors (fn_code f) successors_instr) pc pc' = Some k).
 Proof.
-  intros. 
+  intros.
   unfold index_pred.
   generalize ((make_predecessors_correct_1 (fn_code f) successors_instr) pc instr pc') ; intros.
   generalize (successors_instr_succs f pc pc' instr H H0) ; intros.
@@ -75,7 +75,7 @@ Proof.
   case_eq ((make_predecessors (fn_code f) successors_instr) ! pc') ; intros.
   rewrite H3 in *.
   destruct l. inv H2.
-  eapply (in_get_index_some) ; eauto.  
+  eapply (in_get_index_some) ; eauto.
   rewrite H3 in H2. inv H2.
 Qed.
 
@@ -106,28 +106,28 @@ Proof.
   { rewrite fn_phicode_inv; auto.
     congruence.
   }
-  inv H0. 
+  inv H0.
   destruct l.
   simpl in Hl; apply False_ind; lia.
-  exploit @make_predecessors_some; eauto. intros [pins Hpins].  
+  exploit @make_predecessors_some; eauto. intros [pins Hpins].
   assert (In (fn_entrypoint f) (successors_instr pins)).
-  { 
+  {
     eapply @make_predecessors_correct2; eauto.
     unfold Kildall.successors_list.
     unfold make_preds.
     rewrite Hpreds.
     left; auto.
-  }   
+  }
   elim (fn_entry_pred _ H p).
   econstructor; eauto.
 Qed.
 
 
-Lemma fn_phiargs: forall f, 
-  wf_ssa_function f -> 
-  forall pc block x args pred k, 
-    (fn_phicode f) ! pc = Some block -> 
-    In (Iphi args x) block -> 
+Lemma fn_phiargs: forall f,
+  wf_ssa_function f ->
+  forall pc block x args pred k,
+    (fn_phicode f) ! pc = Some block ->
+    In (Iphi args x) block ->
     index_pred (Kildall.make_predecessors (fn_code f) successors_instr) pred pc = Some k ->
     exists arg, nth_error args k = Some arg.
 Proof.
@@ -135,11 +135,11 @@ Proof.
   exploit index_pred_some_nth ; eauto.
   intros. eapply nth_error_some_same_length ; eauto.
 Qed.
-  
-Lemma  fn_phicode_code : forall f, 
+
+Lemma  fn_phicode_code : forall f,
   wf_ssa_function f ->
-  forall pc block, 
-    (fn_phicode f) ! pc = Some block -> 
+  forall pc block,
+    (fn_phicode f) ! pc = Some block ->
     exists ins, (fn_code f) ! pc = Some ins.
 Proof.
   intros.
@@ -147,47 +147,47 @@ Proof.
   intros [HH1 HH2].
   exploit HH2; eauto. congruence.
   intros. inv H1.
-  
-  assert ((make_predecessors (fn_code f) successors_instr) !!! pc = l). 	 
+
+  assert ((make_predecessors (fn_code f) successors_instr) !!! pc = l).
   { unfold successors_list. rewrite Hpreds. auto. }
-  assert (exists pred, In pred l). destruct l.  simpl in *. lia. 
-  exists p ; eauto. destruct H2. 	 
+  assert (exists pred, In pred l). destruct l.  simpl in *. lia.
+  exists p ; eauto. destruct H2.
   exploit @make_predecessors_some; eauto. intros [i Hi].
-  assert (In pc (successors_instr i)). 	 
-  { eapply make_predecessors_correct2 ; eauto. 	 
-    unfold successors_list. 	 
-    unfold make_preds. rewrite Hpreds. auto. 
-  } 
-  
-  exploit fn_code_closed ; eauto. 	 
+  assert (In pc (successors_instr i)).
+  { eapply make_predecessors_correct2 ; eauto.
+    unfold successors_list.
+    unfold make_preds. rewrite Hpreds. auto.
+  }
+
+  exploit fn_code_closed ; eauto.
 Qed.
 
-Lemma fn_entrypoint_inv: forall f, 
+Lemma fn_entrypoint_inv: forall f,
   wf_ssa_function f ->
-    (exists i, (f.(fn_code) ! (f.(fn_entrypoint)) = Some i)) /\ 
+    (exists i, (f.(fn_code) ! (f.(fn_entrypoint)) = Some i)) /\
     ~ join_point f.(fn_entrypoint) f.
 Proof.
-  intros.   
-  exploit fn_entry ; eauto. 
-  intros (s & Hentry). 
+  intros.
+  exploit fn_entry ; eauto.
+  intros (s & Hentry).
   split;  eauto.
 
-  intro Hcont. inv Hcont. 
+  intro Hcont. inv Hcont.
   destruct l. simpl in *. lia.
-  
+
   generalize (make_predecessors_correct2 (fn_code f) successors_instr).
-  intros Hcont. 
+  intros Hcont.
   exploit @make_predecessors_some; eauto.
   intros [ip Hip].
   specialize (Hcont p ip (fn_entrypoint f) Hip).
   eelim fn_entry_pred with (pc := p); eauto. econstructor ; eauto.
   apply Hcont.
-  unfold successors_list, make_preds. 
+  unfold successors_list, make_preds.
   rewrite Hpreds; auto.
-Qed.  
-  
-Lemma fn_code_inv2: forall f, 
-  wf_ssa_function f -> 
+Qed.
+
+Lemma fn_code_inv2: forall f,
+  wf_ssa_function f ->
   forall jp pc, (join_point jp f) ->
     In jp ((successors f) !!! pc) ->
     f.(fn_code) ! pc = Some (Inop jp).
@@ -195,31 +195,31 @@ Proof.
   intros.
   exploit fn_normalized ; eauto.
 Qed.
-  
-Lemma  fn_phicode_inv1: forall f, 
+
+Lemma  fn_phicode_inv1: forall f,
   wf_ssa_function f ->
   forall phib jp i,
-    f.(fn_code) ! jp = Some i -> 
+    f.(fn_code) ! jp = Some i ->
     f.(fn_phicode) ! jp = Some phib ->
-    join_point jp f. 
+    join_point jp f.
 Proof.
-  intros. 
+  intros.
   eapply fn_phicode_inv ; eauto. congruence.
 Qed.
-  
-Lemma  fn_phicode_inv2: forall f, 
-  wf_ssa_function f -> 
+
+Lemma  fn_phicode_inv2: forall f,
+  wf_ssa_function f ->
   forall jp i,
     join_point jp f ->
-    f.(fn_code) ! jp = Some i -> 
+    f.(fn_code) ! jp = Some i ->
     exists phib, f.(fn_phicode) ! jp = Some phib.
 Proof.
-  intros. 
+  intros.
   case_eq (fn_phicode f) ! jp ; intros ; eauto.
   destruct (fn_phicode_inv f H jp)  ; eauto.
-  eapply H3 in H0. 
+  eapply H3 in H0.
   congruence.
-Qed.  
+Qed.
 
 Lemma not_jnp_not_assigned_phi_spec: forall f pc y,
   wf_ssa_function f ->
@@ -234,14 +234,14 @@ Proof.
 Qed.
 
 Lemma ssa_def_dom_use : forall f,
-  wf_ssa_function f -> 
+  wf_ssa_function f ->
   forall  x u d, use f x u -> def f x d -> dom f d u.
 Proof.
   intros. eapply fn_strict ; eauto.
 Qed.
 
 Lemma ssa_use_exists_def : forall f,
-  wf_ssa_function f -> 
+  wf_ssa_function f ->
   forall x u,
   use f x u -> exists d, def f x d.
 Proof.
@@ -253,11 +253,11 @@ Proof.
   exists (fn_entrypoint f) ; eauto.
   econstructor ; eauto.
   econstructor 2 ; eauto.
-Qed.  
+Qed.
 
 Lemma wf_ssa_reached : forall f,
   wf_ssa_function f ->
-  forall  pc ins, 
+  forall  pc ins,
   (fn_code f) ! pc = Some ins ->
   reached f pc.
 Proof.
@@ -274,7 +274,7 @@ Lemma ssa_def_use_code_false : forall f,
 Proof.
   intros. eapply fn_use_def_code ; eauto.
 Qed.
-  
+
 Lemma ssa_not_Inop_not_phi : forall f,
   wf_ssa_function f ->
   forall pc x pc' ins,
@@ -284,15 +284,15 @@ Lemma ssa_not_Inop_not_phi : forall f,
   ~ assigned_phi_spec (fn_phicode f) pc' x.
 Proof.
   intros.
-  intro Hcont. inv Hcont. 
+  intro Hcont. inv Hcont.
   exploit fn_phicode_code ; eauto. intros [ins' Hins].
   exploit fn_phicode_inv1 ; eauto. intros Hjp.
   exploit (fn_code_inv2 f H pc' pc) ; eauto.
   unfold successors. simpl.
   unfold Kildall.successors_list.
   rewrite PTree.gmap1 ; eauto.
-  unfold option_map. rewrite H1. auto. 
-  congruence. 
+  unfold option_map. rewrite H1. auto.
+  congruence.
 Qed.
 
 Lemma unique_def_spec_def : forall f x d1 d2
@@ -301,7 +301,7 @@ Lemma unique_def_spec_def : forall f x d1 d2
   def f x d2 ->
   d1 <> d2 -> False.
 Proof.
-  intros. 
+  intros.
   destruct (fn_ssa f) as [Hssa1 Hssa2]; auto.
   generalize (fn_entry f HWF) ; intros. destruct H2 as [succ Hentry].
   generalize (fn_ssa_params f HWF); intros Hparams.
@@ -310,10 +310,10 @@ Proof.
     intuition
     | exploit Hparams ; eauto
     | exploit Hparams ; eauto ; (intuition; go)
-    | exploit H3 ; eauto 
+    | exploit H3 ; eauto
     | exploit H4 ; eauto; intuition auto
     |   (eelim (Hssa1 x d1 d2) ; eauto; intuition auto ; eauto)].
-Qed.  
+Qed.
 
 Lemma def_def_eq : forall f x d1 d2
   (HWF: wf_ssa_function f),
@@ -324,20 +324,20 @@ Proof.
   intros.
   destruct (peq d1 d2) ; auto.
   eelim (unique_def_spec_def f x d1 d2) ; eauto.
-Qed.  
+Qed.
 
 Ltac def_def f x pc pc' :=
-  match goal with 
+  match goal with
     | [HWF: wf_ssa_function f |- _ ] =>
-      (exploit (def_def_eq f x pc pc' HWF); eauto); 
+      (exploit (def_def_eq f x pc pc' HWF); eauto);
       try (econstructor ; eauto);
         try (solve [econstructor ; eauto])
   end.
 
 Require RTL.
-Ltac allinv := 
-  repeat 
-    match goal with 
+Ltac allinv :=
+  repeat
+    match goal with
       | [ H1:   (fn_code ?tf) ! ?pc = Some _  ,
         H2: (fn_code ?tf) ! ?pc = Some _ |- _ ] =>
       rewrite H1 in H2; inv H2
@@ -384,7 +384,7 @@ Proof.
 Qed.
 
 Lemma assigned_phi_spec_join_point : forall f x pc,
-  wf_ssa_function f -> 
+  wf_ssa_function f ->
   assigned_phi_spec (fn_phicode f) pc x ->
   join_point pc f.
 Proof.
@@ -412,14 +412,14 @@ Proof.
   intros T.
   eapply nth_error_in in T; eauto.
   exploit (fn_code_inv2 f Hw pc0 pc); eauto.
-  
+
   assert (exists i, (fn_code f) ! pc = Some i ) by (inv H; eauto).
   destruct H0 as (i & Hi).
-  
+
   generalize (make_predecessors_correct2 (fn_code f) successors_instr pc i pc0 Hi); eauto.
-  intros HH. 
-  unfold successors, successors_list. rewrite PTree.gmap1. 
-  unfold option_map. rewrite Hi. 
+  intros HH.
+  unfold successors, successors_list. rewrite PTree.gmap1.
+  unfold option_map. rewrite Hi.
   apply HH; auto.
   intros Hnop.
   inv H; try congruence.
@@ -482,30 +482,30 @@ Proof.
 Qed.
 
 
-Lemma use_ins_code : forall pc x, 
+Lemma use_ins_code : forall pc x,
   use f x pc ->
   exists ins, (fn_code f) ! pc = Some ins.
 Proof.
   intros. inv H.
   inv H0 ; eauto.
-  inv H0. 
+  inv H0.
   assert (join_point pc0 f) by ( eapply fn_phicode_inv; eauto; congruence).
   inv H.
-  exploit index_pred_some_nth; eauto. intros. 
+  exploit index_pred_some_nth; eauto. intros.
   exploit nth_error_some_in ; eauto. intros.
   exploit @make_predecessors_some; eauto.
   unfold successors_list in H0. rewrite Hpreds in H0. auto.
 Qed.
 
-Lemma use_reached : forall pc x, 
+Lemma use_reached : forall pc x,
   use f x pc ->
   reached f pc.
 Proof.
   intros.
   exploit use_ins_code ; eauto.
-  intros [ins Hins]. 
+  intros [ins Hins].
   inv HWF.
-  eapply fn_code_reached ; eauto.  
+  eapply fn_code_reached ; eauto.
 Qed.
 
 End WF_SSA_PROP.
@@ -516,23 +516,23 @@ End WF_SSA_PROP.
 Lemma notin_cons_notin : forall dst block a,
   (forall args, ~ In (Iphi args dst) (a:: block)) ->
   forall args, ~ In (Iphi args dst) block.
-Proof. 
-  intros. 
-  intro ; exploit (H args); eauto. 
+Proof.
+  intros.
+  intro ; exploit (H args); eauto.
 Qed.
 Global Hint Resolve notin_cons_notin: core.
-    
+
 Lemma phi_store_notin_preserved: forall k  block rs dst,
   (forall args, ~ (In (Iphi args dst) block)) ->
     (phi_store k block rs)# dst = rs# dst.
 Proof.
   induction block; intros.
   (* *) simpl; auto.
-  (* *) destruct a; simpl. 
+  (* *) destruct a; simpl.
         case_eq (nth_error l k); intros; eauto.
         (* case some *)
         rewrite PMap.gso ; eauto.
-        intro Hinv; subst; exploit (H l); eauto. 
+        intro Hinv; subst; exploit (H l); eauto.
 Qed.
 
 (** * How to compute the list of registers of a SSA function. *)
@@ -549,13 +549,13 @@ Definition all_def (c:code) (phic: phicode) : SSARegSet.t :=
         | _ => s
       end) c
     (PTree.fold
-      (fun s _ phib => 
-        List.fold_left 
+      (fun s _ phib =>
+        List.fold_left
         (fun s (phi:phiinstruction) => let (_,dst) := phi in SSARegSet.add dst s)
         phib s) phic SSARegSet.empty).
 
 Definition param_set (params: list reg) : SSARegSet.t :=
-  List.fold_right SSARegSet.add SSARegSet.empty params.  
+  List.fold_right SSARegSet.add SSARegSet.empty params.
 
 Definition all_uses (c: code) (phic: phicode) : SSARegSet.t :=
   PTree.fold
@@ -573,12 +573,12 @@ Definition all_uses (c: code) (phic: phicode) : SSARegSet.t :=
         | Ijumptable arg tbl => SSARegSet.add arg s
         | Ireturn (Some arg) => SSARegSet.add arg s
         | _ => s
-      end) c 
+      end) c
     (PTree.fold
-      (fun s _ phib => 
-        fold_left 
-        (fun s (phi:phiinstruction) => 
-          let (args,dst) := phi in 
+      (fun s _ phib =>
+        fold_left
+        (fun s (phi:phiinstruction) =>
+          let (args,dst) := phi in
             fold_right SSARegSet.add s args)
         phib s) phic SSARegSet.empty).
 
@@ -620,11 +620,11 @@ Lemma in_all_uses1: forall x pc code s ins,
         | Itailcall sig (inl r) args => In x (r::args)
         | Icall sig (inr id) args dst _ => In x args
         | Itailcall sig (inr id) args => In x args
-        | Ijumptable arg tbl => x = arg 
+        | Ijumptable arg tbl => x = arg
         | Ireturn (Some arg) => x = arg
         | _ => False
       end ->
-  SSARegSet.In x 
+  SSARegSet.In x
   (PTree.fold
     (fun s _ ins =>
       match ins with
@@ -666,7 +666,7 @@ Proof.
   intros; rewrite PTree.gempty in *; congruence.
   intros.
   rewrite PTree.gsspec in *; destruct peq; subst.
-  inv H2.  
+  inv H2.
   destruct ins; try contradiction; try (apply In_fold_right_add1; auto).
   destruct s1; apply In_fold_right_add1; auto.
   destruct s1; apply In_fold_right_add1; auto.
@@ -681,7 +681,7 @@ Qed.
 
 Lemma in_all_uses2: forall x code s,
   SSARegSet.In x s ->
-  SSARegSet.In x 
+  SSARegSet.In x
   (PTree.fold
     (fun s _ ins =>
       match ins with
@@ -709,7 +709,7 @@ Proof.
   apply SSARegSet.add_2; eauto.
   destruct o ; eauto.
   apply SSARegSet.add_2; eauto.
-Qed.  
+Qed.
 
 Lemma in_all_uses3 : forall x code s pc phib args dst,
   code!pc = Some phib ->
@@ -741,10 +741,10 @@ Proof.
     induction phib0; simpl; auto.
     intros; apply IHphib0; auto.
     destruct a0.
-    apply In_fold_right_add2; auto.    
+    apply In_fold_right_add2; auto.
   rewrite PTree.gsspec in *; destruct peq; subst.
   inv H2.
-  clear H0 H1 H.  
+  clear H0 H1 H.
   generalize dependent args.
   generalize dependent dst.
   generalize dependent a.
@@ -752,14 +752,14 @@ Proof.
   induction phib; simpl; intuition.
   subst.
   apply H5.
-  apply In_fold_right_add1; auto.    
+  apply In_fold_right_add1; auto.
   eapply IHphib; eauto.
   apply H5; eauto.
 Qed.
 
 
 Definition ext_params_list (c: code) (phic: phicode) (params: list reg) : list reg :=
-  SSARegSet.elements 
+  SSARegSet.elements
   (SSARegSet.diff (all_uses c phic)
     (SSARegSet.union (all_def c phic) (param_set params)))
 ++params.
@@ -817,7 +817,7 @@ Proof.
     destruct H2 as [pc H2]; right.
     exists pc; inv H2; rewrite H in *; eauto.
   - auto.
-  - 
+  -
     intros.
     destruct v;try destruct (H1 H2); auto.
     + destruct H3 as [pc H3]; right; exists pc.
@@ -837,7 +837,7 @@ Proof.
             + econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
             + econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
           - eapply SSARegSet.add_3; eauto.
-            
+
         }
     + destruct (peq x r).
       subst; right; exists k; econstructor 2; eauto.
@@ -850,7 +850,7 @@ Proof.
       econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       eapply SSARegSet.add_3; eauto.
-      
+
     + destruct H3 as [pc H3]; right; exists pc.
       inv H3.
       econstructor 1; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
@@ -868,7 +868,7 @@ Proof.
       econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
       eapply SSARegSet.add_3; eauto.
-      
+
     + destruct H3 as [pc H3]; right; exists pc.
       inv H3.
       econstructor 1; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
@@ -877,8 +877,8 @@ Proof.
       econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
     + case_eq b; intros; subst.
       * destruct (peq x0 x).
-        subst; right; exists k; econstructor 4; go. 
-        rewrite PTree.gss; go. 
+        subst; right; exists k; econstructor 4; go.
+        rewrite PTree.gss; go.
         elim H1; auto.
         destruct 1 as [pc T].
         right; exists pc; inv T.
@@ -887,7 +887,7 @@ Proof.
         econstructor 3; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
         econstructor 4; go; rewrite PTree.gsspec; destruct peq; eauto; subst; congruence.
         eapply SSARegSet.add_3; eauto.
-        
+
       * elim H1; auto.
         destruct 1 as [pc T].
         right; exists pc; inv T.
@@ -942,13 +942,13 @@ Lemma In_all_def2: forall x p s,
          fold_left
            (fun (s0 : SSARegSet.t) (phi : phiinstruction) =>
             let (_, dst) := phi in SSARegSet.add dst s0) phib s) p
-        s) -> 
+        s) ->
      SSARegSet.In x s \/
      exists pc : node, assigned_phi_spec p pc x.
 Proof.
   intros x p s0.
   apply PTree_Properties.fold_rec with (P:=fun code s =>
-    SSARegSet.In x s -> 
+    SSARegSet.In x s ->
      SSARegSet.In x s0 \/
      exists pc : node, assigned_phi_spec p pc x); auto.
   intros.
@@ -1001,45 +1001,45 @@ Proof.
         apply In_param_set; auto.
 Qed.
 
-Lemma unique_def_elim1: forall f pc pc' x, 
+Lemma unique_def_elim1: forall f pc pc' x,
   unique_def_spec f ->
   assigned_code_spec (fn_code f) pc x ->
-  assigned_phi_spec (fn_phicode f) pc' x -> 
+  assigned_phi_spec (fn_phicode f) pc' x ->
   False.
 Proof.
   intros. inv H.
-  generalize (H2 x pc pc') ; intros Hcont.  
+  generalize (H2 x pc pc') ; intros Hcont.
   intuition.
 Qed.
 
-  Ltac ssa_def := 
-    let eq_pc pc1 pc2 := 
+  Ltac ssa_def :=
+    let eq_pc pc1 pc2 :=
     assert (pc1 = pc2) by (eapply ssa_def_unique; eauto); subst
     in
-    match goal with 
+    match goal with
       | r : reg |- _ =>
-            match goal with 
+            match goal with
                id: def _ r ?x,
                id': def _ r ?y
                |- _ => eq_pc x y ; try clear id'
             end
       | pc1: node,
         pc2: node |- _ =>
-            match goal with 
+            match goal with
                 id : def _ ?r pc1,
                 id': assigned_phi_spec _ pc2 ?r |- _ =>
                 eq_pc pc1 pc2
             end
       |  pc1: node,
          pc2: node |- _ =>
-            match goal with 
+            match goal with
                 id: assigned_phi_spec _ pc1 ?r,
                 id': assigned_phi_spec _ pc2 ?r |- _ =>
                 eq_pc pc1 pc2
             end
       | id : _ ! ?pc1 = Some (Iop _ _ ?r _),
         id' : _ ! ?pc2 = Some (Iop _ _ ?r _)
-        |- _ => 
+        |- _ =>
         match pc2 with
           | pc1 => fail 1
           | _ => idtac
@@ -1056,7 +1056,7 @@ Qed.
 
   (** ** The [is_edge] predicate *)
 Variant is_edge (tf:SSA.function) : node -> node -> Prop:=
-| Edge: forall i j instr, 
+| Edge: forall i j instr,
   (fn_code tf)!i = Some instr ->
   In j (successors_instr instr) ->
   is_edge tf i j.
@@ -1065,16 +1065,16 @@ Lemma is_edge_pred: forall tf i j,
   is_edge tf i j ->
   exists k, index_pred  (make_predecessors (fn_code tf) successors_instr) i j = Some k.
 Proof.
-  intros. inv H. 
+  intros. inv H.
   eapply index_pred_instr_some ; eauto.
 Qed.
 
 Lemma pred_is_edge_help: forall tf i j k,
-  index_pred  (make_predecessors (fn_code tf) successors_instr) i j = Some k -> 
+  index_pred  (make_predecessors (fn_code tf) successors_instr) i j = Some k ->
   (is_edge tf i j).
 Proof.
-  intros. 
-  unfold index_pred in *. 
+  intros.
+  unfold index_pred in *.
   case_eq ((make_predecessors (fn_code tf) successors_instr) !!! j); intros ; rewrite H0 in *.
   - inv H.
   - exploit get_index_some_in ; eauto ; intros.
@@ -1084,22 +1084,22 @@ Proof.
     destruct ((make_predecessors (fn_code tf) successors_instr) ! j).
     auto. inv H1.
     intros (ins & Hins).
-    assert (Hcorr := make_predecessors_correct2 (fn_code tf) successors_instr i ins j Hins H1); auto. 
-    eapply Edge; eauto. 
+    assert (Hcorr := make_predecessors_correct2 (fn_code tf) successors_instr i ins j Hins H1); auto.
+    eapply Edge; eauto.
 Qed.
-  
+
 Lemma pred_is_edge: forall tf i j k,
                       index_pred (make_predecessors (fn_code tf) successors_instr) i j = Some k -> is_edge tf i j.
 Proof.
-  intros. 
+  intros.
   exploit_dstr pred_is_edge_help; eauto.
 Qed.
 
-Variant ssa_def : Type := 
+Variant ssa_def : Type :=
 | SDIop (pc:node)
 | SDPhi (pc:node) (idx:nat).
 
-Variant ssa_eq : Type := 
+Variant ssa_eq : Type :=
 | EqIop (op:operation) (args:list reg) (dst:reg)
 | EqPhi (dst:reg) (args:list reg).
 
@@ -1111,7 +1111,7 @@ Definition ssa_eq_to_dst (eq:ssa_eq) : reg :=
 
 Definition get_ssa_eq (f:function) (d:ssa_def) : option ssa_eq :=
   match d with
-    | SDIop pc => 
+    | SDIop pc =>
       match (fn_code f)!pc with
         | Some (Iop op args dst _) => Some (EqIop op args dst)
         | _ => None
