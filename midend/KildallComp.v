@@ -37,6 +37,33 @@ Proof.
       intuition.
 Qed.
 
+Lemma add_successors_nodup:
+  forall tolist from pred s,
+   (list_norepet pred!!!s) -> (list_norepet tolist) -> (~ In s tolist) ->
+   list_norepet (add_successors pred from tolist)!!!s.
+Proof.
+  induction tolist; simpl; intros.
+  - tauto.
+  - apply IHtolist.
+    * unfold successors_list.
+      { case_eq ((PTree.set a (from :: pred !!! a) pred) ! s);
+        [ intros l Hl | intros Hl].
+        - (* normal case *)
+          unfold successors_list in Hl. rewrite Hl.
+          destruct (peq a s); subst.
+          + elim H1. auto.
+          + rewrite PTree.gso in Hl ; auto.
+            unfold successors_list in H.
+            rewrite Hl in *. auto.
+        - (* error case *)
+          unfold successors_list in Hl. rewrite Hl.
+          constructor.
+      }
+    * inv H0; auto.
+    * intro.
+      elim H1. auto.
+Qed.
+
 Context {A: Type}.
 Variable code: PTree.t A.
 Variable successors: A -> list positive.
