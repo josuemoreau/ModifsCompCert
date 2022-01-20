@@ -11,32 +11,32 @@ Section CORRECTNESS.
 
 Lemma add_successors_correct2:
   forall tolist from pred n s,
-    ~ (In n pred!!!s) -> (~In s tolist \/ n<>from) -> 
+    ~ (In n pred!!!s) -> (~In s tolist \/ n<>from) ->
     ~ In n (add_successors pred from tolist)!!!s.
 Proof.
   induction tolist; simpl; intros.
   - tauto.
   - apply IHtolist.
-    * intro. 
-      unfold successors_list at 1 in H1. 
+    * intro.
+      unfold successors_list at 1 in H1.
       { case_eq ((PTree.set a (from :: pred !!! a) pred) ! s);
         [ intros l Hl | intros Hl]; rewrite Hl in *.
         - (* normal case *)
-          destruct (peq a s); subst. 
+          destruct (peq a s); subst.
           rewrite PTree.gss in Hl. inv Hl. inv H1.
-          destruct H0. elim H0. intuition. congruence. 
-                       elim H0. auto. 
-                       elim H. auto. 
-          rewrite PTree.gso in Hl ; auto. 
+          destruct H0. elim H0. intuition. congruence.
+                       elim H0. auto.
+                       elim H. auto.
+          rewrite PTree.gso in Hl ; auto.
           unfold successors_list in H.
-          rewrite Hl in *. intuition. 
+          rewrite Hl in *. intuition.
         - (* error case *) inv H1.
       }
-    * destruct H0. left.  
-      intro. elim H0. intuition.  
-      intuition. 
+    * destruct H0. left.
+      intro. elim H0. intuition.
+      intuition.
 Qed.
-          
+
 Context {A: Type}.
 Variable code: PTree.t A.
 Variable successors: A -> list positive.
@@ -56,43 +56,43 @@ Proof.
   apply PTree_Properties.fold_rec with (P := P).
 (* extensionality *)
   unfold P; intros.
-  apply H0; auto. 
+  apply H0; auto.
 (* base case *)
   red ; unfold successors_list. repeat rewrite PTree.gempty. auto.
 (* inductive case *)
-  unfold P; intros. 
+  unfold P; intros.
   eapply add_successors_correct2; eauto.
-  destruct (peq n k).  
-  - inv e. 
-    left ; auto. 
-    rewrite Hcode in *. congruence. 
-  - auto. 
+  destruct (peq n k).
+  - inv e.
+    left ; auto.
+    rewrite Hcode in *. congruence.
+  - auto.
 Qed.
 
 Lemma make_predecessors_correct2 :
-  forall n i s,    
+  forall n i s,
     code ! n = Some i ->
-    In n make_preds!!!s -> 
+    In n make_preds!!!s ->
     In s (successors i).
 Proof.
   generalize make_predecessors_correct2_aux ; intro.
   intros.
   assert (Hdecpos:forall (p1 p2: positive), {p1 = p2}+{p1 <> p2}) by decide equality.
-  assert (Hin := In_dec  Hdecpos s (successors i)). 
-  destruct Hin; auto. 
+  assert (Hin := In_dec  Hdecpos s (successors i)).
+  destruct Hin; auto.
   exploit H ; eauto. intuition.
 Qed.
 
-Lemma make_predecessors_some : forall s l,                    
+Lemma make_predecessors_some : forall s l,
   make_preds ! s = Some l ->
   forall p, In p l -> exists i, code ! p = Some i.
-Proof. 
+Proof.
   unfold make_preds, make_predecessors.
   apply PTree_Properties.fold_rec; intros.
-  - rewrite <- H. eapply H0; eauto. 
+  - rewrite <- H. eapply H0; eauto.
   - rewrite PTree.gempty in H. inv H.
   - destruct (peq k p).
-    * subst. rewrite PTree.gss. eauto. 
+    * subst. rewrite PTree.gss. eauto.
     * rewrite PTree.gso; auto.
       destruct (classic (In p a !!! s \/ p = k /\ In s (successors v))).
       {
@@ -103,7 +103,7 @@ Proof.
           * rewrite H4 in *. inv Hcase1.
         - inv Hcase2. congruence.
       }
-      { 
+      {
         eelim add_successors_correct2 with (tolist := (successors v)); eauto.
         unfold successors_list. rewrite H2.
         auto.
@@ -114,7 +114,7 @@ End CORRECTNESS.
 
 Section Pred_Succs.
 
-Lemma same_successors_same_predecessors_aux0 {A B} : 
+Lemma same_successors_same_predecessors_aux0 {A B} :
   forall f1 (f2:B->list positive) (m1:PTree.t A) t a,
  (forall i, m1! i = None) ->
   PTree.xfold
@@ -130,13 +130,13 @@ Proof.
   - intros i; generalize (T (xI i)); auto.
 Qed.
 
-Lemma same_successors_same_predecessors_aux1 {A B} : 
+Lemma same_successors_same_predecessors_aux1 {A B} :
   forall f1 f2 (m1:PTree.t A) (m2:PTree.t B) t a,
  (forall i,
     (PTree.map1 f1 m1) ! i =
     (PTree.map1 f2 m2) ! i) ->
   PTree.xfold
-    (fun pred pc instr => add_successors pred pc (f1 instr)) a m1 t = 
+    (fun pred pc instr => add_successors pred pc (f1 instr)) a m1 t =
   PTree.xfold
     (fun pred pc instr => add_successors pred pc (f2 instr)) a m2 t.
 Proof.
