@@ -450,6 +450,47 @@ Section WF_SSA_PROP.
     intros. simpl in *; congruence.
   Qed.
 
+  Lemma phiblock_preds_allInops : forall pc block,
+      (fn_phicode f)!pc = Some block ->
+      forall pred, In pred ((make_predecessors (fn_code f) successors_instr)!!! pc) ->
+                   (fn_code f) ! pred = Some (Inop pc).
+  Proof.
+    intros.
+    assert (Hjp : join_point pc f).
+    { eapply (fn_phicode_inv f HWF pc); eauto.
+      congruence.
+    }
+    inv Hjp.
+    unfold successors_list in H0. rewrite Hpreds in H0.
+    exploit fn_phicode_code; eauto. intros [insjp Hinsjp].
+    exploit @make_predecessors_some; eauto. intros [inspc Hinspc].
+    exploit (@make_predecessors_correct2 _ (fn_code f) successors_instr pred); eauto.
+    { unfold make_preds, successors_list.
+      rewrite Hpreds. auto.
+    }
+    intros Hinpc.
+    exploit (elim_structural pred pc); eauto.
+    intros Heq. subst. auto.
+  Qed.
+
+  Lemma phiblock_preds_nodup : forall pc block,
+      (fn_phicode f)!pc = Some block ->
+      list_norepet ((make_predecessors (fn_code f) successors_instr)!!! pc).
+  Proof.
+    intros.
+    generalize (phiblock_preds_allInops pc block H).
+    intros Hnops.
+    eapply make_predecessors_list_norepet; eauto.
+    intros.
+    exploit fn_phicode_code; eauto.
+    intros [ins Hinspc].
+    exploit (elim_structural p pc); eauto.
+    intros; subst.
+    simpl. constructor.
+    - intro Hcont. inv Hcont.
+    - constructor.
+  Qed.
+
   Lemma phicode_joinpoint: forall  pc block i,
       (fn_code f) ! pc = Some i ->
       (fn_phicode f) ! pc = Some block ->

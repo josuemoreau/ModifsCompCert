@@ -37,33 +37,6 @@ Proof.
       intuition.
 Qed.
 
-Lemma add_successors_nodup:
-  forall tolist from pred s,
-   (list_norepet pred!!!s) -> (list_norepet tolist) -> (~ In s tolist) ->
-   list_norepet (add_successors pred from tolist)!!!s.
-Proof.
-  induction tolist; simpl; intros.
-  - tauto.
-  - apply IHtolist.
-    * unfold successors_list.
-      { case_eq ((PTree.set a (from :: pred !!! a) pred) ! s);
-        [ intros l Hl | intros Hl].
-        - (* normal case *)
-          unfold successors_list in Hl. rewrite Hl.
-          destruct (peq a s); subst.
-          + elim H1. auto.
-          + rewrite PTree.gso in Hl ; auto.
-            unfold successors_list in H.
-            rewrite Hl in *. auto.
-        - (* error case *)
-          unfold successors_list in Hl. rewrite Hl.
-          constructor.
-      }
-    * inv H0; auto.
-    * intro.
-      elim H1. auto.
-Qed.
-
 Context {A: Type}.
 Variable code: PTree.t A.
 Variable successors: A -> list positive.
@@ -135,6 +108,122 @@ Proof.
         unfold successors_list. rewrite H2.
         auto.
       }
+Qed.
+
+Lemma add_successors_nodup:
+  forall tolist from pred s,
+   (list_norepet pred!!!s) ->
+   (list_norepet tolist) ->
+   (forall succ, In succ tolist -> ~ In from pred!!!succ) ->
+   list_norepet (add_successors pred from tolist)!!!s.
+Proof.
+  induction tolist; simpl; intros.
+  - tauto.
+  - apply IHtolist.
+    * unfold successors_list.
+      { case_eq ((PTree.set a (from :: pred !!! a) pred) ! s);
+        [ intros l Hl | intros Hl].
+        - (* normal case *)
+          unfold successors_list in Hl. rewrite Hl.
+          destruct (peq a s); subst.
+          + rewrite PTree.gss in Hl. inv Hl.
+            constructor; auto.
+            eapply H1; eauto.
+          + rewrite PTree.gso in Hl ; auto.
+            unfold successors_list in H.
+            rewrite Hl in *. auto.
+        - (* error case *)
+          unfold successors_list in Hl. rewrite Hl.
+          constructor.
+      }
+    * inv H0; auto.
+    * intros.
+      destruct (peq succ a).
+      -- subst. inv H0. congruence.
+      -- unfold successors_list. rewrite PTree.gso; auto.
+         eapply H1; eauto.
+Qed.
+
+Lemma add_successors_preserve : forall tolist a from pc,
+    ~ In pc tolist ->
+    (add_successors a from tolist) !!! pc =
+    a !!! pc.
+Proof.
+  induction tolist.
+  - auto.
+  - intros. simpl.
+    rewrite IHtolist.
+    + assert (pc <> a).
+      { intro. subst.
+        elim H.
+        constructor; auto.
+      }
+      unfold successors_list.
+      rewrite PTree.gso; auto.
+    + intro. elim H.
+      solve [econstructor; eauto].
+Qed.
+
+Lemma make_predecessors_list_list_norepet :
+  forall pcins,
+  list_norepet (map fst pcins) ->
+  forall acc jp,
+  list_norepet (acc !!! jp) ->
+  (forall pc p i, In (p,i) pcins -> ~ In p (acc !!! pc)) ->
+  (forall p i, In (p,i) pcins -> In jp (successors i) -> list_norepet (successors i)) ->
+  list_norepet (fold_left (fun a p => add_successors a (fst p) (successors (snd p))) pcins acc) !!! jp.
+Proof.
+  induction pcins; intros.
+  - simpl. auto.
+  - simpl. destruct a as [pc ins].
+    simpl map in H.
+    simpl fst in *.
+    simpl snd in *.
+    eapply IHpcins; eauto.
+    + inv H; auto.
+    + destruct (in_dec peq jp (successors ins)).
+      * eapply add_successors_nodup; eauto.
+        -- eapply H2; eauto.
+           constructor; eauto.
+        -- intros. eapply H1; eauto.
+           constructor; auto.
+      * rewrite add_successors_preserve; eauto.
+    + intros.
+      destruct (in_dec peq pc0 (successors ins)).
+      * apply add_successors_correct2; auto.
+        -- eapply H1; eauto.
+           econstructor 2; eauto.
+        -- right. intro Hcont; subst.
+           inv H. eapply in_map with (f:= fst) in H3.
+           simpl fst in *. congruence.
+      * rewrite add_successors_preserve; eauto.
+        eapply H1; eauto.
+        econstructor 2; eauto.
+    + intros.
+      eapply H2; eauto.
+      econstructor 2; eauto.
+Qed.
+
+Lemma make_predecessors_list_norepet :
+  forall jp,
+    (forall p i, code ! p = Some i -> In jp (successors i) -> list_norepet (successors i)) ->
+    list_norepet (make_preds !!! jp).
+Proof.
+  intros.
+  unfold make_preds, make_predecessors.
+  rewrite PTree.fold_spec.
+  eapply make_predecessors_list_list_norepet; eauto.
+  - eapply PTree.elements_keys_norepet; eauto.
+  - unfold successors_list.
+    rewrite PTree.gempty.
+    constructor.
+  - intros.
+    unfold successors_list.
+    rewrite PTree.gempty.
+    intro Hcont. inv Hcont.
+  - intros.
+    eapply H; eauto.
+    eapply PTree.elements_complete; eauto.
 Qed.
 
 End CORRECTNESS.
