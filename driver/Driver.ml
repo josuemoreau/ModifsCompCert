@@ -20,6 +20,154 @@ open Frontend
 open Assembler
 open Linker
 open Diagnostics
+open Maps
+
+module Examples = struct
+
+open Types
+open Syntax
+
+let empty_prog fresh : Syntax.program =
+  { prog_main = fresh (); prog_defs = [] }
+
+let fadd_sig =
+  { sig_args = [Tarr (false, (Tint64 Signed));
+                Tarr (false, (Tint64 Signed));
+                Tarr (true, (Tint64 Signed));
+                Tint64 Unsigned];
+    sig_res = Tvoid }
+
+let cuint64 n =
+  Integers.Int64.repr (Camlcoq.Z.of_uint n)
+
+let fadd fresh =
+  let a = fresh () in
+  let b = fresh () in
+  let c = fresh () in
+  let n = fresh () in
+  let i = fresh () in
+  let tenv =
+    PTree.empty
+    |> PTree.set a (Tarr (false, (Tint64 Signed)))
+    |> PTree.set b (Tarr (false, (Tint64 Signed)))
+    |> PTree.set c (Tarr (true, (Tint64 Signed)))
+    |> PTree.set n (Tint64 Unsigned)
+    |> PTree.set i (Tint64 Unsigned) in
+  { fn_sig = fadd_sig;
+    fn_params = [a; b; c; n];
+    fn_arrszvar = [(a, n); (b, n); (c, n)];
+    fn_vars = [i];
+    fn_tenv = tenv;
+    fn_body = Sseq
+          ((Sassign (i,
+                     Econst (Cint64 (Unsigned, cuint64 0)))),
+           (Sloop (Sifthenelse (Ebinop_cmpu (Ops.Ogeu, Ops.OInt64, Evar i, Evar n),
+                                Sbreak,
+                                Sseq
+                     (Sarr_assign (c,
+                                   Evar i,
+                                   Ebinop_arith (Ops.Oadd,
+                                                 Ops.OInt64,
+                                                 Earr_access (a, Evar i),
+                                                 Earr_access (b, Evar i))),
+                      Sassign (i,
+                               Ebinop_arith (Ops.Oadd,
+                                             Ops.OInt64,
+                                             Evar i,
+                                             Econst (Cint64 (Unsigned, cuint64 1))))
+                  )))
+          ))
+  }
+
+let fmulmatrix fresh =
+  let a = fresh () in
+  let b = fresh () in
+  let c = fresh () in
+  let n = fresh () in
+  let i, j, k = fresh (), fresh (), fresh () in
+  let tenv =
+    PTree.empty
+    |> PTree.set a (Tarr (false, (Tint64 Signed)))
+    |> PTree.set b (Tarr (false, (Tint64 Signed)))
+    |> PTree.set c (Tarr (true, (Tint64 Signed)))
+    |> PTree.set n (Tint64 Unsigned)
+    |> PTree.set i (Tint64 Unsigned)
+    |> PTree.set j (Tint64 Unsigned)
+    |> PTree.set k (Tint64 Unsigned) in
+  { fn_sig = fadd_sig;
+    fn_params = [a; b; c; n];
+    (* fn_arrszvar = [(a, n); (b, n); (c, n)]; *)
+    fn_arrszvar = [(a, n); (b, n); (c, n)];
+    fn_vars = [i; j; k];
+    fn_tenv = tenv;
+    fn_body =
+      Sseq (Sassign (i, Econst (Cint64 (Unsigned, cuint64 0))),
+            Sloop (Sifthenelse (
+                Ebinop_cmpu (Ops.Ogeu, Ops.OInt64, Evar i, Evar n),
+                Sbreak,
+                Sseq (Sseq (
+                        Sassign (j, Econst (Cint64 (Unsigned, cuint64 0))),
+                        Sloop (Sifthenelse (
+                            Ebinop_cmpu (Ops.Ogeu, Ops.OInt64, Evar j, Evar n),
+                            Sbreak,
+                            Sseq (Sseq (
+                                    Sassign (k, Econst (Cint64 (Unsigned, cuint64 0))),
+                                    Sloop (Sifthenelse (
+                                        Ebinop_cmpu (Ops.Ogeu, Ops.OInt64, Evar k, Evar n),
+                                        Sbreak,
+                                        Sseq (Sarr_assign (c, Ebinop_arith (Ops.Oadd,
+                                                                            Ops.OInt64,
+                                                                            Ebinop_arith (Ops.Omul,
+                                                                                          Ops.OInt64,
+                                                                                          Evar i,
+                                                                                          Evar n),
+                                                                            Evar j),
+                                                           Ebinop_arith (Ops.Oadd,
+                                                                         Ops.OInt64,
+                                                                         Earr_access (c, Ebinop_arith (Ops.Oadd,
+                                                                                                       Ops.OInt64,
+                                                                                                       Ebinop_arith (Ops.Omul,
+                                                                                                                     Ops.OInt64,
+                                                                                                                     Evar i,
+                                                                                                                     Evar n),
+                                                                                                       Evar j)),
+                                                                         Ebinop_arith (Ops.Omul,
+                                                                                       Ops.OInt64,
+                                                                                       Earr_access (a, Ebinop_arith (Ops.Oadd,
+                                                                                                                     Ops.OInt64,
+                                                                                                                     Ebinop_arith (Ops.Omul,
+                                                                                                                                   Ops.OInt64,
+                                                                                                                                   Evar i,
+                                                                                                                                   Evar n),
+                                                                                                                     Evar k)),
+                                                                                       Earr_access (b, Ebinop_arith (Ops.Oadd,
+                                                                                                                     Ops.OInt64,
+                                                                                                                     Ebinop_arith (Ops.Omul,
+                                                                                                                                   Ops.OInt64,
+                                                                                                                                   Evar k,
+                                                                                                                                   Evar n),
+                                                                                                                     Evar j))))),
+                                              Sassign (k, Ebinop_arith (Ops.Oadd, Ops.OInt64, Evar k, Econst (Cint64 (Unsigned, cuint64 1))))
+                                          )))),
+                                  Sassign (j, Ebinop_arith (Ops.Oadd, Ops.OInt64, Evar j, Econst (Cint64 (Unsigned, cuint64 1))))
+                              )))),
+                      Sassign (i, Ebinop_arith (Ops.Oadd, Ops.OInt64, Evar i, Econst (Cint64 (Unsigned, cuint64 1))))
+                  ))))
+  }
+
+let test1 fresh =
+  let id1 = Camlcoq.intern_string "fadd" in
+  let id2 = Camlcoq.intern_string "fmulmatrix" in
+  { prog_main = fresh ();
+    prog_defs = [
+    (id1, Internal (fadd fresh));
+    (id2, Internal (fmulmatrix fresh))
+  ]}
+
+end
+
+
+open C
 
 (* Name used for version string etc. *)
 let tool_name = "C verified compiler"
@@ -35,6 +183,76 @@ let object_filename sourcename =
     output_filename ~final: !option_c sourcename ~suffix:".o"
   else
     tmp_file ".o"
+
+(* Test *)
+
+let fresh_ident () =
+  let fid = Env.fresh_ident "" in
+  Camlcoq.P.of_int fid.stamp
+
+let b_error_msg (s: string) : Errors.errcode =
+  Errors.MSG (Camlcoq.coqstring_of_camlstring s)
+
+let parse_b_file (ifile: string) : Syntax.program =
+  let c = open_in ifile in
+  let lb = Lexing.from_channel c in
+  let e = try
+    Bparser.prog Blexer.token lb
+  with Bparser.Error ->
+    let loc = file_loc ifile in
+    let open Lexing in
+    let pos = lb.lex_curr_p in
+    fatal_error loc "%a" print_error
+    [ b_error_msg "Syntax Error: ";
+      b_error_msg ("line " ^ string_of_int pos.pos_lnum ^ ", ");
+      b_error_msg ("column " ^ string_of_int (pos.pos_cnum - pos.pos_bol)) ] in
+  close_in c;
+  TypeInference.infer_program e
+
+let compile_b_file (sourcename: string) (ofile: string) =
+  Debug.init_compile_unit sourcename;
+  Sections.initialize();
+  CPragmas.reset();
+  (* Prepare to dump Clight, RTL, etc, if requested *)
+  let set_dest dst opt ext =
+    dst := if !opt then Some (output_filename sourcename ".c" ext)
+      else None in
+  Format.printf "%s@." (if !option_db then "true" else "false");
+  set_dest PrintB.destination option_db ".b";
+  set_dest PrintClight.destination option_dclight ".light.c";
+  set_dest PrintCminor.destination option_dcminor ".cm";
+  set_dest PrintRTL.destination option_drtl ".rtl";
+  set_dest Regalloc.destination_alloctrace option_dalloctrace ".alloctrace";
+  set_dest PrintLTL.destination option_dltl ".ltl";
+  set_dest PrintMach.destination option_dmach ".mach";
+  set_dest AsmToJSON.destination option_sdump !sdump_suffix;
+  (* Convert to Clight *)
+  let bsyntax = parse_b_file sourcename in
+  PrintB.print_if bsyntax;
+  let clight =
+    match Compiler.transl_b_program bsyntax with
+    | Errors.OK cl -> cl
+    | Errors.Error msg ->
+      let loc = file_loc sourcename in
+      fatal_error loc "%a" print_error msg in
+  let clight2 = { clight with Ctypes.prog_defs = C2C.add_helper_functions clight.Ctypes.prog_defs } in
+  (* Convert to Asm *)
+  let asm =
+    match Compiler.apply_partial
+               (Compiler.transf_clight_program clight2)
+               Asmexpand.expand_program with
+    | Errors.OK asm ->
+        asm
+    | Errors.Error msg ->
+      let loc = file_loc sourcename in
+        fatal_error loc "%a"  print_error msg in
+  (* Dump Asm in binary and JSON format *)
+  AsmToJSON.print_if asm sourcename;
+  (* Print Asm in text form *)
+  let oc = open_out ofile in
+  PrintAsm.print_program oc asm;
+  close_out oc
+
 
 (* From CompCert C AST to asm *)
 
@@ -95,6 +313,23 @@ let compile_i_file sourcename preproname =
   end
 
 (* Processing of a .c file *)
+
+let process_b_file sourcename =
+  ensure_inputfile_exists sourcename;
+  if !option_S then begin
+    compile_b_file sourcename
+                   (output_filename ~final:true sourcename ".b" ".s");
+    ""
+  end else begin
+    let asmname =
+      if !option_dasm
+      then output_filename sourcename ".b" ".s"
+      else tmp_file ".s" in
+    compile_b_file sourcename asmname;
+    let objname = object_filename sourcename ".b" in
+    assemble asmname objname;
+    objname
+  end
 
 let process_c_file sourcename =
   ensure_inputfile_exists sourcename;
@@ -169,6 +404,7 @@ let usage_string =
 Recognized source files:
   .c             C source file
   .i or .p       C source file that should not be preprocessed
+  .b             B source file
   .s             Assembly file
   .S or .sx      Assembly file that must be preprocessed
   .o             Object file
@@ -216,6 +452,7 @@ Code generation options: (use -fno-<opt> to turn off -f<opt>)
   -dprepro       Save C file after preprocessing in <file>.i
   -dparse        Save C file after parsing and elaboration in <file>.parsed.c
   -dc            Save generated Compcert C in <file>.compcert.c
+  -db            Save generated B in <file>.b
   -dclight       Save generated Clight in <file>.light.c
   -dcminor       Save generated Cminor in <file>.cm
   -drtl          Save RTL at various optimization points in <file>.rtl.<n>
@@ -298,7 +535,7 @@ let cmdline_actions =
   Exact "-Obranchless", Set option_Obranchless;
   Exact "-fsmall-data", Integer(fun n -> option_small_data := n);
   Exact "-fsmall-const", Integer(fun n -> option_small_const := n);
-  Exact "-ffloat-const-prop", Integer(fun n -> option_ffloatconstprop := n); 
+  Exact "-ffloat-const-prop", Integer(fun n -> option_ffloatconstprop := n);
   Exact "-falign-functions", Integer(fun n -> check_align n; option_falignfunctions := Some n);
   Exact "-falign-branch-targets", Integer(fun n -> check_align n; option_falignbranchtargets := n);
   Exact "-falign-cond-branches", Integer(fun n -> check_align n; option_faligncondbranchs := n);] @
@@ -326,6 +563,7 @@ let cmdline_actions =
  [ Exact "-dprepro", Set option_dprepro;
   Exact "-dparse", Set option_dparse;
   Exact "-dc", Set option_dcmedium;
+  Exact "-db", Set option_db;
   Exact "-dclight", Set option_dclight;
   Exact "-dcminor", Set option_dcminor;
   Exact "-drtl", Set option_drtl;
@@ -337,6 +575,7 @@ let cmdline_actions =
     option_dprepro := true;
     option_dparse := true;
     option_dcmedium := true;
+    option_db := true;
     option_dclight := true;
     option_dcminor := true;
     option_drtl := true;
@@ -378,6 +617,8 @@ let cmdline_actions =
 (* File arguments *)
   Suffix ".c", Self (fun s ->
       push_action process_c_file s; incr num_source_files; incr num_input_files);
+  Suffix ".b", Self (fun s ->
+      push_action process_b_file s; incr num_source_files; incr num_input_files);
   Suffix ".i", Self (fun s ->
       push_action process_i_file s; incr num_source_files; incr num_input_files);
   Suffix ".p", Self (fun s ->

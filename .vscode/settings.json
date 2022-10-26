@@ -1,0 +1,15 @@
+{
+    "files.exclude": {
+        "*/**/*.aux": true,
+        "*/**/*.cache": true,
+        "*/**/*.glob": true,
+        "*/**/*.vo*": true,
+        "*/**/*.cm*": true,
+        "*/**/*.o": true,
+        "*/**/bparser.ml": true,
+        "*/**/bparser.mli": true,
+        "*/**/blexer.ml": true,
+        "*/**/*.automaton": true,
+        "*/**/*.conflicts": true,
+    },
+}

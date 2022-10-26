@@ -28,7 +28,7 @@ else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 
-DIRS := lib common $(ARCHDIRS) backend cfrontend driver export cparser
+DIRS := lib common $(ARCHDIRS) backend cfrontend driver export cparser stageM2
 
 COQINCLUDES := $(foreach d, $(DIRS), -R $(d) compcert.$(d))
 
@@ -138,6 +138,11 @@ CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Ctyping.v Cstrategy.v Cexec.v \
   Cshmgen.v Cshmgenproof.v \
   Csharpminor.v Cminorgen.v Cminorgenproof.v
 
+# Stage front-end (in stageM2)
+STAGEFRONTEND=Types.v BValues.v BUtils.v \
+	Ops.v Typing.v SemanticsBlocking.v SemanticsNonBlocking.v \
+  BtoClight.v NBtoB.v
+
 # Parser
 
 PARSER=Cabs.v Parser.v
@@ -166,7 +171,7 @@ endif
 
 # All source files
 
-FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ) \
+FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(STAGEFRONTEND) $(DRIVER) $(FLOCQ) \
   $(MENHIRLIB) $(PARSER) $(EXPORTLIB)
 
 # Generated source files

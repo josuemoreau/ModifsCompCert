@@ -117,6 +117,7 @@ Extract Constant Compopts.debug =>
   "fun _ -> !Clflags.option_g".
 
 (* Compiler *)
+Extract Constant Compiler.print_B => "PrintB.print_if".
 Extract Constant Compiler.print_Clight => "PrintClight.print_if".
 Extract Constant Compiler.print_Cminor => "PrintCminor.print_if".
 Extract Constant Compiler.print_RTL => "PrintRTL.print_if".
@@ -152,6 +153,9 @@ Set Extraction AccessOpaque.
 Cd "extraction".
 
 Separate Extraction
+   Compiler.transf_b_program
+   Syntax.Sfor Syntax.Swhile Syntax.Sfor_step
+   Errors.bind
    Compiler.transf_c_program Compiler.transf_cminor_program
    Cexec.do_initial_state Cexec.do_step Cexec.at_final_state
    Ctypes.merge_attributes Ctypes.remove_attributes 
