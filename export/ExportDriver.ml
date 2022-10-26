@@ -174,11 +174,13 @@ let cmdline_actions =
   [ Exact "-dprepro", Set option_dprepro;
    Exact "-dparse", Set option_dparse;
    Exact "-dc", Set option_dcmedium;
+   Exact "-db", Set option_db;
    Exact "-dclight", Set option_dclight;
    Exact "-dall", Self (fun _ ->
        option_dprepro := true;
        option_dparse := true;
        option_dcmedium := true;
+       option_db := true;
        option_dclight := true;);
  ]
   @ general_options

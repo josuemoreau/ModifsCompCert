@@ -18,6 +18,7 @@ Require Import Coqlib Errors.
 Require Import AST Linking Smallstep.
 (** Languages (syntax and semantics). *)
 Require Ctypes Csyntax Csem Cstrategy Cexec.
+Require Syntax.
 Require Clight.
 Require Csharpminor.
 Require Cminor.
@@ -28,6 +29,8 @@ Require Linear.
 Require Mach.
 Require Asm.
 (** Translation passes. *)
+Require NBtoB.
+Require BtoClight.
 Require Initializers.
 Require SimplExpr.
 Require SimplLocals.
@@ -74,6 +77,7 @@ Require Asmgenproof.
 Require Import Compopts.
 
 (** Pretty-printers (defined in Caml). *)
+Parameter print_B: Syntax.program -> unit.
 Parameter print_Clight: Clight.program -> unit.
 Parameter print_Cminor: Cminor.program -> unit.
 Parameter print_RTL: Z -> RTL.program -> unit.
@@ -164,6 +168,22 @@ Definition transf_clight_program (p: Clight.program) : res Asm.program :=
 Definition transf_c_program (p: Csyntax.program) : res Asm.program :=
   OK p
   @@@ time "Clight generation" SimplExpr.transl_program
+  @@@ transf_clight_program.
+
+Definition transl_b_program (p: Syntax.program) : res Clight.program :=
+  match NBtoB.transl_program p with
+  | OK p =>
+      match BtoClight.transl_program p with
+      | Some p => OK p
+      | None => Error (cons (MSG "Translation from B to Clight") nil)
+      end
+  | Error x => Error x
+  end.
+
+Definition transf_b_program (p: Syntax.program) : res Asm.program :=
+  OK p
+   @@ print print_B
+  @@@ time "Clight generation" transl_b_program
   @@@ transf_clight_program.
 
 (** Force [Initializers] and [Cexec] to be extracted as well. *)
