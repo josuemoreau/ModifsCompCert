@@ -196,8 +196,7 @@ let b_error_msg (s: string) : Errors.errcode =
 let parse_b_file (ifile: string) : Syntax.program =
   let c = open_in ifile in
   let lb = Lexing.from_channel c in
-  let e = try
-    Bparser.prog Blexer.token lb
+  let p = try Bparser.prog Blexer.token lb
   with Bparser.Error ->
     let loc = file_loc ifile in
     let open Lexing in
@@ -207,7 +206,7 @@ let parse_b_file (ifile: string) : Syntax.program =
       b_error_msg ("line " ^ string_of_int pos.pos_lnum ^ ", ");
       b_error_msg ("column " ^ string_of_int (pos.pos_cnum - pos.pos_bol)) ] in
   close_in c;
-  TypeInference.infer_program e
+  TypeInference.infer_program p
 
 let compile_b_file (sourcename: string) (ofile: string) =
   Debug.init_compile_unit sourcename;
@@ -215,9 +214,8 @@ let compile_b_file (sourcename: string) (ofile: string) =
   CPragmas.reset();
   (* Prepare to dump Clight, RTL, etc, if requested *)
   let set_dest dst opt ext =
-    dst := if !opt then Some (output_filename sourcename ".c" ext)
+    dst := if !opt then Some (output_filename sourcename ~suffix:ext)
       else None in
-  Format.printf "%s@." (if !option_db then "true" else "false");
   set_dest PrintB.destination option_db ".b";
   set_dest PrintClight.destination option_dclight ".light.c";
   set_dest PrintCminor.destination option_dcminor ".cm";
@@ -312,24 +310,26 @@ let compile_i_file sourcename preproname =
     objname
   end
 
-(* Processing of a .c file *)
+(* Processing of a .b file *)
 
 let process_b_file sourcename =
   ensure_inputfile_exists sourcename;
   if !option_S then begin
     compile_b_file sourcename
-                   (output_filename ~final:true sourcename ".b" ".s");
+      (output_filename ~final:true sourcename ~suffix:".s");
     ""
   end else begin
     let asmname =
       if !option_dasm
-      then output_filename sourcename ".b" ".s"
+      then output_filename sourcename ~suffix:".s"
       else tmp_file ".s" in
     compile_b_file sourcename asmname;
-    let objname = object_filename sourcename ".b" in
+    let objname = object_filename sourcename  in
     assemble asmname objname;
     objname
   end
+
+(* Processing of a .c file *)
 
 let process_c_file sourcename =
   ensure_inputfile_exists sourcename;

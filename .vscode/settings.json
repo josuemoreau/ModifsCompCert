@@ -12,4 +12,8 @@
         "*/**/*.automaton": true,
         "*/**/*.conflicts": true,
     },
+    "ocaml.sandbox": {
+        "kind": "custom",
+        "template": "zsh -ic '$prog $args'"
+    }
 }
