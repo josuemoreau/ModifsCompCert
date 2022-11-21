@@ -20,9 +20,9 @@ open Frontend
 open Assembler
 open Linker
 open Diagnostics
-open Maps
+(* open Maps *)
 
-module Examples = struct
+(* module Examples = struct
 
 open Types
 open Syntax
@@ -164,7 +164,7 @@ let test1 fresh =
     (id2, Internal (fmulmatrix fresh))
   ]}
 
-end
+end *)
 
 
 open C
@@ -217,6 +217,7 @@ let compile_b_file (sourcename: string) (ofile: string) =
     dst := if !opt then Some (output_filename sourcename ~suffix:ext)
       else None in
   set_dest PrintB.destination option_db ".b";
+  set_dest PrintB.nb_destination option_dnb ".nb";
   set_dest PrintClight.destination option_dclight ".light.c";
   set_dest PrintCminor.destination option_dcminor ".cm";
   set_dest PrintRTL.destination option_drtl ".rtl";
@@ -239,19 +240,19 @@ let compile_b_file (sourcename: string) (ofile: string) =
                      printf_cc) in *)
   (* Convert to Clight *)
   let bsyntax = parse_b_file sourcename in
-  PrintB.print_if bsyntax;
+  (* PrintB.print_if bsyntax;
   let clight =
     match Compiler.transl_b_program bsyntax with
     | Errors.OK cl -> cl
     | Errors.Error msg ->
       let loc = file_loc sourcename in
       fatal_error loc "%a" print_error msg in
-  let clight2 = { clight with Ctypes.prog_defs = C2C.add_helper_functions clight.Ctypes.prog_defs } in
+  let clight2 = { clight with Ctypes.prog_defs = C2C.add_helper_functions clight.Ctypes.prog_defs } in *)
   (* let clight3 = { clight2 with Ctypes.prog_defs = (printf_id, AST.Gfun printf_def) :: clight2.Ctypes.prog_defs } in *)
   (* Convert to Asm *)
   let asm =
     match Compiler.apply_partial
-               (Compiler.transf_clight_program clight2)
+               (Compiler.transf_nb_program bsyntax)
                Asmexpand.expand_program with
     | Errors.OK asm ->
         asm
@@ -466,6 +467,7 @@ Code generation options: (use -fno-<opt> to turn off -f<opt>)
   -dprepro       Save C file after preprocessing in <file>.i
   -dparse        Save C file after parsing and elaboration in <file>.parsed.c
   -dc            Save generated Compcert C in <file>.compcert.c
+  -dnb           Save parser NB file in <file>.nb
   -db            Save generated B in <file>.b
   -dclight       Save generated Clight in <file>.light.c
   -dcminor       Save generated Cminor in <file>.cm
@@ -578,6 +580,7 @@ let cmdline_actions =
   Exact "-dparse", Set option_dparse;
   Exact "-dc", Set option_dcmedium;
   Exact "-db", Set option_db;
+  Exact "-dnb", Set option_dnb;
   Exact "-dclight", Set option_dclight;
   Exact "-dcminor", Set option_dcminor;
   Exact "-drtl", Set option_drtl;
@@ -590,6 +593,7 @@ let cmdline_actions =
     option_dparse := true;
     option_dcmedium := true;
     option_db := true;
+    option_dnb := true;
     option_dclight := true;
     option_dcminor := true;
     option_drtl := true;

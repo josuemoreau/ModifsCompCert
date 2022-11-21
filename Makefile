@@ -141,7 +141,7 @@ CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Ctyping.v Cstrategy.v Cexec.v \
 # Stage front-end (in stageM2)
 STAGEFRONTEND=Types.v BValues.v BUtils.v \
 	Ops.v Typing.v SemanticsBlocking.v SemanticsNonBlocking.v \
-  BtoClight.v NBtoB.v
+  BtoCSharpMinor.v NBtoB.v
 
 # Parser
 
