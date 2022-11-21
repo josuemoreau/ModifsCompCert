@@ -118,6 +118,7 @@ Extract Constant Compopts.debug =>
 
 (* Compiler *)
 Extract Constant Compiler.print_B => "PrintB.print_if".
+Extract Constant Compiler.print_NB => "PrintB.print_nb_if".
 Extract Constant Compiler.print_Clight => "PrintClight.print_if".
 Extract Constant Compiler.print_Cminor => "PrintCminor.print_if".
 Extract Constant Compiler.print_RTL => "PrintRTL.print_if".
@@ -153,7 +154,7 @@ Set Extraction AccessOpaque.
 Cd "extraction".
 
 Separate Extraction
-   Compiler.transf_b_program
+   Compiler.transf_nb_program
    Syntax.Sfor Syntax.Swhile Syntax.Sfor_step
    Errors.bind
    Compiler.transf_c_program Compiler.transf_cminor_program
