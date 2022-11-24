@@ -208,6 +208,70 @@ let parse_b_file (ifile: string) : Syntax.program =
   close_in c;
   TypeInference.infer_program p
 
+  let helper_functions () = [
+    (* "__compcert_va_int32",
+        Tint(I32, Unsigned, noattr),
+        [Tpointer(Tvoid, noattr)];
+    "__compcert_va_int64",
+        Tlong(Unsigned, noattr),
+        [Tpointer(Tvoid, noattr)];
+    "__compcert_va_float64",
+        Tfloat(F64, noattr),
+        [Tpointer(Tvoid, noattr)];
+    "__compcert_va_composite",
+        Tpointer(Tvoid, noattr),
+        [Tpointer(Tvoid, noattr); convertIkind (Cutil.size_t_ikind()) noattr]; *)
+Camlcoq.intern_string "__compcert_i64_dtos", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_dtos", 
+                                      { AST.sig_args = [AST.Tfloat]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_dtou", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_dtou", 
+                                      { AST.sig_args = [AST.Tfloat]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_stod", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_stod", 
+                                  { AST.sig_args = [AST.Tlong]; AST.sig_res = AST.Tret (AST.Tfloat); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_utod", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_utod", 
+                                  { AST.sig_args = [AST.Tlong]; AST.sig_res = AST.Tret (AST.Tfloat); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_stof", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_stof", 
+                                    { AST.sig_args = [AST.Tlong]; AST.sig_res = AST.Tret (AST.Tsingle); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_utof", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_utof", 
+                                    { AST.sig_args = [AST.Tlong]; AST.sig_res = AST.Tret (AST.Tsingle); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_ftos", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_ftos", 
+            { AST.sig_args = [AST.Tsingle]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_ftou", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_ftou", 
+            { AST.sig_args = [AST.Tsingle]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_sdiv", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_sdiv", 
+            { AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_udiv", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_udiv", 
+{ AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_smod", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_smod", 
+{ AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_umod", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_umod", 
+    { AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_shl", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_shl", 
+    { AST.sig_args = [AST.Tlong; AST.Tint]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_shr", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_shr", 
+{ AST.sig_args = [AST.Tlong; AST.Tint]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_sar", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_sar", 
+{ AST.sig_args = [AST.Tlong; AST.Tint]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_smulh", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_smulh", 
+{ AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+Camlcoq.intern_string "__compcert_i64_umulh", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_umulh", 
+{ AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
+    (* "__compcert_i64_shl",
+        Tlong(Signed, noattr),
+        [Tlong(Signed, noattr); Tint(I32, Signed, noattr)];
+    "__compcert_i64_shr",
+        Tlong(Unsigned, noattr),
+        [Tlong(Unsigned, noattr); Tint(I32, Signed, noattr)];
+    "__compcert_i64_sar",
+        Tlong(Signed, noattr),
+        [Tlong(Signed, noattr); Tint(I32, Signed, noattr)];
+    "__compcert_i64_smulh",
+        Tlong(Signed, noattr),
+        [Tlong(Signed, noattr); Tlong(Signed, noattr)];
+    "__compcert_i64_umulh",
+        Tlong(Unsigned, noattr),
+        [Tlong(Unsigned, noattr); Tlong(Unsigned, noattr)] *)
+]
+
 let compile_b_file (sourcename: string) (ofile: string) =
   Debug.init_compile_unit sourcename;
   Sections.initialize();
@@ -252,7 +316,7 @@ let compile_b_file (sourcename: string) (ofile: string) =
   (* Convert to Asm *)
   let asm =
     match Compiler.apply_partial
-               (Compiler.transf_nb_program bsyntax)
+               (Compiler.transf_nb_program (helper_functions ()) bsyntax)
                Asmexpand.expand_program with
     | Errors.OK asm ->
         asm
