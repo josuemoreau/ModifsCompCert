@@ -171,20 +171,10 @@ Definition transf_c_program (p: Csyntax.program) : res Asm.program :=
   @@@ time "Clight generation" SimplExpr.transl_program
   @@@ transf_clight_program.
 
-Definition transl_b_program hfuncs (p: Syntax.program) : res Csharpminor.program :=
-  (* match NBtoB.transl_program p with
-  | OK p => *)
-      match BtoCSharpMinor.transl_program p hfuncs with
-      | Some p => OK p
-      | None => Error (cons (MSG "Translation from B to C#minor") nil)
-      end.
-  (* | Error x => Error x
-  end. *)
-
 Definition transf_b_program hfuncs (p: Syntax.program) : res Asm.program :=
   OK p
    @@ print print_B
-  @@@ time "C#minor generation" (transl_b_program hfuncs)
+  @@@ time "C#minor generation" (BtoCSharpMinor.transl_program hfuncs)
   @@@ time "Cminor generation" Cminorgen.transl_program
   @@@ transf_cminor_program.
 
