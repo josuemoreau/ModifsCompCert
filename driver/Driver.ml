@@ -20,153 +20,6 @@ open Frontend
 open Assembler
 open Linker
 open Diagnostics
-(* open Maps *)
-
-(* module Examples = struct
-
-open Types
-open Syntax
-
-let empty_prog fresh : Syntax.program =
-  { prog_main = fresh (); prog_defs = [] }
-
-let fadd_sig =
-  { sig_args = [Tarr (false, (Tint64 Signed));
-                Tarr (false, (Tint64 Signed));
-                Tarr (true, (Tint64 Signed));
-                Tint64 Unsigned];
-    sig_res = Tvoid }
-
-let cuint64 n =
-  Integers.Int64.repr (Camlcoq.Z.of_uint n)
-
-let fadd fresh =
-  let a = fresh () in
-  let b = fresh () in
-  let c = fresh () in
-  let n = fresh () in
-  let i = fresh () in
-  let tenv =
-    PTree.empty
-    |> PTree.set a (Tarr (false, (Tint64 Signed)))
-    |> PTree.set b (Tarr (false, (Tint64 Signed)))
-    |> PTree.set c (Tarr (true, (Tint64 Signed)))
-    |> PTree.set n (Tint64 Unsigned)
-    |> PTree.set i (Tint64 Unsigned) in
-  { fn_sig = fadd_sig;
-    fn_params = [a; b; c; n];
-    fn_arrszvar = [(a, n); (b, n); (c, n)];
-    fn_vars = [i];
-    fn_tenv = tenv;
-    fn_body = Sseq
-          ((Sassign (i,
-                     Econst (Cint64 (Unsigned, cuint64 0)))),
-           (Sloop (Sifthenelse (Ebinop_cmpu (Ops.Ogeu, Ops.OInt64, Evar i, Evar n),
-                                Sbreak,
-                                Sseq
-                     (Sarr_assign (c,
-                                   Evar i,
-                                   Ebinop_arith (Ops.Oadd,
-                                                 Ops.OInt64,
-                                                 Earr_access (a, Evar i),
-                                                 Earr_access (b, Evar i))),
-                      Sassign (i,
-                               Ebinop_arith (Ops.Oadd,
-                                             Ops.OInt64,
-                                             Evar i,
-                                             Econst (Cint64 (Unsigned, cuint64 1))))
-                  )))
-          ))
-  }
-
-let fmulmatrix fresh =
-  let a = fresh () in
-  let b = fresh () in
-  let c = fresh () in
-  let n = fresh () in
-  let i, j, k = fresh (), fresh (), fresh () in
-  let tenv =
-    PTree.empty
-    |> PTree.set a (Tarr (false, (Tint64 Signed)))
-    |> PTree.set b (Tarr (false, (Tint64 Signed)))
-    |> PTree.set c (Tarr (true, (Tint64 Signed)))
-    |> PTree.set n (Tint64 Unsigned)
-    |> PTree.set i (Tint64 Unsigned)
-    |> PTree.set j (Tint64 Unsigned)
-    |> PTree.set k (Tint64 Unsigned) in
-  { fn_sig = fadd_sig;
-    fn_params = [a; b; c; n];
-    (* fn_arrszvar = [(a, n); (b, n); (c, n)]; *)
-    fn_arrszvar = [(a, n); (b, n); (c, n)];
-    fn_vars = [i; j; k];
-    fn_tenv = tenv;
-    fn_body =
-      Sseq (Sassign (i, Econst (Cint64 (Unsigned, cuint64 0))),
-            Sloop (Sifthenelse (
-                Ebinop_cmpu (Ops.Ogeu, Ops.OInt64, Evar i, Evar n),
-                Sbreak,
-                Sseq (Sseq (
-                        Sassign (j, Econst (Cint64 (Unsigned, cuint64 0))),
-                        Sloop (Sifthenelse (
-                            Ebinop_cmpu (Ops.Ogeu, Ops.OInt64, Evar j, Evar n),
-                            Sbreak,
-                            Sseq (Sseq (
-                                    Sassign (k, Econst (Cint64 (Unsigned, cuint64 0))),
-                                    Sloop (Sifthenelse (
-                                        Ebinop_cmpu (Ops.Ogeu, Ops.OInt64, Evar k, Evar n),
-                                        Sbreak,
-                                        Sseq (Sarr_assign (c, Ebinop_arith (Ops.Oadd,
-                                                                            Ops.OInt64,
-                                                                            Ebinop_arith (Ops.Omul,
-                                                                                          Ops.OInt64,
-                                                                                          Evar i,
-                                                                                          Evar n),
-                                                                            Evar j),
-                                                           Ebinop_arith (Ops.Oadd,
-                                                                         Ops.OInt64,
-                                                                         Earr_access (c, Ebinop_arith (Ops.Oadd,
-                                                                                                       Ops.OInt64,
-                                                                                                       Ebinop_arith (Ops.Omul,
-                                                                                                                     Ops.OInt64,
-                                                                                                                     Evar i,
-                                                                                                                     Evar n),
-                                                                                                       Evar j)),
-                                                                         Ebinop_arith (Ops.Omul,
-                                                                                       Ops.OInt64,
-                                                                                       Earr_access (a, Ebinop_arith (Ops.Oadd,
-                                                                                                                     Ops.OInt64,
-                                                                                                                     Ebinop_arith (Ops.Omul,
-                                                                                                                                   Ops.OInt64,
-                                                                                                                                   Evar i,
-                                                                                                                                   Evar n),
-                                                                                                                     Evar k)),
-                                                                                       Earr_access (b, Ebinop_arith (Ops.Oadd,
-                                                                                                                     Ops.OInt64,
-                                                                                                                     Ebinop_arith (Ops.Omul,
-                                                                                                                                   Ops.OInt64,
-                                                                                                                                   Evar k,
-                                                                                                                                   Evar n),
-                                                                                                                     Evar j))))),
-                                              Sassign (k, Ebinop_arith (Ops.Oadd, Ops.OInt64, Evar k, Econst (Cint64 (Unsigned, cuint64 1))))
-                                          )))),
-                                  Sassign (j, Ebinop_arith (Ops.Oadd, Ops.OInt64, Evar j, Econst (Cint64 (Unsigned, cuint64 1))))
-                              )))),
-                      Sassign (i, Ebinop_arith (Ops.Oadd, Ops.OInt64, Evar i, Econst (Cint64 (Unsigned, cuint64 1))))
-                  ))))
-  }
-
-let test1 fresh =
-  let id1 = Camlcoq.intern_string "fadd" in
-  let id2 = Camlcoq.intern_string "fmulmatrix" in
-  { prog_main = fresh ();
-    prog_defs = [
-    (id1, Internal (fadd fresh));
-    (id2, Internal (fmulmatrix fresh))
-  ]}
-
-end *)
-
-
 open C
 
 (* Name used for version string etc. *)
@@ -209,67 +62,96 @@ let parse_b_file (ifile: string) : Syntax.program =
   TypeInference.infer_program p
 
   let helper_functions () = [
-    (* "__compcert_va_int32",
-        Tint(I32, Unsigned, noattr),
-        [Tpointer(Tvoid, noattr)];
-    "__compcert_va_int64",
-        Tlong(Unsigned, noattr),
-        [Tpointer(Tvoid, noattr)];
-    "__compcert_va_float64",
-        Tfloat(F64, noattr),
-        [Tpointer(Tvoid, noattr)];
-    "__compcert_va_composite",
-        Tpointer(Tvoid, noattr),
-        [Tpointer(Tvoid, noattr); convertIkind (Cutil.size_t_ikind()) noattr]; *)
-Camlcoq.intern_string "__compcert_i64_dtos", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_dtos", 
-                                      { AST.sig_args = [AST.Tfloat]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_dtou", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_dtou", 
-                                      { AST.sig_args = [AST.Tfloat]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_stod", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_stod", 
-                                  { AST.sig_args = [AST.Tlong]; AST.sig_res = AST.Tret (AST.Tfloat); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_utod", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_utod", 
-                                  { AST.sig_args = [AST.Tlong]; AST.sig_res = AST.Tret (AST.Tfloat); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_stof", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_stof", 
-                                    { AST.sig_args = [AST.Tlong]; AST.sig_res = AST.Tret (AST.Tsingle); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_utof", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_utof", 
-                                    { AST.sig_args = [AST.Tlong]; AST.sig_res = AST.Tret (AST.Tsingle); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_ftos", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_ftos", 
-            { AST.sig_args = [AST.Tsingle]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_ftou", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_ftou", 
-            { AST.sig_args = [AST.Tsingle]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_sdiv", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_sdiv", 
-            { AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_udiv", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_udiv", 
-{ AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_smod", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_smod", 
-{ AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_umod", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_umod", 
-    { AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_shl", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_shl", 
-    { AST.sig_args = [AST.Tlong; AST.Tint]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_shr", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_shr", 
-{ AST.sig_args = [AST.Tlong; AST.Tint]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_sar", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_sar", 
-{ AST.sig_args = [AST.Tlong; AST.Tint]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_smulh", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_smulh", 
-{ AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-Camlcoq.intern_string "__compcert_i64_umulh", AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_umulh", 
-{ AST.sig_args = [AST.Tlong; AST.Tlong]; AST.sig_res = AST.Tret (AST.Tlong); AST.sig_cc = AST.cc_default}));
-    (* "__compcert_i64_shl",
-        Tlong(Signed, noattr),
-        [Tlong(Signed, noattr); Tint(I32, Signed, noattr)];
-    "__compcert_i64_shr",
-        Tlong(Unsigned, noattr),
-        [Tlong(Unsigned, noattr); Tint(I32, Signed, noattr)];
-    "__compcert_i64_sar",
-        Tlong(Signed, noattr),
-        [Tlong(Signed, noattr); Tint(I32, Signed, noattr)];
-    "__compcert_i64_smulh",
-        Tlong(Signed, noattr),
-        [Tlong(Signed, noattr); Tlong(Signed, noattr)];
-    "__compcert_i64_umulh",
-        Tlong(Unsigned, noattr),
-        [Tlong(Unsigned, noattr); Tlong(Unsigned, noattr)] *)
+    Camlcoq.intern_string "__compcert_i64_dtos",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_dtos",
+      { AST.sig_args = [AST.Tfloat];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_dtou",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_dtou", 
+      { AST.sig_args = [AST.Tfloat];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_stod",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_stod", 
+      { AST.sig_args = [AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tfloat);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_utod",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_utod", 
+      { AST.sig_args = [AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tfloat);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_stof",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_stof", 
+      { AST.sig_args = [AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tsingle);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_utof",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_utof", 
+      { AST.sig_args = [AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tsingle);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_ftos",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_ftos",
+      { AST.sig_args = [AST.Tsingle];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_ftou",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_ftou",
+      { AST.sig_args = [AST.Tsingle];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_sdiv",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_sdiv",
+      { AST.sig_args = [AST.Tlong; AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_udiv",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_udiv", 
+      { AST.sig_args = [AST.Tlong; AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_smod",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_smod", 
+      { AST.sig_args = [AST.Tlong; AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_umod",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_umod", 
+      { AST.sig_args = [AST.Tlong; AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_shl",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_shl", 
+      { AST.sig_args = [AST.Tlong; AST.Tint];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_shr",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_shr", 
+      { AST.sig_args = [AST.Tlong; AST.Tint];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_sar",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_sar", 
+      { AST.sig_args = [AST.Tlong; AST.Tint];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_smulh",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_smulh", 
+      { AST.sig_args = [AST.Tlong; AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "__compcert_i64_umulh",
+      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_umulh", 
+      { AST.sig_args = [AST.Tlong; AST.Tlong];
+        AST.sig_res = AST.Tret (AST.Tlong);
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "exit",
+      AST.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "exit",
+      { AST.sig_args = [AST.Tint];
+        AST.sig_res = AST.Tvoid;
+        AST.sig_cc = AST.cc_default}));
 ]
 
 let compile_b_file (sourcename: string) (ofile: string) =
