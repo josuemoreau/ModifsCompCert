@@ -85,3 +85,7 @@
 
 # StageM2
 stageM2
+test_stage/*.s
+test_stage/*.nb
+test_stage/*.cm
+test_stage/a.out
