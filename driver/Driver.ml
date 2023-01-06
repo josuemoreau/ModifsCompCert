@@ -59,7 +59,12 @@ let parse_b_file (ifile: string) : Syntax.program =
       b_error_msg ("line " ^ string_of_int pos.pos_lnum ^ ", ");
       b_error_msg ("column " ^ string_of_int (pos.pos_cnum - pos.pos_bol)) ] in
   close_in c;
-  TypeInference.infer_program p
+  let p = TypeInference.infer_program p in
+  match Typing.type_program p with
+  | Errors.OK () -> p
+  | Errors.Error msg ->
+    let loc = file_loc ifile in
+    fatal_error loc "%a"  print_error msg
 
   let helper_functions () = [
     Camlcoq.intern_string "__compcert_i64_dtos",
