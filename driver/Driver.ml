@@ -48,16 +48,15 @@ let b_error_msg (s: string) : Errors.errcode =
 
 let parse_b_file (ifile: string) : Syntax.program =
   let c = open_in ifile in
+  Berror.set_filename ifile;
   let lb = Lexing.from_channel c in
   let p = try Bparser.prog Blexer.token lb
   with Bparser.Error ->
     let loc = file_loc ifile in
     let open Lexing in
     let pos = lb.lex_curr_p in
-    fatal_error loc "%a" print_error
-    [ b_error_msg "Syntax Error: ";
-      b_error_msg ("line " ^ string_of_int pos.pos_lnum ^ ", ");
-      b_error_msg ("column " ^ string_of_int (pos.pos_cnum - pos.pos_bol)) ] in
+    fatal_error loc "Syntax Error: line %d, column %d"
+                    pos.pos_lnum (pos.pos_cnum - pos.pos_bol) in
   close_in c;
   let p = TypeInference.infer_program p in
   match Typing.type_program p with
