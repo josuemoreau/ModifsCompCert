@@ -8,12 +8,8 @@ bool is_zero(f64[D] A, u64 D) {
 }
 
 i64 deg(f64[DA] A, u64 DA) {
-  i64 i <- (i64) DA - 1;
-  while i >= 0 {
-    if A[i] != 0. {
-      return i
-    }
-    i <- i - 1
+  for decr i64 i <- ((i64) DA - 1) .. -1i64 {
+    if A[i] != 0. { return i }
   }
   return -1i64
 }
@@ -31,13 +27,11 @@ void modulo(mut f64[DA] A, f64[DB] B, u64 DA, u64 DB) {
   i64 da <- deg(A, DA);
   i64 db <- deg(B, DB);
   if da >= 0 && db >= 0 {
-    i64 i  <- da - db;
     f64 k  <- 0.;
-    while i >= 0 {
-      if A[i + db] = 0. { i <- i - 1; continue }
+    for decr i64 i <- (da - db) .. -1i64 {
+      if A[i + db] = 0. { continue }
       k <- - (A[i + db] / B[db]);
-      d_comb_lin(A, B, k, i, DA, DB);
-      i <- i - 1
+      d_comb_lin(A, B, k, i, DA, DB)
     }
   }
 }
