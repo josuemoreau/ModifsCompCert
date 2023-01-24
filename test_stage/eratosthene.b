@@ -1,5 +1,6 @@
 void eratosthene(mut bool[N] prime, u64 N) {
   /* On aimerait ici un moyen de dire N >= 2 */
+  if N < 2 return;
   prime[0u32] <- false;
   prime[1u32] <- false;
   for u64 k <- 2 .. N step 2 {
