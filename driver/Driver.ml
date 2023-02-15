@@ -151,9 +151,9 @@ let parse_b_file (ifile: string) : Syntax.program =
       { AST.sig_args = [AST.Tlong; AST.Tlong];
         AST.sig_res = AST.Tret (AST.Tlong);
         AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "exit",
-      AST.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "exit",
-      { AST.sig_args = [AST.Tint];
+    Camlcoq.intern_string "abort",
+      AST.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "abort",
+      { AST.sig_args = [];
         AST.sig_res = AST.Tvoid;
         AST.sig_cc = AST.cc_default}));
 ]
