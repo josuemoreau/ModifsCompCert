@@ -1,4 +1,4 @@
-void mul_matrix(i64[n] a, i64[n] b, i64[n] dest, u64 n, u64 m) {
+void mul_matrix(i64[n] a, i64[n] b, mut i64[n] dest, u64 n, u64 m) {
   /* on aimerait ici pouvoir dire que a, b et dest sont de taille n * n,
      ou encore m * n et n * p */
   for u64 i <- 0 .. m {
