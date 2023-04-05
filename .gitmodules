@@ -1,0 +1,6 @@
+
+[submodule "stageM2"]
+	path = stageM2
+	url = git@github.com:josuemoreau/stageM2.git
+	branch = master
+	update = merge
