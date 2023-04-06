@@ -16,6 +16,7 @@
 
 include Makefile.config
 include VERSION
+include stageM2/Makefile
 
 BUILDVERSION ?= $(version)
 BUILDNR ?= $(buildnr)
@@ -137,11 +138,6 @@ CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Ctyping.v Cstrategy.v Cexec.v \
   Clight.v ClightBigstep.v SimplLocals.v SimplLocalsproof.v \
   Cshmgen.v Cshmgenproof.v \
   Csharpminor.v Cminorgen.v Cminorgenproof.v
-
-# Stage front-end (in stageM2)
-STAGEFRONTEND=Types.v BValues.v BUtils.v PTreeaux.v Validity.v \
-	Ops.v Typing.v BMemory.v SemanticsBlocking.v SemanticsNonBlocking.v \
-  BtoCSharpMinor.v NBtoB.v
 
 # Parser
 
