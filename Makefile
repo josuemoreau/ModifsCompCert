@@ -196,7 +196,7 @@ ifeq ($(INSTALL_COQDEV),true)
 	$(MAKE) compcert.config
 endif
 
-proof: $(FILES:.v=.vo)
+proof: $(FILES:.v=.vo) $(STAGEFRONTENDPROOF:.v=.vo)
 
 # Turn off some warnings for Flocq and Menhirlib
 # These warnings can only be addressed upstream
