@@ -316,7 +316,7 @@ cparser/Parser.v: cparser/Parser.vy
 
 depend: $(GENERATED) depend1
 
-depend1: $(FILES) export/Clightdefs.v
+depend1: $(FILES) $(STAGEFRONTENDPROOF) export/Clightdefs.v
 	@echo "Analyzing Coq dependencies"
 	@$(COQDEP) $^ > .depend
 
