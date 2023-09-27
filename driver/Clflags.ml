@@ -43,6 +43,7 @@ let option_dparse = ref false
 let option_dcmedium = ref false
 let option_db = ref false
 let option_dnb = ref false
+let option_dnbut = ref false
 let option_dclight = ref false
 let option_dcminor = ref false
 let option_drtl = ref false
