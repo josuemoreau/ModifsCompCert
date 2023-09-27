@@ -121,6 +121,10 @@ Extract Constant Compiler.print_B => "PrintB.print_if".
 Extract Constant Compiler.print_NB => "PrintB.print_nb_if".
 Extract Constant BPrinters.string_of_type =>
   "fun x -> Camlcoq.coqstring_of_camlstring (PrintB.string_of_type x)".
+Extract Constant BPrinters.string_of_ident =>
+  "fun x -> Camlcoq.coqstring_of_camlstring (Camlcoq.extern_atom x)".
+Extract Constant BPrinters.intern_string =>
+  "fun x -> Camlcoq.intern_string (Camlcoq.camlstring_of_coqstring x)".
 Extract Constant Compiler.print_Clight => "PrintClight.print_if".
 Extract Constant Compiler.print_Cminor => "PrintCminor.print_if".
 Extract Constant Compiler.print_RTL => "PrintRTL.print_if".
