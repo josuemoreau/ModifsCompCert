@@ -58,7 +58,8 @@ let parse_b_file (ifile: string) : Syntax.program =
     fatal_error loc "Syntax Error: line %d, column %d"
                     pos.pos_lnum (pos.pos_cnum - pos.pos_bol) in
   close_in c;
-  let p = TypeInference.infer_program p in
+  let p = ParsedToNB.transl_program p in
+  PrintB.print_nbut_if p;
   match Typing.type_program p with
   | Errors.OK () -> p
   | Errors.Error msg ->
@@ -168,7 +169,7 @@ let compile_b_file (sourcename: string) (ofile: string) =
       else None in
   set_dest PrintB.destination option_db ".b";
   set_dest PrintB.nb_destination option_dnb ".nb";
-  set_dest PrintClight.destination option_dclight ".light.c";
+  set_dest PrintB.nbut_destination option_dnbut ".nbut";
   set_dest PrintCminor.destination option_dcminor ".cm";
   set_dest PrintRTL.destination option_drtl ".rtl";
   set_dest Regalloc.destination_alloctrace option_dalloctrace ".alloctrace";
@@ -417,7 +418,8 @@ Code generation options: (use -fno-<opt> to turn off -f<opt>)
   -dprepro       Save C file after preprocessing in <file>.i
   -dparse        Save C file after parsing and elaboration in <file>.parsed.c
   -dc            Save generated Compcert C in <file>.compcert.c
-  -dnb           Save parser NB file in <file>.nb
+  -dnbut         Save parsed NB file before type checking in <file>.nb
+  -dnb           Save parsed NB file in <file>.nb
   -db            Save generated B in <file>.b
   -dclight       Save generated Clight in <file>.light.c
   -dcminor       Save generated Cminor in <file>.cm
@@ -531,6 +533,7 @@ let cmdline_actions =
   Exact "-dc", Set option_dcmedium;
   Exact "-db", Set option_db;
   Exact "-dnb", Set option_dnb;
+  Exact "-dnbut", Set option_dnbut;
   Exact "-dclight", Set option_dclight;
   Exact "-dcminor", Set option_dcminor;
   Exact "-drtl", Set option_drtl;
@@ -544,6 +547,7 @@ let cmdline_actions =
     option_dcmedium := true;
     option_db := true;
     option_dnb := true;
+    option_dnbut := true;
     option_dclight := true;
     option_dcminor := true;
     option_drtl := true;
