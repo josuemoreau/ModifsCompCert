@@ -5,7 +5,7 @@ DIRS=c compression raytracer spass regression abi \
 PICOSAT=picosat-965
 
 ifeq ($(CLIGHTGEN),true)
-DIRS+=clightgen
+DIRS+=export
 endif
 
 all:

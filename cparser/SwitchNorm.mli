@@ -2,7 +2,7 @@
 (*                                                                     *)
 (*              The Compcert verified compiler                         *)
 (*                                                                     *)
-(*          Xavier Leroy, INRIA Paris-Rocquencourt                     *)
+(*          Xavier Leroy, Collège de France and Inria                  *)
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
@@ -14,4 +14,15 @@
 (*                                                                     *)
 (* *********************************************************************)
 
-val program: C.program -> C.program
+(* Normalization of structured "switch" statements
+   and emulation of unstructured "switch" statements (e.g. Duff's device) *)
+
+(* Assumes: nothing
+   Produces: code with normalized "switch" statements *)
+
+(* A normalized switch has the following form:
+     Sswitch(e, Sblock [ Slabeled(lbl1, case1); ...
+                         Slabeled(lblN,caseN) ])
+*)
+
+val program: bool -> C.program -> C.program

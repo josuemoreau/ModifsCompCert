@@ -13,6 +13,7 @@
 .*.aux
 *.cmti
 *.cmt
+.coq-native
 # Emacs saves
 *~
 # Executables and configuration
@@ -75,7 +76,8 @@
 # MacOS metadata
 .DS_Store
 # Test generated data
-/test/clightgen/*.v
+/test/export/clight/*.v
+/test/export/csyntax/*.v
 /test/picosat-965/picogcnf
 /test/picosat-965/picomcs
 /test/picosat-965/picomus
