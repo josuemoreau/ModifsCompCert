@@ -3,7 +3,9 @@ include ../../Makefile.config
 CCOMP=../../ccomp
 CCOMPFLAGS=$(CCOMPOPTS) -stdlib ../../runtime \
  -dparse -dc -dclight -dasm -fall \
- -DARCH_$(ARCH) -DMODEL_$(MODEL)
+ -DARCH_$(ARCH) -DMODEL_$(MODEL) \
+ $(SSA_MODE)
+
 INTERPFLAGS=-stdlib ../../runtime -interp -quiet -fall
 LIBS=$(LIBMATH)
 
@@ -55,6 +57,7 @@ all_s: $(TESTS:%=%.s) $(TESTS_COMP:%=%.s) $(TESTS_DIFF:%=%.s) $(EXTRAS:%=%.s)
 clean:
 	rm -f *.compcert
 	rm -f *.parsed.c *.compcert.c *.light.c *.s *.o *.sdump *~ 
+	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9] *.rtlpar *.cssa
 
 test:
 	@echo "----------- Compiled tests -------------"

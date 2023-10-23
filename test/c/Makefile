@@ -1,7 +1,7 @@
 include ../../Makefile.config
 
 CCOMP=../../ccomp
-CCOMPFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dc -dclight -dasm
+CCOMPFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dc -dclight -dasm $(SSA_MODE)
 
 CFLAGS=-O1 -Wall
 
@@ -57,4 +57,5 @@ bench:
 
 clean:
 	rm -f *.compcert *.gcc
-	rm -f *.compcert.c *.light.c *.parsed.c *.s *.o *.sdump *~ 
+	rm -f *.compcert.c *.light.c *.parsed.c *.s *.o *.sdump *~
+	rm -f *.rtl.[0-9] *.ssa.[0-9] *.cssa *.rtlpar *.rtl.norm

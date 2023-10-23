@@ -1,7 +1,7 @@
 include ../../Makefile.config
 
 CC=../../ccomp 
-CFLAGS=$(CCOMPOPTS) -U__GNUC__ -stdlib ../../runtime -dclight -dasm
+CFLAGS=$(CCOMPOPTS) -U__GNUC__ -stdlib ../../runtime -dclight -dasm $(SSA_MODE)
 LIBS=
 TIME=ocaml unix.cma ../../tools/xtime.ml -mintime 2.0 -minruns 2
 
@@ -56,6 +56,7 @@ include .depend
 
 clean:
 	rm -f *.o *.light.c *.s *.sdump $(EXE)
+	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9] *.cssa  *.rtlpar
 
 depend:
 	gcc -MM *.c > .depend

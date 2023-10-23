@@ -1,7 +1,7 @@
 include ../../Makefile.config
 
 CC=../../ccomp 
-CFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dparse -dclight -dasm -fstruct-return
+CFLAGS=$(CCOMPOPTS) -stdlib ../../runtime -dparse -dclight -dasm -fstruct-return $(SSA_MODE)
 LIBS=$(LIBMATH)
 TIME=ocaml unix.cma ../../tools/xtime.ml -mintime 2.0 -minruns 4
 
@@ -16,6 +16,7 @@ render: $(OBJS)
 
 clean:
 	rm -f *.o *.parsed.c *.light.c *.s *.sdump *.ppm render
+	rm -f *.ssa.[0-9] *.rtl.norm *.rtl.[0-9] *.rtlpar *.cssa
 
 include .depend
 

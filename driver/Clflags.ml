@@ -52,6 +52,16 @@ let option_dalloctrace = ref false
 let option_dmach = ref false
 let option_dasm = ref false
 let option_sdump = ref false
+
+(* Midend flags *)
+let option_drtlnorm = ref false
+let option_dssa = ref false
+let option_dcssa = ref false
+let option_drtlpar = ref false
+let ssa_mode = ref "off"
+let option_full_inlining = ref false
+(* end of Midend flags *)
+
 let option_g = ref false
 let option_gdwarf = ref (if Configuration.system = "diab" then 2 else 3)
 let option_gdepth = ref 3

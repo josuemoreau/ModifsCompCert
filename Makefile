@@ -29,7 +29,7 @@ else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 
-DIRS := lib common $(ARCHDIRS) backend cfrontend driver export cparser stageM2
+DIRS := lib common $(ARCHDIRS) backend midend libSSA cfrontend driver export cparser stageM2
 
 COQINCLUDES := $(foreach d, $(DIRS), -R $(d) compcert.$(d))
 
@@ -93,6 +93,10 @@ VLIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
   Parmov.v UnionFind.v Wfsimpl.v \
   Postorder.v FSetAVLplus.v IntvSets.v Decidableplus.v BoolEqual.v
 
+# General-purpose libraries for the SSA midend (in midend/libSSA)
+
+VLIB2= Maps2.v Utils.v RTLutils.v
+
 # Parts common to the front-ends and the back-end (in common/)
 
 COMMON=Errors.v AST.v Linking.v \
@@ -129,6 +133,26 @@ BACKEND=\
   Mach.v \
   Bounds.v Stacklayout.v Stacking.v Stackingproof.v \
   Asm.v Asmgen.v Asmgenproof0.v Asmgenproof1.v Asmgenproof.v
+
+# Middle-end modules (in midend/, $(VLIB2)/, $(ARCH))
+MIDEND=\
+  DLib.v \
+  RTLnorm.v RTLnormspec.v RTLnormproof.v \
+  RTLdfs.v RTLdfsgen.v RTLdfsproof.v \
+  RTLutils.v LightLive.v KildallComp.v \
+  Bijection.v \
+  SSA.v SSAutils.v SSAvalid.v SSAvalidspec.v \
+  Utilsvalidproof.v SSAvalidproof.v SSAvalidprop.v SSAvalidator_proof.v \
+  Dom.v DomCompute.v DomTest.v \
+  SSAinv.v Dsd.v \
+  Opt.v OptInv.v \
+  GVNopt.v  GVNoptproof.v GVNoptProp.v \
+  ValueDomainSSA.v ValueAOpSSA.v \
+  SCCPopt.v SCCPoptProp.v SCCPoptproof.v \
+  CSSA.v CSSAutils.v CSSAdef.v CSSAgen.v CSSAgenspec.v CSSAgenwf.v CSSAproof.v \
+  CSSAval.v CSSAlive.v CSSAninterf.v CSSAliverange.v \
+  RTLpar.v RTLpargen.v RTLparproof.v RTLparcleanup.v \
+  RTLdpar.v RTLdparspec.v RTLdparproof.v
 
 # C front-end modules (in cfrontend/)
 
@@ -167,7 +191,7 @@ endif
 
 # All source files
 
-FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(STAGEFRONTEND) $(DRIVER) $(FLOCQ) \
+FILES=$(VLIB) $(VLIB2) $(COMMON) $(BACKEND) $(MIDEND) $(CFRONTEND) $(STAGEFRONTEND) $(DRIVER) $(FLOCQ) \
   $(MENHIRLIB) $(PARSER) $(EXPORTLIB)
 
 # Generated source files
@@ -347,6 +371,7 @@ endif
 clean:
 	rm -f $(patsubst %, %/*.vo*, $(DIRS))
 	rm -f $(patsubst %, %/.*.aux, $(DIRS))
+	rm -f $(patsubst %, %/*~, $(DIRS))
 	rm -rf doc/html doc/*.glob
 	rm -f driver/Version.ml
 	rm -f compcert.ini compcert.config
@@ -361,6 +386,19 @@ clean:
 distclean:
 	$(MAKE) clean
 	rm -f Makefile.config
+
+
+##### SSA-midend testing ######
+testclean:
+	$(MAKE) -C test clean
+
+ssa_on: testclean
+	$(MAKE) SSA_MODE='-ssa on' -C test all
+
+ssa_bench: ssa_on
+	$(MAKE) SSA_MODE='-ssa on' -C test bench
+##### end of SSA-midend testing ######
+
 
 check-admitted: $(FILES)
 	@grep -w 'admit\|Admitted\|ADMITTED' $^ || echo "Nothing admitted."

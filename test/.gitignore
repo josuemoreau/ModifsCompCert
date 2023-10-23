@@ -6,3 +6,6 @@
 *.light.c
 *.compcert
 *.gcc
+*.ssa.[0-9]
+*.rtl.[0-9]
+*.rtl.norm

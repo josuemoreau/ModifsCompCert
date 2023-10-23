@@ -133,6 +133,22 @@ Extract Constant Compiler.print_Mach => "PrintMach.print_if".
 Extract Constant Compiler.print => "fun (f: 'a -> unit) (x: 'a) -> f x; x".
 Extract Constant Compiler.time  => "Timing.time_coq".
 
+(* Midend *)
+Extract Constant SSAvalid.extern_gen_ssa => "ExternSSAgen.genSSA".
+Extract Constant Compiler.print_RTL_norm => "PrintRTLdfs.print_if PrintRTLdfs.destination_drtlnorm".
+Extract Constant Compiler.print_SSA => "PrintSSA.print_ssa".
+
+Extract Constant DomTest.fuel => "DomTreeExtern.fuel".
+Extract Constant SSAvalid.extern_d => "DomTreeExtern.DomTree.idom".
+
+Extract Constant GVNopt.extern_gvn => "GvnExtern.extern_gvn2".
+
+Extract Constant RTLpargen.compute_cssaval_function => "CssaExtern.compute_cssaval_function".
+Extract Constant RTLpargen.build_coalescing_classes_extern => "CssaExtern.build_coalescing_classes_extern".
+
+Extract Constant Compiler.print_CSSA => "PrintCSSA.print_cssa".
+Extract Constant Compiler.print_RTLpar => "PrintRTLpar.print_rtlpar".
+
 (*Extraction Inline Compiler.apply_total Compiler.apply_partial.*)
 
 (* Cabs *)
@@ -166,6 +182,7 @@ Separate Extraction
    Syntax.Sfor Syntax.Swhile Syntax.Sfor_step
    Errors.bind
    Compiler.transf_c_program Compiler.transf_cminor_program
+   Compiler.transf_c_program_via_SSA Compiler.transf_cminor_program_via_SSA
    Cexec.do_initial_state Cexec.do_step Cexec.at_final_state
    Ctypes.merge_attributes Ctypes.remove_attributes 
    Ctypes.build_composite_env Ctypes.layout_struct
@@ -182,6 +199,7 @@ Separate Extraction
    Conventions1.dummy_int_reg Conventions1.dummy_float_reg
    Conventions1.allocatable_registers
    RTL.instr_defs RTL.instr_uses
+   RTLdfs.successors_map
    Machregs.mregs_for_operation Machregs.mregs_for_builtin
    Machregs.two_address_op Machregs.is_stack_reg
    Machregs.destroyed_at_indirect_call
