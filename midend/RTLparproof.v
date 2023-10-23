@@ -2016,9 +2016,6 @@ Proof.
   rewrite PMap.gi.
   auto.
   flatten; go.
-  rewrite PMap.gi.
-  rewrite PMap.gi.
-  auto.
   case_eq (peq a r); intros.
   + rewrite e in *. repeat rewrite PMap.gss. auto.
   + rewrite PMap.gsspec.

@@ -283,6 +283,8 @@ Proof.
   right; exists k; repeat split; eauto.
 Qed.
 
+Import PTree.
+
 Lemma acc_succ_prop : forall workl seen_set seen_list stack seen code'
   (HH1: In entry seen_list)
   (HH2: list_norepet stack)
@@ -482,7 +484,7 @@ Proof.
   elim H.
   
   intros.
-  elim not_seen_sons_prop6 with (1:=TT) (i0:=i); auto with datatypes.
+  elim not_seen_sons_prop6 with (1:=TT) (i:=i); auto with datatypes.
   rewrite PTree.gsspec; destruct peq; subst; intros; auto with datatypes.
   rewrite PTree.gempty in H0; congruence.
   

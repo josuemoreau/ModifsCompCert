@@ -24,7 +24,7 @@ Unset Allow StrictProp.
 Variant is_jp (jp: node) (code: code) : Prop :=
  | ijp_intro: forall l, 
                 (make_predecessors code successors_instr) ! jp = Some l -> 
-                length l > 1 ->
+                (length l > 1)%nat ->
                 is_jp jp code.
 
 Inductive reach_moves (code : RTL.code) :

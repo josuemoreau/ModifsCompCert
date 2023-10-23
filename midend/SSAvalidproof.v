@@ -544,9 +544,8 @@ Proof.
       rewrite PMap.gss; rewrite PMap.gss; auto.
     + (* r <> r0 *)
       rewrite PMap.gso; try rewrite PMap.gso; auto.
-      eapply IHparams ; eauto.
       intro; subst. rewrite Bij.BIJ1 in H1. congruence.
-      eauto. 
+      eauto.
 Qed.
 
 Lemma wt_call_agree : forall f tf live size pc fd fn' args'  s ts sp dst pc' x Γ rs rs' ros

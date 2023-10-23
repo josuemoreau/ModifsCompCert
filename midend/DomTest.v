@@ -1259,8 +1259,8 @@ Module PositiveNodeTree <: NODE_TREE.
   Definition peq : forall x y:node, {x=y}+{x<>y} := peq.
 
   Definition tree : Type -> Type := PTree.t.
-  Definition get : forall {A:Type}, node -> tree A -> option A := PTree.get.
-  Definition set : forall {A:Type}, node -> A -> tree A -> tree A := PTree.set.
+  Definition get : forall {A:Type}, node -> tree A -> option A := @PTree.get.
+  Definition set : forall {A:Type}, node -> A -> tree A -> tree A := @PTree.set.
   Definition empty : forall A:Type, tree A := PTree.empty.
 
   Lemma gsspec:

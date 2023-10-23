@@ -555,7 +555,6 @@ Proof.
   rewrite nodef_parcode_correct; auto.
   rewrite nodef_phicode_correct; auto.
   rewrite nodef_code_correct; auto.
-  rewrite PTree.gempty; auto.
 Qed.
 
 Lemma code_def_not_none :

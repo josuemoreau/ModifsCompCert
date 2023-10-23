@@ -49,7 +49,7 @@ Fixpoint acc_succ (code:code) (workl: list node)
   do acc <- acc;
     let '(seen_set,seen_list,stack) := acc in 
       match stack with 
-        | nil => OK (seen_list, combine remove_dead code seen_set)
+        | nil => OK (seen_list, PTree.combine remove_dead code seen_set)
         | x::q => 
           match workl with
             | nil => Error (msg "workl too small")

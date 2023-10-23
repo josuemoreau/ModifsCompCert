@@ -22,7 +22,8 @@ Module L <: SEMILATTICE.
   Definition eq_refl: forall x, eq x x := @refl_equal _.
   Definition eq_sym: forall x y, eq x y -> eq y x := @sym_eq _.
   Definition eq_trans: forall x y z, eq x y -> eq y z -> eq x z := @trans_eq _.
-   
+
+(*
   Fixpoint eqtu (a b: PTree.t unit) : bool := 
     match a, b with 
     | PTree.Leaf , PTree.Leaf  => true
@@ -52,19 +53,23 @@ Module L <: SEMILATTICE.
         erewrite (IHx1 x1); eauto.
         erewrite (IHx2 x2); eauto.
   Qed.
-    
+*)
+
   Definition beq (x y:t) : bool :=
     match x, y with
       | None, None => true
-      | Some x, Some y => eqtu x y
+      | Some x, Some y => PTree.beq (fun _ _ => true) x y
       | _, _ => false
     end.
 
   Lemma beq_correct: forall x y, beq x y = true -> eq x y.
   Proof.
     destruct x ; destruct y ; simpl ; try congruence; intros.
-    apply eqtu_correct in H.
-    congruence.
+    apply f_equal, PTree.extensionality.
+    intros i.
+    generalize (proj1 (PTree.beq_correct _ _ _) H i).
+    destruct (t0!i), (t1!i) ; try easy.
+    now destruct u, u0.
   Qed.
 
   Variant ge_ : t -> t -> Prop :=

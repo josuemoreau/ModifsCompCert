@@ -945,7 +945,7 @@ Proof.
     exploit SSAutils.fn_phicode_code; go.
     intros Hsomeins.
     destruct Hsomeins as [ins Hsomins].
-    specialize (H4 pc ins 0).
+    specialize (H4 pc ins 0%nat).
     exploit H4; eauto; intros Hspec.
     inv Hspec; go.
     rewrite <- fn_phicode_inv in H3; auto.
@@ -969,8 +969,6 @@ Proof.
     }
     intros; simpl in *.
     apply Plt_succ.
-    intros; simpl in *.
-    rewrite PTree.gempty in H3. auto. 
 Qed.
 
 Lemma exists_phib_iff_none :
@@ -1260,7 +1258,7 @@ Proof.
     destruct Hinop as [succ Hinop].
 
     inv SPEC; simpl in *.
-    specialize (H1 pc (Inop succ) 0).
+    specialize (H1 pc (Inop succ) 0%nat).
     exploit H1; go; intros.
     inv H0; go.
     + simpl in *. flatten H7.
@@ -1403,7 +1401,7 @@ Proof.
   eapply cssa_fn_inop_in_jp; eauto. go.
   simpl in Hinop.
   destruct Hinop as [succ0 Hinop].
-  specialize (H3 pc (Inop succ0) 0).
+  specialize (H3 pc (Inop succ0) 0%nat).
   exploit H3; eauto; intros.
   inv H2; go.
   rewrite exists_phib_iff_none in H7; go.
@@ -1564,7 +1562,7 @@ Proof.
   rewrite <- exists_phib_iff; eauto.
   destruct Hinop as [succ Hinop].
   inv SPEC.
-  exploit (H2 pc (Inop succ) 0); eauto; intros.
+  exploit (H2 pc (Inop succ) 0%nat); eauto; intros.
   simpl in *.
   inv H1; go.
   {
@@ -2382,7 +2380,7 @@ Proof.
       Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; go.
     destruct H1 as [succ Hinop].
-    exploit (H2 pc (Inop succ) 0); eauto; intros.
+    exploit (H2 pc (Inop succ) 0%nat); eauto; intros.
     inv H1; go.
     rewrite exists_phib_iff_none in H6; go. go.
     {
@@ -2405,7 +2403,7 @@ Proof.
       Some (Inop succ)).
     eapply cssa_fn_inop_in_jp; go.
     destruct H3 as [succ Hinop].
-    exploit (H4 pc (Inop succ) 0); eauto; intros.
+    exploit (H4 pc (Inop succ) 0%nat); eauto; intros.
     inv H3.
     rewrite exists_phib_iff_none in H8; go. go.
     {
@@ -2432,7 +2430,7 @@ Proof.
     destruct Hpc' as [pc' [Hinop Hphicode]].
     destruct Hphicode as [Hphibpc | Hphibpc'].
     - inv SPEC; simpl in *.
-      exploit (H2 pc (Inop pc') 0); eauto; intros.
+      exploit (H2 pc (Inop pc') 0%nat); eauto; intros.
       inv H1.
       rewrite exists_phib_iff_none in H6; go. go.
       {
@@ -2442,7 +2440,6 @@ Proof.
         unfold node in *.
         assert(Hnill: nil = l) by go.
         rewrite <- Hnill in Hl. simpl in Hl. go.
-        
       }
       exploit equiv_phib_spec_correct; eauto; intros.
       exploit equiv_phib_nodups_parcb'_dst; eauto; intros.
@@ -2483,7 +2480,7 @@ Proof.
     destruct Hpc' as [pc' [Hinop Hphicode]].
     destruct Hphicode as [Hphibpc | Hphibpc'].
     - inv SPEC; simpl in *.
-      exploit (H4 pc (Inop pc') 0); eauto; intros.
+      exploit (H4 pc (Inop pc') 0%nat); eauto; intros.
       inv H3.
       rewrite exists_phib_iff_none in H8; go. go.
       {
@@ -2493,7 +2490,6 @@ Proof.
         unfold node in *.
         assert(Hnill: nil = l) by go.
         rewrite <- Hnill in Hl. simpl in Hl. go.
-        
       }
       exploit equiv_phib_spec_correct; eauto; intros.
       exploit equiv_phib_nodups_parcb'_dst; eauto; intros.
@@ -2567,7 +2563,7 @@ Proof.
   rewrite <- exists_phib_iff; go.
   go.
   destruct Hinop as [succ Hinop].
-  exploit (H3 pc (Inop succ) 0); eauto; intros.
+  exploit (H3 pc (Inop succ) 0%nat); eauto; intros.
   inv H0.
   - assert(Hjp: join_point pc f) by
       (eapply no_new_joinpoints; eauto).
@@ -2663,7 +2659,7 @@ Proof.
   exploit (H5 pc); eauto. congruence.
   intros.
   destruct H as [succ Hinop].
-  exploit (H2 pc (Inop succ) 0); eauto; intros.
+  exploit (H2 pc (Inop succ) 0%nat); eauto; intros.
   inv H.
   - congruence.
   - intros.
@@ -3303,7 +3299,7 @@ Proof.
     eapply cssa_dom_dom; eauto.
     induction WF.
     eapply fn_strict; eauto.
-    go. go.
+    go.
   - exploit cssa_use_code_use_code; eauto; intros Huse.
     exploit cssa_def_code_def_code; eauto; intros Hdef.
     eapply cssa_dom_dom; eauto.

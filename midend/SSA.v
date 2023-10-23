@@ -157,7 +157,7 @@ Definition successors_instr (i: instruction) : list node :=
 Inductive join_point (jp: node) (f:function) : Prop :=
   | jp_cons : forall l,
       forall (Hpreds: (make_predecessors (fn_code f) successors_instr) ! jp = Some l)
-             (Hl: length l > 1), 
+             (Hl: (length l > 1)%nat),
         join_point jp f.
 
 Definition index_pred (predsf: PTree.t (list node)): node -> node -> option nat :=

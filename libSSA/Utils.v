@@ -107,36 +107,6 @@ Global Hint Resolve option_map_some : core.
 (** * Properties about [PTree] *)
 Require Import DLib.
 
-Lemma PTree_xfold_none : forall (A B:Type) (f:A->positive->B->A) (m:PTree.t B) (x:A) p',
-  (forall p, m!p = None) ->
-  PTree.xfold f p' m x = x.
-Proof.
-  induction m; simpl; intros; auto.
-  generalize (H xH); simpl; intros; subst.
-  rewrite IHm1.
-  rewrite IHm2; auto.
-  intros; generalize (H (xI p)); simpl; auto.
-  intros; generalize (H (xO p)); simpl; auto.
-Qed.
-  
-Lemma ptree_set_permut: forall r  r0 r1 (v0 v1:val) t ,
-  r0 <> r1 ->
-  Maps.PTree.get  r (Maps.PTree.set r0 v0 (Maps.PTree.set r1 v1 t)) = 
-  Maps.PTree.get r (Maps.PTree.set r1 v1 (Maps.PTree.set r0 v0 t)).
-Proof.
-  induction r; intros; destruct r0; destruct r1; destruct t; simpl;
-    try rewrite <- (gleaf A i); auto; try apply IHr; congruence.
-Qed.
-
-Lemma ptree_setset: forall r dst (v1 v2:val) t,
-Maps.PTree.get dst (Maps.PTree.set r v2 (Maps.PTree.set r v1 t)) = 
-Maps.PTree.get dst (Maps.PTree.set r v2 t).
-Proof.
-  induction r; intros; destruct dst; destruct t; simpl;
-    try rewrite <- (gleaf A i); auto; try apply IHr; congruence.
-Qed.
-  
-
 Definition forall_ptree {A:Type} (f:positive->A->bool) (m:Maps.PTree.t A) : bool :=
   Maps.PTree.fold (fun (res: bool) (i: positive) (x: A) => res && f i x) m true.
 
@@ -630,19 +600,12 @@ list_nth_z l n = Some a.
 Proof.
   induction l ; intros.
   eelim @nth_error_nil_some ; eauto.
-  destruct n.
-  simpl in * ; auto.
-  case_eq (Z.to_nat (Zpos p) ) ; intros.
+  destruct n ; try easy.
+  case_eq (Z.to_nat (Zpos p)) ; intros.
   inv H1. lia. rewrite H1 in *. simpl in H0.
-  case_eq (Zpos p); intros. inv H2. 
+  apply IHl. lia.
   exploit arith_utils ; eauto.
-  intros.
-  exploit arith_utils2 ; eauto. 
-  lia. intros.
-  inv H3 ; auto.
-  exploit (IHl (Z.pred (Zpos p0))) ; eauto. 
-  unfold Z.pred ; lia.
-  simpl in *. lia. 
+  now intros <-.
 Qed.
 
 Lemma list_nth_z_ge0 {A: Type} : forall (l: list A) (n:Z) (a: A), 
@@ -699,41 +662,43 @@ End FORALL1.
 
 Set Implicit Arguments.
 
-
 Section forall3_ptree.
 
   Variable A B: Type.
   Variable f: positive -> option A -> option A -> option B -> bool.
   Hypothesis f_none_none: forall p x, f p None None x = true.
 
-  Fixpoint xforall3_l (m : PTree.t A) (m3 : PTree.t B) (i : positive) : bool :=
-      match m with
-      | PTree.Leaf => true
-      | PTree.Node l o r =>
-        match m3 with
-          | PTree.Leaf =>
-            f (PTree.prev i) o None None &&
-            (xforall3_l l PTree.Leaf (xO i)) &&
-            (xforall3_l r PTree.Leaf (xI i))
-          | PTree.Node l3 o3 r3 =>
-            f (PTree.prev i) o None o3 &&
-            (xforall3_l l l3 (xO i)) &&
-            (xforall3_l r r3 (xI i))
-        end
-      end.
+  Definition xforall3_l := PTree.tree_rec
+    (fun (m3 : PTree.t B) (i : positive) => true)
+    (fun l Hl o r Hr => PTree.tree_case
+      (fun i =>
+       f (PTree.prev i) o None None &&
+       Hl PTree.Empty (xO i) &&
+       Hr PTree.Empty (xI i))
+      (fun l3 o3 r3 i =>
+       f (PTree.prev i) o None o3 &&
+       Hl l3 (xO i) &&
+       Hr r3 (xI i))).
 
   Lemma xgforall3_l :
     forall i m m3 j,
       xforall3_l m m3 j = true ->
       f (PTree.prev (PTree.prev_append i j)) (PTree.get i m) None (PTree.get i m3) = true.
   Proof.
-    induction i; intros; destruct m; destruct m3; simpl in *; auto;
-      repeat rewrite andb_true_iff in *.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf).
+    induction i; intros;
+      destruct m using PTree.tree_ind;
+      destruct m3 using PTree.tree_ind; auto;
+      rewrite !PTree.gNode, ?PTree.gEmpty;
+      unfold xforall3_l in H;
+      rewrite PTree.unroll_tree_rec in H by easy;
+      fold xforall3_l in H; simpl in H;
+      rewrite ?PTree.unroll_tree_case in H by easy;
+      repeat rewrite andb_true_iff in H.
+    - replace (@None B) with (@PTree.get B i PTree.Empty).
       apply IHi; intuition.
       apply PTree.gempty.
     - apply IHi; intuition.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf).
+    - replace (@None B) with (@PTree.get B i PTree.Empty).
       apply IHi; intuition.
       apply PTree.gempty.
     - apply IHi; intuition.
@@ -741,34 +706,37 @@ Section forall3_ptree.
     - intuition.
   Qed.
 
-  Fixpoint xforall3_r (m : PTree.t A) (m3 : PTree.t B) (i : positive) : bool :=
-      match m with
-      | PTree.Leaf => true
-      | PTree.Node l o r =>
-        match m3 with
-          | PTree.Leaf =>
-            (f (PTree.prev i) None o None) &&
-            (xforall3_r l PTree.Leaf (xO i)) &&
-            (xforall3_r r PTree.Leaf (xI i))
-          | PTree.Node l3 o3 r3 =>
-            (f (PTree.prev i) None o o3) &&
-            (xforall3_r l l3 (xO i)) &&
-            (xforall3_r r r3 (xI i))
-        end
-      end.
+  Definition xforall3_r := PTree.tree_rec
+    (fun (m3 : PTree.t B) (i : positive) => true)
+    (fun l Hl o r Hr => PTree.tree_case
+      (fun i =>
+       f (PTree.prev i) None o None &&
+       Hl PTree.Empty (xO i) &&
+       Hr PTree.Empty (xI i))
+      (fun l3 o3 r3 i =>
+       f (PTree.prev i) None o o3 &&
+       Hl l3 (xO i) &&
+       Hr r3 (xI i))).
 
   Lemma xgforall3_r :
     forall i m m3 j,
       xforall3_r m m3 j = true ->
       f (PTree.prev (PTree.prev_append i j)) None (PTree.get i m) (PTree.get i m3) = true.
   Proof.
-    induction i; intros; destruct m; destruct m3; simpl in *; auto;
-      repeat rewrite andb_true_iff in *.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf).
+    induction i; intros;
+      destruct m using PTree.tree_ind;
+      destruct m3 using PTree.tree_ind; auto;
+      rewrite !PTree.gNode, ?PTree.gEmpty;
+      unfold xforall3_r in H;
+      rewrite PTree.unroll_tree_rec in H by easy;
+      fold xforall3_r in H; simpl in H;
+      rewrite ?PTree.unroll_tree_case in H by easy;
+      repeat rewrite andb_true_iff in H.
+    - replace (@None B) with (@PTree.get B i PTree.Empty).
       apply IHi; intuition.
       apply PTree.gempty.
     - apply IHi; intuition.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf).
+    - replace (@None B) with (@PTree.get B i PTree.Empty).
       apply IHi; intuition.
       apply PTree.gempty.
     - apply IHi; intuition.
@@ -776,6 +744,22 @@ Section forall3_ptree.
     - intuition.
   Qed.
 
+  Definition xforall3_ptree :=
+    PTree.tree_rec2
+     (fun m3 i => true)
+     xforall3_r
+     xforall3_l
+     (fun l1 o1 r1 l2 o2 r2 Hl Hr => PTree.tree_case
+       (fun i =>
+        Hl PTree.Empty (xO i) &&
+        f (PTree.prev i) o1 o2 None &&
+        Hr PTree.Empty (xI i))
+       (fun l3 o3 r3 i =>
+        Hl l3 (xO i) &&
+        f (PTree.prev i) o1 o2 o3 &&
+        Hr r3 (xI i))).
+
+(*
   Fixpoint xforall3_ptree (m1 m2 : PTree.t A) (m3: PTree.t B) (i : positive) {struct m1} : bool :=
     match m1 with
     | PTree.Leaf => xforall3_r m2 m3 i
@@ -795,36 +779,35 @@ Section forall3_ptree.
           end
         end
     end.
+*)
 
   Lemma xgforall3_ptree :
     forall i m1 m2 m3 j,
       xforall3_ptree m1 m2 m3 j = true ->
       f (PTree.prev (PTree.prev_append i j)) (PTree.get i m1) (PTree.get i m2) (PTree.get i m3) = true.
   Proof.
-    induction i; intros; destruct m1; destruct m2; destruct m3; simpl in *; auto;
-      repeat rewrite andb_true_iff in *.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf) by apply PTree.gempty.
-      apply xgforall3_r; intuition.
-    - apply xgforall3_r; intuition.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf) by apply PTree.gempty.
-      apply xgforall3_l; intuition.
-    - apply xgforall3_l; intuition.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf) by apply PTree.gempty.
+    induction i; intros;
+      destruct m1 using PTree.tree_ind;
+      destruct m2 using PTree.tree_ind; auto;
+      unfold xforall3_ptree in H;
+      rewrite ?PTree.unroll_tree_rec2_EN, ?PTree.unroll_tree_rec2_NE, ?PTree.unroll_tree_rec2_NN in H by easy;
+      fold xforall3_ptree in H; simpl in H;
+      rewrite ?PTree.unroll_tree_case in H by easy;
+      try (now apply xgforall3_r);
+      try (now apply xgforall3_l);
+      destruct m3 using PTree.tree_ind; auto;
+      simpl in H;
+      rewrite ?PTree.unroll_tree_case in H by easy;
+      repeat rewrite andb_true_iff in H;
+      rewrite !PTree.gNode, ?PTree.gEmpty.
+    - replace (@None B) with (@PTree.get B i PTree.Empty) by apply PTree.gempty.
       apply IHi; intuition.
-    - apply IHi; intuition.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf) by apply PTree.gempty.
-      apply xgforall3_r; intuition.
-    - apply xgforall3_r; intuition.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf) by apply PTree.gempty.
-      apply xgforall3_l; intuition.
-    - apply xgforall3_l; intuition.
-    - replace (@None B) with (@PTree.get B i PTree.Leaf) by apply PTree.gempty.
+    - replace (@None B) with (@PTree.get B i PTree.Empty) by apply PTree.gempty.
       apply IHi; intuition.
-    - apply IHi; intuition.
-    - intuition.
-    - intuition.
-    - intuition.
-    - intuition.
+    - replace (@None B) with (@PTree.get B i PTree.Empty) by apply PTree.gempty.
+      apply IHi; intuition.
+    - replace (@None B) with (@PTree.get B i PTree.Empty) by apply PTree.gempty.
+      apply IHi; intuition.
     - intuition.
     - intuition.
   Qed.
@@ -845,6 +828,7 @@ Section forall3_ptree.
 End forall3_ptree.
 Arguments forall3_ptree [A B].
 
+(*
   Section COMBINE.
     Import PTree.
     Variable A B C: Type.
@@ -904,6 +888,7 @@ Arguments forall3_ptree [A B].
 
   End COMBINE.
 Arguments combine [A B C].
+*)
 
 (** * Relational operators *)
 

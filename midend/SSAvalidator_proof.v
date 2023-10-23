@@ -166,8 +166,8 @@ Proof.
       unfold RTLdfs.successors_map, successors_list in Hinsuccpc.      
       rewrite PTree.gmap1 in Hinsuccpc.
       case_eq (option_map RTLdfs.successors_instr (RTLdfs.fn_code tf) ! pc) ; intros.
-      exploit option_map_some; eauto. intros [ipc Hipc]. 
-      eapply make_predecessors_correct_1 with (n1:= pc); eauto.
+      exploit option_map_some; eauto. intros [ipc Hipc].
+      eapply make_predecessors_correct_1 with (n:= pc); eauto.
       unfold option_map in *.
       rewrite Hipc in *. inv H1. auto.
       
@@ -2553,8 +2553,6 @@ Proof.
     intros.
     rewrite PTree.gempty in *; congruence.
 
-  - intros; rewrite PTree.gempty in *; congruence.
-
   - intros i g Hj Hsome.
     unfold entry_Gamma in *.
     rewrite PTree.gsspec in Hsome; destruct peq; subst.
@@ -2565,9 +2563,8 @@ Proof.
     intros.
     rewrite PTree.gsspec in H; destruct peq; subst.
     + inv H. rewrite PTree.gempty; auto.
-    + inv H. rewrite PTree.gempty in H1.
-      congruence.
-      
+    + inv H.
+
   - intros [H [H0 [H1 [H2 [H3 [H4 [H5 [H6 [H7 [H8 [H9 [H10 [H11 HVALID]]]]]]]]]]]]].
     simpl.
     exists (fun n => match G!n with None => fun _ => xH | Some g => read_gamma g end); split. 
@@ -2605,8 +2602,6 @@ Proof.
                     rewrite PTree.gss; auto.    
                     rewrite (H _ _ HG).
                     replace (read_gamma (PTree.empty index)) with (fun _ : Registers.reg => 1%positive); auto.
-                    apply extensionality.
-                    intros; unfold read_gamma; simpl; rewrite PTree.gempty; auto.
                   - (* wt_ephi *) 
                     case_eq (G!i); [intros gi Hgi| intuition;fail].
                     case_eq (G!j); [intros gj Hgj| intuition;fail].
@@ -2633,8 +2628,7 @@ Proof.
                     eapply check_valid_index_phis_correct; eauto.
                     unfold is_joinpoint in *.
                     intros T; rewrite T in *; congruence.
-                    apply extensionality.
-                    intros; unfold read_gamma; simpl; rewrite PTree.gempty; auto.
+                    now apply extensionality.
 
                   - simpl; constructor; simpl.
                     + case_eq (G!i); [intros gi Hgi| intuition;fail].
@@ -2793,8 +2787,6 @@ Proof.
                   rewrite PTree.gss; auto.    
                   rewrite (H _ _ HG).
                   replace (read_gamma (PTree.empty index)) with (fun _ : Registers.reg => 1%positive); auto.
-                  apply extensionality.
-                  intros; unfold read_gamma; simpl; rewrite PTree.gempty; auto.
                 - (* wt_instr *)
                   case_eq (G!i); [intros gi Hgi| intuition;fail].
                   case_eq (G!j); [intros gj Hgj| intuition;fail].
@@ -2827,7 +2819,7 @@ Proof.
         - rewrite (H _ _ HG).
           exploit list_in_map_inv; eauto; simpl; intros [r [Hr1 Hr2]]; subst.
           exists r.
-          unfold read_gamma; simpl; rewrite PTree.gempty; auto.
+          unfold read_gamma; simpl.
           rewrite Bij.BIJ1; auto.
       }
 

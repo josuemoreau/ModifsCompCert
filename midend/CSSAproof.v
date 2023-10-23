@@ -362,7 +362,7 @@ Proof.
   unfold option_map.
   rewrite H.
   apply make_predecessors_correct2
-    with (code := (fn_code f)) (n0 := n).
+    with (code := (fn_code f)) (n := n).
   auto.
   assert((make_predecessors (fn_code f) successors_instr)
     !!! pc = l).
@@ -2422,8 +2422,8 @@ Proof.
       unfold get_index in *.
       simpl in *.
       flatten.
-      assert (EQ1: 1 = 0 + 1) by auto.
-      assert (EQ2: (S k) = k + 1) by lia.
+      assert (EQ1: (1 = 0 + 1)%nat) by auto.
+      assert (EQ2: ((S k) = k + 1)%nat) by lia.
       rewrite EQ1. rewrite EQ2.
       apply get_index_acc_inv. auto.
 Qed.
@@ -2932,7 +2932,7 @@ Proof.
   inv H.
   simpl in *.
   destruct H.
-  + exists 0. simpl. unfold value. congruence.
+  + exists 0%nat. simpl. unfold value. congruence.
   + cut (exists k : nat, nth_error l k = Some pc); auto.
     intros HE. destruct HE as [k nthk].
     exists (S k). simpl. auto.
@@ -3645,11 +3645,11 @@ Qed.
 (** ** (index_preds preds pc) injectivity *)
 Lemma get_index_acc_le_k : forall l pc acc k,
   get_index_acc l pc acc = Some k ->
-  acc <= k.
+  (acc <= k)%nat.
 Proof.
   induction l; go.
   intros. simpl in *. flatten H; go.
-  assert (acc + 1 <= k).
+  assert (acc + 1 <= k)%nat.
   eauto. lia.
 Qed.
 
@@ -3662,10 +3662,10 @@ Proof.
   go.
   simpl in H. simpl in H0.
   flatten H; flatten H0; go.
-  + assert (k + 1 <= k).
+  + assert (k + 1 <= k)%nat.
     eapply get_index_acc_le_k; eauto.
     lia.
-  + assert (k + 1 <= k).
+  + assert (k + 1 <= k)%nat.
     eapply get_index_acc_le_k; eauto.
     lia.
 Qed.
