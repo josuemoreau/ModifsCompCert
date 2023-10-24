@@ -198,6 +198,7 @@ let compile_b_file (sourcename: string) (ofile: string) =
                      printf_cc) in *)
   (* Convert to Clight *)
   let bsyntax = parse_b_file sourcename in
+  PrintSSA.set_source bsyntax;
   (* PrintB.print_if bsyntax;
   let clight =
     match Compiler.transl_b_program bsyntax with
