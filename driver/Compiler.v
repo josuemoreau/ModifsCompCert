@@ -275,11 +275,24 @@ Definition transf_b_program hfuncs (p: Syntax.program) : res Asm.program :=
   @@@ time "Cminor generation" Cminorgen.transl_program
   @@@ transf_cminor_program.
 
+Definition transf_b_program_via_SSA hfuncs (p: Syntax.program) : res Asm.program :=
+  OK p
+   @@ print print_B
+  @@@ time "C#minor generation" (BtoCSharpMinor.transl_program hfuncs)
+  @@@ time "Cminor generation" Cminorgen.transl_program
+  @@@ transf_cminor_program_via_SSA.
+
 Definition transf_nb_program hfuncs (p: Syntax.program) : res Asm.program :=
   OK p
    @@ print print_NB
   @@@ time "Test generation" NBtoB.transl_program
   @@@ (transf_b_program hfuncs).
+
+Definition transf_nb_program_via_SSA hfuncs (p: Syntax.program) : res Asm.program :=
+  OK p
+   @@ print print_NB
+  @@@ time "Test generation" NBtoB.transl_program
+  @@@ transf_b_program_via_SSA hfuncs.
 
 (** Force [Initializers] and [Cexec] to be extracted as well. *)
 

@@ -176,6 +176,13 @@ let compile_b_file (sourcename: string) (ofile: string) =
   set_dest PrintLTL.destination option_dltl ".ltl";
   set_dest PrintMach.destination option_dmach ".mach";
   set_dest AsmToJSON.destination option_sdump !sdump_suffix;
+
+  (* Pretty printers for SSA stages *)
+  set_dest PrintRTLdfs.destination_drtlnorm option_drtlnorm ".rtl.norm";
+  set_dest PrintSSA.destination_ssa option_dssa ".ssa";
+  set_dest PrintCSSA.destination_cssa option_dcssa ".cssa";
+  set_dest PrintRTLpar.destination_rtlpar option_drtlpar ".rtlpar";
+
   (* let printf_id = Camlcoq.intern_string "printf" in
   let printf_cc = { AST.cc_vararg = Some (Camlcoq.Z.of_sint 1); 
                     AST.cc_structret = false; 
@@ -200,10 +207,18 @@ let compile_b_file (sourcename: string) (ofile: string) =
       fatal_error loc "%a" print_error msg in
   let clight2 = { clight with Ctypes.prog_defs = C2C.add_helper_functions clight.Ctypes.prog_defs } in *)
   (* let clight3 = { clight2 with Ctypes.prog_defs = (printf_id, AST.Gfun printf_def) :: clight2.Ctypes.prog_defs } in *)
+  (* Whether to use SSA mode or not *)
+  let compiler_wwo_ssa = match !ssa_mode with
+    | "off" ->
+       Compiler.transf_nb_program
+    | "on" ->
+       Compiler.transf_nb_program_via_SSA
+    | _ -> assert false
+  in
   (* Convert to Asm *)
   let asm =
     match Compiler.apply_partial
-               (Compiler.transf_nb_program (helper_functions ()) bsyntax)
+               (compiler_wwo_ssa (helper_functions ()) bsyntax)
                Asmexpand.expand_program with
     | Errors.OK asm ->
         asm

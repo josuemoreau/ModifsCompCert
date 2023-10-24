@@ -177,6 +177,7 @@ Cd "extraction".
 
 Separate Extraction
    Compiler.transf_nb_program
+   Compiler.transf_nb_program_via_SSA
    Typing.type_program
    Syntax.make_function Syntax.make_program
    Syntax.Sfor Syntax.Swhile Syntax.Sfor_step
