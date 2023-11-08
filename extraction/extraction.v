@@ -164,6 +164,7 @@ Separate Extraction
    Typing.type_program
    Syntax.make_function Syntax.make_program
    Syntax.Sfor Syntax.Swhile Syntax.Sfor_step
+   ListUtils.filter2
    Errors.bind
    Compiler.transf_c_program Compiler.transf_cminor_program
    Cexec.do_initial_state Cexec.do_step Cexec.at_final_state
