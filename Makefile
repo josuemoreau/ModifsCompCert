@@ -16,7 +16,7 @@
 
 include Makefile.config
 include VERSION
-include stageM2/Makefile
+include bfrontend/Makefile
 
 BUILDVERSION ?= $(version)
 BUILDNR ?= $(buildnr)
@@ -29,7 +29,7 @@ else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 
-DIRS := lib common $(ARCHDIRS) backend cfrontend driver export cparser stageM2
+DIRS := lib common $(ARCHDIRS) backend cfrontend driver export cparser bfrontend
 
 COQINCLUDES := $(foreach d, $(DIRS), -R $(d) compcert.$(d))
 
@@ -167,7 +167,7 @@ endif
 
 # All source files
 
-FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(STAGEFRONTEND) $(DRIVER) $(FLOCQ) \
+FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(BFRONTEND) $(DRIVER) $(FLOCQ) \
   $(MENHIRLIB) $(PARSER) $(EXPORTLIB)
 
 # Generated source files
@@ -192,7 +192,7 @@ ifeq ($(INSTALL_COQDEV),true)
 	$(MAKE) compcert.config
 endif
 
-proof: $(FILES:.v=.vo) $(STAGEFRONTENDPROOF:.v=.vo)
+proof: $(FILES:.v=.vo) $(BFRONTENDPROOF:.v=.vo)
 
 # Turn off some warnings for Flocq and Menhirlib
 # These warnings can only be addressed upstream
@@ -312,7 +312,7 @@ cparser/Parser.v: cparser/Parser.vy
 
 depend: $(GENERATED) depend1
 
-depend1: $(FILES) $(STAGEFRONTENDPROOF) export/Clightdefs.v
+depend1: $(FILES) $(BFRONTENDPROOF) export/Clightdefs.v
 	@echo "Analyzing Coq dependencies"
 	@$(COQDEP) $^ > .depend
 
