@@ -196,7 +196,7 @@ ifeq ($(INSTALL_COQDEV),true)
 	$(MAKE) compcert.config
 endif
 
-proof: $(FILES:.v=.vo) $(BFRONTENDPROOF:.v=.vo)
+proof: $(FILES:.v=.vo)
 
 # Turn off some warnings for Flocq and Menhirlib
 # These warnings can only be addressed upstream
@@ -316,7 +316,7 @@ cparser/Parser.v: cparser/Parser.vy
 
 depend: $(GENERATED) depend1
 
-depend1: $(FILES) $(BFRONTENDPROOF) export/Clightdefs.v
+depend1: $(FILES) export/Clightdefs.v
 	@echo "Analyzing Coq dependencies"
 	@$(COQDEP) $^ > .depend
 
