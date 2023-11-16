@@ -176,30 +176,8 @@ let compile_b_file (sourcename: string) (ofile: string) =
   set_dest PrintLTL.destination option_dltl ".ltl";
   set_dest PrintMach.destination option_dmach ".mach";
   set_dest AsmToJSON.destination option_sdump !sdump_suffix;
-  (* let printf_id = Camlcoq.intern_string "printf" in
-  let printf_cc = { AST.cc_vararg = Some (Camlcoq.Z.of_sint 1); 
-                    AST.cc_structret = false; 
-                    AST.cc_unproto = false } in
-  let printf_sig = { AST.sig_args = [AST.Tlong]; 
-                     AST.sig_res = AST.Tret AST.Tint;
-                     AST.sig_cc = printf_cc } in
-  let printf_def = 
-    Ctypes.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "printf", printf_sig), 
-                     Ctypes.Tcons (Ctypes.Tpointer (Ctypes.Tint (Ctypes.I8, Ctypes.Signed, Ctypes.noattr), 
-                                                    Ctypes.noattr), Ctypes.Tnil), 
-                     Ctypes.Tint (Ctypes.I32, Ctypes.Signed, Ctypes.noattr),
-                     printf_cc) in *)
-  (* Convert to Clight *)
+  (* Parse .b file *)
   let bsyntax = parse_b_file sourcename in
-  (* PrintB.print_if bsyntax;
-  let clight =
-    match Compiler.transl_b_program bsyntax with
-    | Errors.OK cl -> cl
-    | Errors.Error msg ->
-      let loc = file_loc sourcename in
-      fatal_error loc "%a" print_error msg in
-  let clight2 = { clight with Ctypes.prog_defs = C2C.add_helper_functions clight.Ctypes.prog_defs } in *)
-  (* let clight3 = { clight2 with Ctypes.prog_defs = (printf_id, AST.Gfun printf_def) :: clight2.Ctypes.prog_defs } in *)
   (* Convert to Asm *)
   let asm =
     match Compiler.apply_partial
