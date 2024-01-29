@@ -178,10 +178,13 @@ let compile_b_file (sourcename: string) (ofile: string) =
   set_dest AsmToJSON.destination option_sdump !sdump_suffix;
   (* Parse .b file *)
   let bsyntax = parse_b_file sourcename in
+  (* Generate fresh identifiers for code and error labels *)
+  let lbl_error = Camlcoq.intern_string "error" in
+  let lbl_code = Camlcoq.intern_string "code" in
   (* Convert to Asm *)
   let asm =
     match Compiler.apply_partial
-               (Compiler.transf_nb_program (helper_functions ()) bsyntax)
+               (Compiler.transf_nb_program (helper_functions ()) lbl_error lbl_code bsyntax)
                Asmexpand.expand_program with
     | Errors.OK asm ->
         asm
