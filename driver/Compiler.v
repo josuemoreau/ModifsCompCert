@@ -175,18 +175,19 @@ Definition transf_c_program (p: Csyntax.program) : res Asm.program :=
   @@@ time "Clight generation" SimplExpr.transl_program
   @@@ transf_clight_program.
 
-Definition transf_b_program hfuncs (p: Syntax.program) : res Asm.program :=
+Definition transf_b_program hfuncs lbl_error lbl_code
+                            (p: Syntax.program) : res Asm.program :=
   OK p
    @@ print print_B
-  @@@ time "C#minor generation" (BtoCSharpMinor.transl_program hfuncs)
+  @@@ time "C#minor generation" (BtoCSharpMinor.transl_program hfuncs lbl_error lbl_code)
   @@@ time "Cminor generation" Cminorgen.transl_program
   @@@ transf_cminor_program.
 
-Definition transf_nb_program hfuncs (p: Syntax.program) : res Asm.program :=
+Definition transf_nb_program hfuncs lbl_error lbl_code (p: Syntax.program) : res Asm.program :=
   OK p
    @@ print print_NB
   @@@ time "Test generation" NBtoB.transl_program
-  @@@ (transf_b_program hfuncs).
+  @@@ (transf_b_program hfuncs lbl_error lbl_code).
 
 (** Force [Initializers] and [Cexec] to be extracted as well. *)
 
@@ -631,15 +632,16 @@ Proof.
 Qed.
 
 Theorem transf_nb_program_correct:
-  forall hfuncs p tp,
-  transf_nb_program hfuncs p = OK tp ->
+  forall hfuncs lbl_error lbl_code p tp,
+  transf_nb_program hfuncs lbl_error lbl_code p = OK tp ->
   backward_simulation (SemanticsNonBlocking.semantics p) (Asm.semantics tp).
 Proof.
-  intros hfuncs p tp T.
+  intros hfuncs lbl_error lbl_code p tp T.
   unfold transf_nb_program, time in T. rewrite ! compose_print_identity in T. simpl in T.
   destruct (NBtoB.transl_program p) as [p1|] eqn:P1; simpl in T; try discriminate.
   unfold transf_b_program, time in T. rewrite ! compose_print_identity in T. simpl in T.
-  destruct (BtoCSharpMinor.transl_program hfuncs p1) as [p2|] eqn:P2; simpl in T; try discriminate.
+  destruct (BtoCSharpMinor.transl_program hfuncs lbl_error lbl_code p1) as [p2|] eqn:P2;
+    simpl in T; try discriminate.
   destruct (Cminorgen.transl_program p2) as [p3|e] eqn:P3; simpl in T; try discriminate.
   apply compose_backward_simulation with (Cminor.semantics p3).
   eapply sd_traces; eapply Asm.semantics_determinate.
@@ -647,7 +649,7 @@ Proof.
   eapply compose_forward_simulations.
   apply NBtoBproof.transl_program_correct; eassumption.
   eapply compose_forward_simulations.
-  apply (BtoCSharpMinorproof.transl_program_correct hfuncs); eassumption.
+  apply (BtoCSharpMinorproof.transl_program_correct hfuncs lbl_error lbl_code); eassumption.
   apply Cminorgenproof.transl_program_correct. apply Cminorgenproof.transf_program_match; auto.
   apply NBfacts.semantics_receptive.
   apply Cminor.semantics_determinate.
