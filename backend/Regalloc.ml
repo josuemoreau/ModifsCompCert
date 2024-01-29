@@ -601,11 +601,33 @@ let spill_costs f =
 
 (********* Construction and coloring of the interference graph **************)
 
-let add_interfs_def g res live =
-  VSet.iter (fun v -> if v <> res then IRC.add_interf g v res) live
+let xx = ref false
 
-let add_interfs_move g src dst live =
-  VSet.iter (fun v -> if v <> src && v <> dst then IRC.add_interf g v dst) live
+let add_interfs_def g res live =
+  let open PrintXTL in
+  VSet.iter (fun v -> if v <> res then
+        (
+          Printf.printf "%a -- %a\n" var v var res;
+         IRC.add_interf g v res)) live
+
+let add_interfs_move g h src dst live =
+  let open PrintXTL in
+  VSet.iter (fun v -> if v <> src && v <> dst then
+      if not (Hashtbl.mem h v) then
+        (
+          Printf.printf "%a -- %a\n" var v var dst;
+        (* ((match dst with
+          | V (x, _) when let z = P.to_int x in z = 22 || z = 54 -> Printf.printf "%a -- %a\n" var v var dst
+          | _ -> ()); *)
+         IRC.add_interf g v dst)) live
+
+let add_interfs_move' g h src dst live =
+  let open PrintXTL in
+  VSet.iter (fun v -> if v <> src && v <> dst then
+      if Hashtbl.mem h v then
+        (
+          Printf.printf "%a -- %a\n" var v var dst;
+        IRC.add_interf g v dst)) live
 
 let add_interfs_destroyed g live mregs =
   List.iter
@@ -636,57 +658,192 @@ let rec add_interfs_pairwise g = function
   | [] -> ()
   | v1 :: vl -> add_interfs_list g v1 vl; add_interfs_pairwise g vl
 
-let add_interfs_instr g instr live =
+let new_group v = let s = Hashtbl.create 10 in Hashtbl.add s v (); s
+
+let add_weak_interfs_def g h dst live =
+  let sdst = try Hashtbl.find h dst with Not_found -> new_group dst in
+  (* Variable dst cannot be coalesced anymore with previously
+     linked variables. *)
+  Hashtbl.remove sdst dst;
+  (* dst interferes with any living variable. *)
+  add_interfs_def g dst live;
+  Hashtbl.replace h dst (new_group dst)
+
+let add_weak_interfs_move g h src dst live =
+  let ssrc = try match src with L (R _) -> new_group src
+  | _ -> Hashtbl.find h src with Not_found -> new_group src in
+  let sdst = try match dst with L (R _) -> new_group dst
+  | _ -> Hashtbl.find h dst with Not_found -> new_group dst in
+  (* Variable [dst] cannot be coalesced anymore with previously
+     linked variables. *)
+  Hashtbl.remove sdst dst;
+  (* And we add interference with previously linked variables that are
+     still alive. *)
+  add_interfs_move' g sdst src dst live;
+  (* dst must also interfere with any variable that is alive and not linked. *)
+  add_interfs_move g ssrc src dst live;
+  (* We add a link between dst and src. *)
+  (* begin match dst with L (R _) -> () | _ ->  *)
+    Hashtbl.add ssrc dst ();
+    Hashtbl.replace h dst ssrc 
+  (* end *)
+  (* begin match src with L (R _) -> () | _ -> Hashtbl.replace h src ssrc end *)
+  (* if not bdst then begin
+    (* add_interfs_move g ssrc src dst live; *)
+    Hashtbl.iter (fun v () -> Hashtbl.add ssrc v ()) sdst;
+    Hashtbl.add ssrc dst ();
+    begin match dst with L (R _) -> () | _ -> Hashtbl.replace h dst (true, ssrc) end;
+    begin match src with L (R _) -> () | _ -> Hashtbl.replace h src (bsrc, ssrc) end
+  end
+  else 
+    let s' = Hashtbl.create 10 in
+    add_interfs_move g s' src dst live;
+    begin let s = Hashtbl.create 10 in Hashtbl.add s dst ();
+    Hashtbl.replace h dst (true, s) end *)
+
+let add_weak_interfs_move2 g h src dst live =
+  (* let ssrc = try match src with L (R _) -> new_group src
+  | _ -> Hashtbl.find h src with Not_found -> new_group src in *)
+  let sdst = try match dst with L (R _) -> new_group dst
+  | _ -> Hashtbl.find h dst with Not_found -> new_group dst in
+  (* Variable [dst] cannot be coalesced anymore with previously
+     linked variables. *)
+  Hashtbl.remove sdst dst;
+  (* And we add interference with previously linked variables that are
+     still alive. *)
+  let s = new_group dst in
+  add_interfs_move g s src dst live;
+  (* dst must also interfere with any variable that is alive and not linked. *)
+  (* add_interfs_move g ssrc src dst live *)
+  Hashtbl.replace h dst s
+
+let add_weak_interfs_destroyed g h live mregs =
+  List.iter
+    (fun mr -> 
+      add_weak_interfs_def g h (L (R mr)) live;
+      VSet.iter (fun v ->
+      (* begin try let s = Hashtbl.find h v in
+            Hashtbl.remove s v;
+            Hashtbl.replace h v (Hashtbl.create 10)
+      with Not_found -> ()
+      end; *)
+      IRC.add_interf g (L (R mr)) v) live)
+    mregs
+
+let add_weak_interfs_live g h live v =
+  let sv = try Hashtbl.find h v with Not_found -> new_group v in
+  (* Variable dst cannot be coalesced anymore with previously
+     linked variables. *)
+  Hashtbl.remove sv v;
+  (* dst interferes with any living variable. *)
+  add_interfs_live g live v;
+  Hashtbl.replace h v (new_group v)
+
+let add_weak_interfs_list g h v vl =
+  let sv = try Hashtbl.find h v with Not_found -> new_group v in
+  (* Variable dst cannot be coalesced anymore with previously
+     linked variables. *)
+  Hashtbl.remove sv v;
+  (* dst interferes with any living variable. *)
+  add_interfs_list g v vl;
+  Hashtbl.replace h v (new_group v)
+
+let add_weak_interfs_list_mreg g h vl mr =
+  let sv = try Hashtbl.find h (L (R mr)) with Not_found -> new_group (L (R mr)) in
+  (* Variable dst cannot be coalesced anymore with previously
+     linked variables. *)
+  Hashtbl.remove sv (L (R mr));
+  (* dst interferes with any living variable. *)
+  add_interfs_list_mreg g vl mr;
+  Hashtbl.replace h (L (R mr)) (new_group (L (R mr)))
+
+let rec add_weak_interfs_pairwise g h = function
+  | [] -> ()
+  | v1 :: vl -> add_weak_interfs_list g h v1 vl; add_weak_interfs_pairwise g h vl
+
+let cnt = ref 0
+
+let add_interfs_instr g h instr live =
   match instr with
   | Xmove(src, dst) | Xspill(src, dst) | Xreload(src, dst) ->
       IRC.add_pref g src dst;
-      add_interfs_move g src dst live;
+      (* Hashtbl.iter (fun v _ -> Printf.printf "%a " PrintXTL.var v) h; Printf.printf "\n"; *)
+      Printf.printf "== %a\n" (fun x -> PrintXTL.print_instruction x 0) instr;
+      add_weak_interfs_move g h src dst live;
+      begin try let s = Hashtbl.find h dst in
+                Printf.printf "%a { " PrintXTL.var dst;
+                Hashtbl.iter (fun v _ -> Printf.printf "%a " PrintXTL.var v) s;
+                Printf.printf "}\n"
+      with Not_found -> Printf.printf "%a not found\n" PrintXTL.var dst end;
+      begin try let s = Hashtbl.find h src in
+                Printf.printf "%a { " PrintXTL.var src;
+                Hashtbl.iter (fun v _ -> Printf.printf "%a " PrintXTL.var v) s;
+                Printf.printf "}\n"
+      with Not_found -> Printf.printf "%a not found\n" PrintXTL.var src end;
       (* Reloads from incoming slots can occur when some 64-bit
          parameters are split and passed as two 32-bit stack locations. *)
       begin match src with
       | L(Locations.S(Incoming, _, _)) ->
-          add_interfs_def g (vmreg temp_for_parent_frame) live
+          add_weak_interfs_def g h (vmreg temp_for_parent_frame) live
       | _ -> ()
       end
   | Xparmove(srcs, dsts, itmp, ftmp) ->
       List.iter2 (IRC.add_pref g) srcs dsts;
       (* Interferences with live across *)
       let across = vset_removelist dsts live in
-      List.iter (add_interfs_live g across) dsts;
-      add_interfs_live g across itmp; add_interfs_live g across ftmp;
+      List.iter (add_weak_interfs_live g h across) dsts;
+      add_weak_interfs_live g h across itmp; add_weak_interfs_live g h across ftmp;
       (* All destinations must be pairwise different *)
-      add_interfs_pairwise g dsts;
+      add_weak_interfs_pairwise g h dsts;
       (* The temporaries must be different from sources and dests *)
-      add_interfs_list g itmp srcs; add_interfs_list g itmp dsts;
-      add_interfs_list g ftmp srcs; add_interfs_list g ftmp dsts;
+      add_weak_interfs_list g h itmp srcs; add_weak_interfs_list g h itmp dsts;
+      add_weak_interfs_list g h ftmp srcs; add_weak_interfs_list g h ftmp dsts;
       (* Take into account destroyed reg when accessing Incoming param *)
       if List.exists (function (L(Locations.S(Incoming, _, _))) -> true | _ -> false) srcs
       then begin
-         add_interfs_list g (vmreg temp_for_parent_frame) dsts;
-         add_interfs_live g across (vmreg temp_for_parent_frame)
+         add_weak_interfs_list g h (vmreg temp_for_parent_frame) dsts;
+         add_weak_interfs_live g h across (vmreg temp_for_parent_frame)
       end
   | Xop(op, args, res) ->
+      (* Printf.printf "== %a\n" (fun x -> PrintXTL.print_instruction x 0) instr; *)
+      (* incr cnt; *)
+      (* Printf.printf "=== (%d) %a :\n%!" !cnt (fun pp -> PrintXTL.print_instruction pp 0) instr; *)
+      Printf.printf "== %a\n" (fun x -> PrintXTL.print_instruction x 0) instr;
       begin match is_two_address op args with
       | None ->
-          add_interfs_def g res live
+          add_weak_interfs_def g h res live
       | Some(arg1, argl) ->
           (* Treat as "res := arg1; res := op(res, argl)" *)
-          add_interfs_def g res live;
+          add_weak_interfs_def g h res live;
           IRC.add_pref g arg1 res;
-          add_interfs_move g arg1 res
+          add_weak_interfs_move2 g h arg1 res
             (vset_addlist (res :: argl) (VSet.remove res live))
       end;
-      add_interfs_destroyed g (VSet.remove res live) (destroyed_by_op op)
+      add_weak_interfs_destroyed g h (VSet.remove res live) (destroyed_by_op op);
+      begin try let s = Hashtbl.find h res in
+                Printf.printf "%a { " PrintXTL.var res;
+                Hashtbl.iter (fun v _ -> Printf.printf "%a " PrintXTL.var v) s;
+                Printf.printf "}\n"
+      with Not_found -> Printf.printf "%a not found\n" PrintXTL.var res end
   | Xload(chunk, addr, args, dst) ->
-      add_interfs_def g dst live;
-      add_interfs_destroyed g (VSet.remove dst live)
-                              (destroyed_by_load chunk addr)
+      (* xx := true; *)
+      add_weak_interfs_def g h dst live;
+      add_weak_interfs_destroyed g h (VSet.remove dst live)
+                              (destroyed_by_load chunk addr); xx := false
   | Xstore(chunk, addr, args, src) ->
-      add_interfs_destroyed g live (destroyed_by_store chunk addr)
+      add_weak_interfs_destroyed g h live (destroyed_by_store chunk addr)
   | Xcall(sg, vos, args, res) ->
       begin match vos with
       | Coq_inl v ->  List.iter (fun r -> IRC.add_interf g (vmreg r) v) destroyed_at_indirect_call
       | _ -> () end;
+      (* Result variables must be removed from any list of link between
+         variables. *)
+      let live' = vset_removelist res live in
+      List.iter (fun v -> add_weak_interfs_def g h v live') res;
+          (* try let s = Hashtbl.find h v in
+              Hashtbl.remove s v;
+              Hashtbl.replace h v (Hashtbl.create 10) *)
+          (* with Not_found -> ()) res; *)
       add_interfs_caller_save g (vset_removelist res live)
   | Xtailcall(sg, Coq_inl v, args) ->
       List.iter (fun r -> IRC.add_interf g (vmreg r) v) (int_callee_save_regs @ destroyed_at_indirect_call)
@@ -696,10 +853,10 @@ let add_interfs_instr g instr live =
       (* Interferences with live across *)
       let across = vset_removeres res live in
       let vres = params_of_builtin_res res in
-      List.iter (add_interfs_live g across) vres;
+      List.iter (add_weak_interfs_live g h across) vres;
       (* All results must be pairwise different *)
-      add_interfs_pairwise g vres;
-      add_interfs_destroyed g across (destroyed_by_builtin ef);
+      add_weak_interfs_pairwise g h vres;
+      add_weak_interfs_destroyed g h across (destroyed_by_builtin ef);
       begin match ef, args, res with
       | EF_annot_val _, [BA arg], BR res ->
           (* like a move *)
@@ -711,34 +868,105 @@ let add_interfs_instr g instr live =
             match Machregs.register_by_name c with
             | None -> ()
             | Some mr ->
-                add_interfs_list_mreg g vargs mr;
-                add_interfs_list_mreg g vres mr)
+                add_weak_interfs_list_mreg g h vargs mr;
+                add_weak_interfs_list_mreg g h vres mr)
             clob
       | _ -> ()
       end
   | Xbranch s ->
       ()
   | Xcond(cond, args, s1, s2) ->
-      add_interfs_destroyed g live (destroyed_by_cond cond)
+      add_weak_interfs_destroyed g h live (destroyed_by_cond cond)
   | Xjumptable(arg, tbl) ->
-      add_interfs_destroyed g live destroyed_by_jumptable
+      add_weak_interfs_destroyed g h live destroyed_by_jumptable
   | Xreturn optarg ->
       ()
 
-let rec add_interfs_block g blk live =
+let rec add_interfs_block g h blk live =
   match blk with
-  | [] -> live
+  | [] -> ()
   | instr :: blk' ->
-      let live' = add_interfs_block g blk' live in
-      add_interfs_instr g instr live';
-      live_before instr live'
+      let live' = live_before_block blk' live in
+      add_interfs_instr g h instr live';
+      add_interfs_block g h blk' live
+      
+      (* live_before instr live' *)
+
+(* let iter' f m =
+  let open P in
+  let q = Queue.create () in
+  Queue.push (Coq_xH, m) q;
+  while not (Queue.is_empty q) do
+    let i, m = Queue.pop q in
+    match m with
+    | PTree.Node001 r -> 
+      Printf.printf "push %d\n" (P.to_int (PTree.prev (Coq_xI i)));
+      Queue.push (Coq_xI i, r) q
+    | PTree.Node010 x ->
+      f (PTree.prev i) x
+    | PTree.Node011 (x, r) -> 
+      f (PTree.prev i) x;
+      Printf.printf "push %d\n" (P.to_int (PTree.prev (Coq_xI i)));
+      Queue.push (Coq_xI i, r) q
+    | PTree.Node100 l ->
+      Printf.printf "push %d\n" (P.to_int (PTree.prev (Coq_xO i)));
+      Queue.push (Coq_xO i, l) q
+    | PTree.Node101 (l, r) ->
+      Printf.printf "push %d\n" (P.to_int (PTree.prev (Coq_xO i)));
+      Queue.push (Coq_xO i, l) q;
+      Printf.printf "push %d\n" (P.to_int (PTree.prev (Coq_xI i)));
+      Queue.push (Coq_xI i, r) q
+    | PTree.Node110 (l, x) -> 
+      f (PTree.prev i) x;
+      Printf.printf "push %d\n" (P.to_int (PTree.prev (Coq_xO i)));
+      Queue.push (Coq_xO i, l) q
+    | PTree.Node111 (l, x, r) ->
+      f (PTree.prev i) x;
+      Printf.printf "push %d\n" (P.to_int (PTree.prev (Coq_xO i)));
+      Queue.push (Coq_xO i, l) q;
+      Printf.printf "push %d\n" (P.to_int (PTree.prev (Coq_xI i)));
+      Queue.push (Coq_xI i, r) q
+  done
+
+let iter f m =
+  match m with
+  | PTree.Empty -> ()
+  | PTree.Nodes m' -> iter' f m' *)
+
+let iter f m =
+  let elts = PTree.elements m in
+  let n = List.fold_left (fun m (x, _) -> 
+    let x = P.to_int x in
+    if x > m then x else m) 1 elts in
+  (* Printf.printf "%d elements in list\n" n;
+  List.iter (fun (p, _) -> Printf.printf "%d " (P.to_int p)) elts;
+  Printf.printf "\n"; *)
+  let t = Array.make n (P.one, []) in
+  List.iter (fun (p, l) -> t.(n - P.to_int p) <- (p, l)) elts;
+  Array.iter (fun (p, l) -> f p l) t
+  (* for i = 1 to n do
+    let (p, l) = t.(i) in
+    f p l
+  done *)
 
 let find_coloring f liveness =
   (*type_function f;  (* for debugging *)*)
   let g = IRC.init (spill_costs f) in
-  PTree.fold
-    (fun () pc blk -> ignore (add_interfs_block g blk (PMap.get pc liveness)))
-    f.fn_code ();
+  let h = Hashtbl.create 1000 in
+
+  (* let t = List.fold_left (fun t n -> PTree.set (P.of_int n) () t) PTree.empty
+    [1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16] in *)
+
+  (* iter (fun pc blk -> Printf.printf "%d\n" (P.to_int pc)) f.fn_code; *)
+  (* let elts = PTree.elements f.fn_code in
+  let elts = List.sort (fun (k1, _) (k2, _) -> P.compare k1 k2) elts in *)
+  (* List.iter (fun (pc, blk) -> ignore (add_interfs_block g h blk (PMap.get pc
+  liveness))) elts; *)
+  iter
+    (fun pc blk -> 
+      (* Printf.printf "%d: %a\n" (P.to_int pc) (fun x -> PrintXTL.print_instructions x 0) blk; *)
+      ignore (add_interfs_block g h blk (PMap.get pc liveness)))
+    f.fn_code;
   add_interfs_destroyed g
     (transfer_live f f.fn_entrypoint (PMap.get f.fn_entrypoint liveness))
     destroyed_at_function_entry;
