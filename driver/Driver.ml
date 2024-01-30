@@ -157,6 +157,16 @@ let parse_b_file (ifile: string) : Syntax.program =
       { AST.sig_args = [];
         AST.sig_res = AST.Tvoid;
         AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "calloc",
+      AST.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "calloc",
+      { AST.sig_args = [AST.Tlong; AST.Tlong];
+        AST.sig_res = AST.Tret AST.Tlong;
+        AST.sig_cc = AST.cc_default}));
+    Camlcoq.intern_string "free",
+      AST.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "free",
+      { AST.sig_args = [AST.Tlong];
+        AST.sig_res = AST.Tvoid;
+        AST.sig_cc = AST.cc_default}));
 ]
 
 let compile_b_file (sourcename: string) (ofile: string) =
