@@ -604,29 +604,29 @@ let spill_costs f =
 let xx = ref false
 
 let add_interfs_def g res live =
-  let open PrintXTL in
+  (* let open PrintXTL in *)
   VSet.iter (fun v -> if v <> res then
         (
-          Printf.printf "%a -- %a\n" var v var res;
+          (* Printf.printf "%a -- %a\n" var v var res; *)
          IRC.add_interf g v res)) live
 
 let add_interfs_move g h src dst live =
-  let open PrintXTL in
+  (* let open PrintXTL in *)
   VSet.iter (fun v -> if v <> src && v <> dst then
       if not (Hashtbl.mem h v) then
         (
-          Printf.printf "%a -- %a\n" var v var dst;
+          (* Printf.printf "%a -- %a\n" var v var dst; *)
         (* ((match dst with
           | V (x, _) when let z = P.to_int x in z = 22 || z = 54 -> Printf.printf "%a -- %a\n" var v var dst
           | _ -> ()); *)
          IRC.add_interf g v dst)) live
 
 let add_interfs_move' g h src dst live =
-  let open PrintXTL in
+  (* let open PrintXTL in *)
   VSet.iter (fun v -> if v <> src && v <> dst then
       if Hashtbl.mem h v then
         (
-          Printf.printf "%a -- %a\n" var v var dst;
+          (* Printf.printf "%a -- %a\n" var v var dst; *)
         IRC.add_interf g v dst)) live
 
 let add_interfs_destroyed g live mregs =
@@ -768,9 +768,9 @@ let add_interfs_instr g h instr live =
   | Xmove(src, dst) | Xspill(src, dst) | Xreload(src, dst) ->
       IRC.add_pref g src dst;
       (* Hashtbl.iter (fun v _ -> Printf.printf "%a " PrintXTL.var v) h; Printf.printf "\n"; *)
-      Printf.printf "== %a\n" (fun x -> PrintXTL.print_instruction x 0) instr;
+      (* Printf.printf "== %a\n" (fun x -> PrintXTL.print_instruction x 0) instr; *)
       add_weak_interfs_move g h src dst live;
-      begin try let s = Hashtbl.find h dst in
+      (* begin try let s = Hashtbl.find h dst in
                 Printf.printf "%a { " PrintXTL.var dst;
                 Hashtbl.iter (fun v _ -> Printf.printf "%a " PrintXTL.var v) s;
                 Printf.printf "}\n"
@@ -779,7 +779,7 @@ let add_interfs_instr g h instr live =
                 Printf.printf "%a { " PrintXTL.var src;
                 Hashtbl.iter (fun v _ -> Printf.printf "%a " PrintXTL.var v) s;
                 Printf.printf "}\n"
-      with Not_found -> Printf.printf "%a not found\n" PrintXTL.var src end;
+      with Not_found -> Printf.printf "%a not found\n" PrintXTL.var src end; *)
       (* Reloads from incoming slots can occur when some 64-bit
          parameters are split and passed as two 32-bit stack locations. *)
       begin match src with
@@ -808,7 +808,7 @@ let add_interfs_instr g h instr live =
       (* Printf.printf "== %a\n" (fun x -> PrintXTL.print_instruction x 0) instr; *)
       (* incr cnt; *)
       (* Printf.printf "=== (%d) %a :\n%!" !cnt (fun pp -> PrintXTL.print_instruction pp 0) instr; *)
-      Printf.printf "== %a\n" (fun x -> PrintXTL.print_instruction x 0) instr;
+      (* Printf.printf "== %a\n" (fun x -> PrintXTL.print_instruction x 0) instr; *)
       begin match is_two_address op args with
       | None ->
           add_weak_interfs_def g h res live
@@ -820,11 +820,11 @@ let add_interfs_instr g h instr live =
             (vset_addlist (res :: argl) (VSet.remove res live))
       end;
       add_weak_interfs_destroyed g h (VSet.remove res live) (destroyed_by_op op);
-      begin try let s = Hashtbl.find h res in
+      (* begin try let s = Hashtbl.find h res in
                 Printf.printf "%a { " PrintXTL.var res;
                 Hashtbl.iter (fun v _ -> Printf.printf "%a " PrintXTL.var v) s;
                 Printf.printf "}\n"
-      with Not_found -> Printf.printf "%a not found\n" PrintXTL.var res end
+      with Not_found -> Printf.printf "%a not found\n" PrintXTL.var res end *)
   | Xload(chunk, addr, args, dst) ->
       (* xx := true; *)
       add_weak_interfs_def g h dst live;
