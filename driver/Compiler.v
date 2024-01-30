@@ -53,7 +53,7 @@ Require Debugvar.
 Require Stacking.
 Require Asmgen.
 (** Proof of type safety *)
-Require Safety.
+(* Require Safety. *)
 (** Proofs of semantic preservation. *)
 Require NBtoBproof.
 Require BtoCSharpMinorproof.
