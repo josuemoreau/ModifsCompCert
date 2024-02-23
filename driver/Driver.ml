@@ -180,6 +180,7 @@ let compile_b_file (sourcename: string) (ofile: string) =
   set_dest PrintB.destination option_db ".b";
   set_dest PrintB.nb_destination option_dnb ".nb";
   set_dest PrintB.nbut_destination option_dnbut ".nbut";
+  set_dest PrintBtoC.destination option_dbc ".c";
   set_dest PrintCminor.destination option_dcminor ".cm";
   set_dest PrintRTL.destination option_drtl ".rtl";
   set_dest Regalloc.destination_alloctrace option_dalloctrace ".alloctrace";
@@ -412,6 +413,7 @@ Code generation options: (use -fno-<opt> to turn off -f<opt>)
   -dnbut         Save parsed NB file before type checking in <file>.nb
   -dnb           Save parsed NB file in <file>.nb
   -db            Save generated B in <file>.b
+  -dbc           Save generated C from B program in <file>.c
   -dclight       Save generated Clight in <file>.light.c
   -dcminor       Save generated Cminor in <file>.cm
   -drtl          Save RTL at various optimization points in <file>.rtl.<n>
@@ -524,6 +526,7 @@ let cmdline_actions =
   Exact "-dc", Set option_dcmedium;
   Exact "-db", Set option_db;
   Exact "-dnb", Set option_dnb;
+  Exact "-dbc", Set option_dbc;
   Exact "-dnbut", Set option_dnbut;
   Exact "-dclight", Set option_dclight;
   Exact "-dcminor", Set option_dcminor;
