@@ -119,6 +119,7 @@ Extract Constant Compopts.debug =>
 (* Compiler *)
 Extract Constant Compiler.print_B => "PrintB.print_if".
 Extract Constant Compiler.print_NB => "PrintB.print_nb_if".
+Extract Constant Compiler.print_B_to_C => "PrintBtoC.print_if".
 Extract Constant BPrinters.string_of_type =>
   "fun x -> Camlcoq.coqstring_of_camlstring (PrintB.string_of_type x)".
 Extract Constant BPrinters.string_of_ident =>

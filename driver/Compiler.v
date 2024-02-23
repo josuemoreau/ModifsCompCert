@@ -83,6 +83,7 @@ Require Import Compopts.
 (** Pretty-printers (defined in Caml). *)
 Parameter print_B: Syntax.program -> unit.
 Parameter print_NB: Syntax.program -> unit.
+Parameter print_B_to_C: Syntax.program -> unit.
 Parameter print_Clight: Clight.program -> unit.
 Parameter print_Cminor: Cminor.program -> unit.
 Parameter print_RTL: Z -> RTL.program -> unit.
@@ -187,6 +188,7 @@ Definition transf_nb_program hfuncs lbl_error lbl_code (p: Syntax.program) : res
   OK p
    @@ print print_NB
   @@@ time "Test generation" NBtoB.transl_program
+   @@ print print_B_to_C
   @@@ (transf_b_program hfuncs lbl_error lbl_code).
 
 (** Force [Initializers] and [Cexec] to be extracted as well. *)
