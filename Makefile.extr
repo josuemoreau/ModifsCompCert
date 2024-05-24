@@ -18,6 +18,8 @@
 
 include Makefile.config
 
+include bfrontend/Makefile
+
 #
 # Variables from Makefile.config:
 # -OCAML_NATIVE_COMP: native-code compilation is supported
@@ -84,7 +86,7 @@ OCAMLLEX=ocamllex -q
 MODORDER=tools/modorder .depend.extr
 COPY=cp
 
-PARSERS=cparser/pre_parser.mly bfrontend/parser/bparser.mly
+PARSERS=cparser/pre_parser.mly
 LEXERS=cparser/Lexer.mll lib/Tokenize.mll \
 	     lib/Readconfig.mll lib/Responsefile.mll \
 		 bfrontend/parser/blexer.mll
@@ -93,7 +95,8 @@ LIBS=str.cmxa unix.cmxa $(MENHIR_LIBS)
 LIBS_BYTE=$(patsubst %.cmxa,%.cma,$(patsubst %.cmx,%.cmo,$(LIBS)))
 
 EXECUTABLES=ccomp ccomp.byte cchecklink cchecklink.byte clightgen clightgen.byte
-GENERATED=$(PARSERS:.mly=.mli) $(PARSERS:.mly=.ml) $(LEXERS:.mll=.ml) cparser/pre_parser_messages.ml
+GENERATED=$(PARSERS:.mly=.mli) $(PARSERS:.mly=.ml) $(LEXERS:.mll=.ml) cparser/pre_parser_messages.ml \
+          $(BPARSER:.mly=.mli) $(BPARSER:.mly=.ml)
 
 # Beginning of part that assumes .depend.extr already exists
 
