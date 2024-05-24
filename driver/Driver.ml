@@ -46,18 +46,79 @@ let fresh_ident () =
 let b_error_msg (s: string) : Errors.errcode =
   Errors.MSG (Camlcoq.coqstring_of_camlstring s)
 
-let parse_b_file (ifile: string) : Syntax.program =
-  let c = open_in ifile in
+module E = MenhirLib.ErrorReports
+module L = MenhirLib.LexerUtil
+
+module I = Bparser.MenhirInterpreter
+
+let env checkpoint =
+  match checkpoint with
+  | I.HandlingError env ->
+      env
+  | _ ->
+      assert false
+
+let show text positions =
+  E.extract text positions
+  |> E.sanitize
+  |> E.compress
+  |> E.shorten 20
+
+let get text checkpoint i =
+  match I.get i (env checkpoint) with
+  | Some (I.Element (_, _, pos1, pos2)) ->
+      show text (pos1, pos2)
+  | None -> "???"
+let string_of_terminal: type a. a I.terminal -> string =
+    fun t ->
+  match t with
+  | I.T_error -> "error"
+  | I.T_XOR -> "xor"
+  | _ -> "not implemented yet"
+
+let expected_tokens text checkpoint =
+  match I.top (env checkpoint) with
+  | Some (I.Element (state, _, _, _)) ->
+      let n = I.current_state_number (env checkpoint) in
+      let items = I.items state in
+      let items = List.map (fun (p, i) -> List.nth (I.rhs p) (i - 1)) items in
+      List.iter (fun l ->
+                  match l with
+                  | I.X (I.T t) -> eprintf "%s\n%!" (string_of_terminal t)
+                  | I.X (I.N _) -> eprintf "non-terminal\n%!") items;
+      sprintf "State %d has %d items.\n" n 0
+  | None -> "???"
+
+let succeed _v = assert false
+
+let fail ifile text lexbuf buffer (checkpoint : _ I.checkpoint) =
+  let location =
+       L.range (E.last buffer)
+    |> String.split_on_char ','
+    |> List.tl
+    |> List.map (fun s -> String.sub s 1 (String.length s - 1))
+    |> String.concat ", " in
+  let indication = sprintf "Syntax error %s.\n" (E.show (show text) buffer) in
+  let exp = expected_tokens text checkpoint in
+  let loc = file_loc ifile in
+  error loc "%s%s%s" location indication exp
+
+let bparse ifile =
+  let text, lb = L.read ifile in
   Berror.set_filename ifile;
-  let lb = Lexing.from_channel c in
-  let p = try Bparser.prog Blexer.token lb
-  with Bparser.Error ->
-    let loc = file_loc ifile in
-    let open Lexing in
-    let pos = lb.lex_curr_p in
-    fatal_error loc "Syntax Error: line %d, column %d"
-                    pos.pos_lnum (pos.pos_cnum - pos.pos_bol) in
-  close_in c;
+  match Bparser.prog Blexer.token lb with
+  | p -> p
+  | exception Bparser.Error ->
+    let lexbuf = L.init ifile (Lexing.from_string text) in
+    let supplier = I.lexer_lexbuf_to_supplier Blexer.token lexbuf in
+    let buffer, supplier = E.wrap_supplier supplier in
+    let checkpoint = Bparser.Incremental.prog lexbuf.Lexing.lex_curr_p in
+    I.loop_handle succeed (fail ifile text lexbuf buffer) supplier checkpoint;
+    error_summary ();
+    exit 1
+
+let parse_b_file (ifile: string) : Syntax.program =
+  let p = bparse ifile in
   let p = ParsedToNB.transl_program p in
   PrintB.print_nbut_if p;
   match Typing.type_program p with
