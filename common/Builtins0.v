@@ -400,6 +400,7 @@ Definition standard_builtin_table : list (string * standard_builtin) :=
  :: ("__builtin_bswap", BI_i32_bswap)
  :: ("__builtin_bswap32", BI_i32_bswap)
  :: ("__builtin_bswap64", BI_i64_bswap)
+ :: ("__builtin_umulh64", BI_i64_umulh)
  :: ("__builtin_unreachable", BI_unreachable)
  :: ("__compcert_i64_umulh", BI_i64_umulh)
  :: ("__compcert_i64_smulh", BI_i64_smulh)

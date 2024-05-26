@@ -238,6 +238,8 @@ Definition mregs_for_builtin (ef: external_function): list (option mreg) * list 
        (Some DX :: Some AX :: Some CX :: Some BX :: nil, Some DX :: Some AX :: nil)
      else if string_dec name "__builtin_mull" then
        (Some AX :: Some DX :: nil, Some DX :: Some AX :: nil)
+     else if string_dec name "__builtin_umulh64" then
+       (Some AX :: Some DX :: nil, Some DX :: Some AX :: nil)
      else if string_dec name "__builtin_va_start" then
        (Some DX :: nil, nil)
      else if (negb Archi.ptr64) && string_dec name "__builtin_bswap64" then

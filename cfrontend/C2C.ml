@@ -193,6 +193,8 @@ let builtins_generic = {
       (TInt(IInt, []), [TInt(IULong, [])], false);
     "__builtin_ctzll",
       (TInt(IInt, []), [TInt(IULongLong, [])], false);
+    "__builtin_umulh64",
+      (TInt(IULongLong, []), [TInt(IULongLong, []); TInt(IULongLong, [])], false);
     (* Floating-point absolute value *)
     "__builtin_fabs",
     (TFloat(FDouble, []), [TFloat(FDouble, [])], false);

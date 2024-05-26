@@ -451,6 +451,11 @@ let expand_builtin_inline name args res =
                       BR_splitlong(BR(IR rh), BR(IR rl)) ->
      assert (a = RAX && b = RDX && rh = RDX && rl = RAX);
      emit (Pmull_r RDX)
+  | "__builtin_umulh64", [BA(IR a); BA(IR b)], BR (IR res) ->
+     assert (a = RAX);
+     emit (Pmulq_r b);
+     if res <> RDX then
+       emit (Pmov_rr (res, RDX))
   (* Memory accesses *)
   | "__builtin_read16_reversed", [BA(IR a1)], BR(IR res) ->
      emit (Pmovzw_rm (res, linear_addr a1 _0));
