@@ -46,79 +46,8 @@ let fresh_ident () =
 let b_error_msg (s: string) : Errors.errcode =
   Errors.MSG (Camlcoq.coqstring_of_camlstring s)
 
-module E = MenhirLib.ErrorReports
-module L = MenhirLib.LexerUtil
-
-module I = Bparser.MenhirInterpreter
-
-let env checkpoint =
-  match checkpoint with
-  | I.HandlingError env ->
-      env
-  | _ ->
-      assert false
-
-let show text positions =
-  E.extract text positions
-  |> E.sanitize
-  |> E.compress
-  |> E.shorten 20
-
-let get text checkpoint i =
-  match I.get i (env checkpoint) with
-  | Some (I.Element (_, _, pos1, pos2)) ->
-      show text (pos1, pos2)
-  | None -> "???"
-let string_of_terminal: type a. a I.terminal -> string =
-    fun t ->
-  match t with
-  | I.T_error -> "error"
-  | I.T_XOR -> "xor"
-  | _ -> "not implemented yet"
-
-let expected_tokens text checkpoint =
-  match I.top (env checkpoint) with
-  | Some (I.Element (state, _, _, _)) ->
-      let n = I.current_state_number (env checkpoint) in
-      let items = I.items state in
-      let items = List.map (fun (p, i) -> List.nth (I.rhs p) (i - 1)) items in
-      List.iter (fun l ->
-                  match l with
-                  | I.X (I.T t) -> eprintf "%s\n%!" (string_of_terminal t)
-                  | I.X (I.N _) -> eprintf "non-terminal\n%!") items;
-      sprintf "State %d has %d items.\n" n 0
-  | None -> "???"
-
-let succeed _v = assert false
-
-let fail ifile text lexbuf buffer (checkpoint : _ I.checkpoint) =
-  let location =
-       L.range (E.last buffer)
-    |> String.split_on_char ','
-    |> List.tl
-    |> List.map (fun s -> String.sub s 1 (String.length s - 1))
-    |> String.concat ", " in
-  let indication = sprintf "Syntax error %s.\n" (E.show (show text) buffer) in
-  let exp = expected_tokens text checkpoint in
-  let loc = file_loc ifile in
-  error loc "%s%s%s" location indication exp
-
-let bparse ifile =
-  let text, lb = L.read ifile in
-  Berror.set_filename ifile;
-  match Bparser.prog Blexer.token lb with
-  | p -> p
-  | exception Bparser.Error ->
-    let lexbuf = L.init ifile (Lexing.from_string text) in
-    let supplier = I.lexer_lexbuf_to_supplier Blexer.token lexbuf in
-    let buffer, supplier = E.wrap_supplier supplier in
-    let checkpoint = Bparser.Incremental.prog lexbuf.Lexing.lex_curr_p in
-    I.loop_handle succeed (fail ifile text lexbuf buffer) supplier checkpoint;
-    error_summary ();
-    exit 1
-
 let parse_b_file (ifile: string) : Syntax.program =
-  let p = bparse ifile in
+  let p = ParserWithErrors.parse ifile in
   let p = ParsedToNB.transl_program p in
   PrintB.print_nbut_if p;
   match Typing.type_program p with
@@ -126,109 +55,6 @@ let parse_b_file (ifile: string) : Syntax.program =
   | Errors.Error msg ->
     let loc = file_loc ifile in
     fatal_error loc "%a"  print_error msg
-
-  let helper_functions () = [
-    Camlcoq.intern_string "__compcert_i64_dtos",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_dtos",
-      { AST.sig_args = [AST.Tfloat];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_dtou",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_dtou", 
-      { AST.sig_args = [AST.Tfloat];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_stod",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_stod", 
-      { AST.sig_args = [AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tfloat);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_utod",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_utod", 
-      { AST.sig_args = [AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tfloat);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_stof",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_stof", 
-      { AST.sig_args = [AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tsingle);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_utof",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_utof", 
-      { AST.sig_args = [AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tsingle);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_ftos",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_ftos",
-      { AST.sig_args = [AST.Tsingle];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_ftou",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_ftou",
-      { AST.sig_args = [AST.Tsingle];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_sdiv",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_sdiv",
-      { AST.sig_args = [AST.Tlong; AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_udiv",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_udiv", 
-      { AST.sig_args = [AST.Tlong; AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_smod",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_smod", 
-      { AST.sig_args = [AST.Tlong; AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_umod",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_umod", 
-      { AST.sig_args = [AST.Tlong; AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_shl",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_shl", 
-      { AST.sig_args = [AST.Tlong; AST.Tint];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_shr",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_shr", 
-      { AST.sig_args = [AST.Tlong; AST.Tint];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_sar",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_sar", 
-      { AST.sig_args = [AST.Tlong; AST.Tint];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_smulh",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_smulh", 
-      { AST.sig_args = [AST.Tlong; AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "__compcert_i64_umulh",
-      AST.External (AST.EF_runtime (Camlcoq.coqstring_of_camlstring "__compcert_i64_umulh", 
-      { AST.sig_args = [AST.Tlong; AST.Tlong];
-        AST.sig_res = AST.Tret (AST.Tlong);
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "abort",
-      AST.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "abort",
-      { AST.sig_args = [];
-        AST.sig_res = AST.Tvoid;
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "calloc",
-      AST.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "calloc",
-      { AST.sig_args = [AST.Tlong; AST.Tlong];
-        AST.sig_res = AST.Tret AST.Tlong;
-        AST.sig_cc = AST.cc_default}));
-    Camlcoq.intern_string "free",
-      AST.External (AST.EF_external (Camlcoq.coqstring_of_camlstring "free",
-      { AST.sig_args = [AST.Tlong];
-        AST.sig_res = AST.Tvoid;
-        AST.sig_cc = AST.cc_default}));
-]
 
 let compile_b_file (sourcename: string) (ofile: string) =
   Debug.init_compile_unit sourcename;
@@ -256,7 +82,8 @@ let compile_b_file (sourcename: string) (ofile: string) =
   (* Convert to Asm *)
   let asm =
     match Compiler.apply_partial
-               (Compiler.transf_nb_program (helper_functions ()) lbl_error lbl_code bsyntax)
+               (Compiler.transf_nb_program
+                  (ParserMisc.helper_functions ()) lbl_error lbl_code bsyntax)
                Asmexpand.expand_program with
     | Errors.OK asm ->
         asm
