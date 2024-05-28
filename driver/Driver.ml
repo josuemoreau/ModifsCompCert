@@ -48,6 +48,12 @@ let b_error_msg (s: string) : Errors.errcode =
 
 let parse_b_file (ifile: string) : Syntax.program =
   let p = ParserWithErrors.parse ifile in
+  let builtins =
+    List.map (fun (name, ef) ->
+        (Camlcoq.intern_string name, ef)
+      ) (ParserMisc.builtins ())
+  in
+  let p = { p with Bast.builtins = builtins } in
   let p = ParsedToNB.transl_program p in
   PrintB.print_nbut_if p;
   match Typing.type_program p with
