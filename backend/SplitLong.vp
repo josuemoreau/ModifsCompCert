@@ -265,6 +265,17 @@ Definition mullhu (e1: expr) (n2: int64) :=
 Definition mullhs (e1: expr) (n2: int64) :=
   Eexternal i64_smulh sig_ll_l (e1 ::: longconst n2 ::: Enil).
 
+Definition mullhu_base (e1: expr) (e2: expr) :=
+  Eexternal i64_umulh sig_ll_l (e1 ::: e2 ::: Enil).
+
+Definition mullhu' (e1: expr) (e2: expr) :=
+  match is_longconst e1, is_longconst e2 with
+  | Some n1, Some n2 => longconst (Int64.mulhu n1 n2)
+  | Some n1, _ => mullhu e2 n1
+  | _, Some n2 => mullhu e1 n2
+  | _, _ => mullhu_base e1 e2
+  end.
+
 Definition shrxlimm (e: expr) (n: int) :=
   if Int.eq n Int.zero then e else
     Elet e (shrlimm (addl (Eletvar O)
