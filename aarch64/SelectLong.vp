@@ -240,6 +240,9 @@ Nondetfunction mull (e1: expr) (e2: expr) :=
 Definition mullhs (e1: expr) (n2: int64) :=
   Eop Omullhs (e1 ::: longconst n2 ::: Enil).
 
+Definition mullhu' (e1: expr) (e2: expr) :=
+  Eop Omullhu (e1 ::: e2 ::: Enil).
+
 Definition mullhu (e1: expr) (n2: int64) :=
   Eop Omullhu (e1 ::: longconst n2 ::: Enil).
 

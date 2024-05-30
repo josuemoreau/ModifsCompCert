@@ -865,6 +865,11 @@ Proof.
   intros; unfold mul. decEq. ring.
 Qed.
 
+Theorem mulhu_commut: forall x y, mulhu x y = mulhu y x.
+Proof.
+  intros; unfold mulhu. do 2 decEq. ring.
+Qed.
+
 Theorem mul_zero: forall x, mul x zero = zero.
 Proof.
   intros; unfold mul. rewrite unsigned_zero.

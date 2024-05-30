@@ -831,6 +831,30 @@ Proof.
   eapply eval_helper_2; eauto. apply eval_longconst. DeclHelper. reflexivity. reflexivity.
 Qed.
 
+Lemma eval_mullhu_base: binary_constructor_sound mullhu_base Val.mullhu.
+Proof.
+  unfold mullhu_base; red; intros. econstructor; split; eauto.
+  eapply eval_helper_2; eauto. DeclHelper. reflexivity. reflexivity.
+Qed.
+
+Theorem eval_mullhu': binary_constructor_sound mullhu' Val.mullhu.
+Proof.
+  unfold mullhu'; red; intros.
+  destruct (is_longconst a) as [p|] eqn:LC1;
+  destruct (is_longconst b) as [q|] eqn:LC2.
+- exploit (is_longconst_sound le a); eauto. intros EQ; subst x.
+  exploit (is_longconst_sound le b); eauto. intros EQ; subst y.
+  econstructor; split. apply eval_longconst. simpl; auto.
+- exploit (is_longconst_sound le a); eauto. intros EQ; subst x.
+  replace (Val.mullhu (Vlong p) y) with (Val.mullhu y (Vlong p)) in *.
+  eapply eval_mullhu; eauto.
+  destruct y; simpl; auto.
+  rewrite Int64.mulhu_commut; auto.
+- exploit (is_longconst_sound le b); eauto. intros EQ; subst y.
+  eapply eval_mullhu; eauto.
+- apply eval_mullhu_base; auto.
+Qed.
+
 Theorem eval_shrxlimm:
   forall le a n x z,
   Archi.ptr64 = false ->

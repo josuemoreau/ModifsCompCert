@@ -267,6 +267,10 @@ Definition mullhu (e1: expr) (n2: int64) :=
   if Archi.splitlong then SplitLong.mullhu e1 n2 else
   Eop Omullhu (e1 ::: longconst n2 ::: Enil).
 
+Definition mullhu' (e1: expr) (e2: expr) :=
+  if Archi.splitlong then SplitLong.mullhu' e1 e2 else
+  Eop Omullhu (e1 ::: e2 ::: Enil).
+
 Definition mullhs (e1: expr) (n2: int64) :=
   if Archi.splitlong then SplitLong.mullhs e1 n2 else
   Eop Omullhs (e1 ::: longconst n2 ::: Enil).

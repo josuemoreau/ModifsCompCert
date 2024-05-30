@@ -433,6 +433,12 @@ Proof.
   red; intros. TrivialExists. constructor. eauto. constructor. apply eval_longconst. constructor. auto.
 Qed.
 
+Theorem eval_mullhu': binary_constructor_sound mullhu' Val.mullhu.
+Proof.
+  unfold mullhu'; intros. destruct Archi.splitlong eqn:SL. apply SplitLongproof.eval_mullhu'; auto.
+  red; intros. TrivialExists.
+Qed.
+
 Theorem eval_mullhs:
   forall n, unary_constructor_sound (fun a => mullhs a n) (fun v => Val.mullhs v (Vlong n)).
 Proof.
